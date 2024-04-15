@@ -1,0 +1,281 @@
+/**
+* If not stated otherwise in this file or this component's LICENSE
+* file the following copyright and licenses apply:
+*
+* Copyright 2024 RDK Management
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
+#include "linuxinput.h"
+#include "logger.h"
+#include "rdkwindowmanagerjson.h"
+#include "inputdevicetypes.h"
+#include <iostream>
+#include <iomanip>
+#include <algorithm>
+#include <iterator>
+
+namespace RdkWindowManager
+{
+    std::vector<LinuxInputDevice> gRdkWindowManagerInputDevices;
+    std::vector<IrInputDeviceTypeMapping> gIrInputDeviceTypeMapping;
+
+    void readInputDevicesConfiguration()
+    {
+        const char* inputDeviceConfigurationFile = getenv("RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG");
+        if (inputDeviceConfigurationFile)
+        {
+            Logger::log(LogLevel::Information,  "readInputDevicesConfiguration: read configuration from: '%s'", inputDeviceConfigurationFile);
+
+            rapidjson::Document document;
+            bool ret = RdkWindowManager::RdkWindowManagerJson::readJsonFile(inputDeviceConfigurationFile, document);
+            if (ret == false)
+            {
+                Logger::log(LogLevel::Information,  "RDKWindowManager input devices configuration read error : [unable to open/read file %s]", inputDeviceConfigurationFile);
+                return;
+            }
+
+            if (document.HasMember("inputDevices"))
+            {
+                const rapidjson::Value& inputDevices = document["inputDevices"];
+
+                if (inputDevices.IsArray())
+                {
+                    for (rapidjson::SizeType i = 0; i < inputDevices.Size(); i++)
+                    {
+                        const rapidjson::Value& mapEntry = inputDevices[i];
+                        if (mapEntry.IsObject() &&
+                            mapEntry.HasMember("deviceType") &&
+                            mapEntry.HasMember("deviceMode"))
+                        {
+                            LinuxInputDevice inputDeviceEntry = {};
+
+                            //vendor
+                            if (mapEntry.HasMember("vendor"))
+                            {
+                                const rapidjson::Value& vendorValue = mapEntry["vendor"];
+                                if (vendorValue.IsString())
+                                {
+                                    inputDeviceEntry.vendor = static_cast<uint16_t>(std::strtoul(vendorValue.GetString(),nullptr,16));
+                                }
+                                else
+                                {
+                                    Logger::log(LogLevel::Information,  "Ignoring inputDevices entry because of format issues of vendor");
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                inputDeviceEntry.vendor = 0;
+                            }
+
+
+                            //product
+                            if (mapEntry.HasMember("product"))
+                            {
+                                const rapidjson::Value& productValue = mapEntry["product"];
+                                if (productValue.IsString())
+                                {
+                                    inputDeviceEntry.product = static_cast<uint16_t>(std::strtoul(productValue.GetString(),nullptr,16));
+                                }
+                                else
+                                {
+                                    Logger::log(LogLevel::Information,  "Ignoring inputDevices entry because of format issues of product");
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                inputDeviceEntry.product = 0;
+                            }
+
+
+                            //devicePath
+                            if (mapEntry.HasMember("devicePath"))
+                            {
+                                const rapidjson::Value& devicePathValue = mapEntry["devicePath"];
+                                if (devicePathValue.IsString())
+                                {
+                                    inputDeviceEntry.devicePath = devicePathValue.GetString();
+                                }
+                                else
+                                {
+                                    Logger::log(LogLevel::Information,  "Ignoring inputDevices entry because of format issues of devicePathValue");
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                inputDeviceEntry.devicePath = {};
+                            }
+
+
+                            //deviceType
+                            const rapidjson::Value& deviceTypeValue = mapEntry["deviceType"];
+                            if (deviceTypeValue.IsString())
+                            {
+                                inputDeviceEntry.deviceType = static_cast<uint8_t>(std::strtoul(deviceTypeValue.GetString(),nullptr,16));
+                            }
+                            else
+                            {
+                                Logger::log(LogLevel::Information,  "Ignoring inputDevices entry because of format issues of deviceType");
+                                continue;
+                            }
+
+                            //deviceMode
+                            const rapidjson::Value& deviceModeValue = mapEntry["deviceMode"];
+                            if (deviceModeValue.IsString())
+                            {
+                                inputDeviceEntry.deviceMode = static_cast<uint8_t>(std::strtoul(deviceModeValue.GetString(),nullptr,16));
+                            }
+                            else
+                            {
+                                Logger::log(LogLevel::Information,  "Ignoring inputDevices entry because of format issues of deviceMode");
+                                continue;
+                            }
+
+
+                            std::cout <<  "inputDevice add entry: " <<
+                                                       "{ product: 0x" << std::hex << std::setw(4) << std::setfill('0') << inputDeviceEntry.product <<
+                                                       ", vendor: 0x"  << std::hex << std::setw(4) << std::setfill('0') << inputDeviceEntry.vendor <<
+                                                       ", deviceType: 0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint16_t>(inputDeviceEntry.deviceType) <<
+                                                       ", deviceMode: 0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint16_t>(inputDeviceEntry.deviceMode) <<
+                                                       ", devicePath: '" << inputDeviceEntry.devicePath <<  "'"  << " }" << std::endl;
+
+                            gRdkWindowManagerInputDevices.push_back(inputDeviceEntry);
+                        }
+                        else
+                        {
+                            Logger::log(LogLevel::Information,  "Ignoring input device entry because of format issues of input device entry");
+                            continue;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Logger::log(LogLevel::Information,  "Ignored file read due to inputDevices entry not present");
+            }
+
+            if (document.HasMember("irInputDeviceTypeMapping"))
+            {
+                const rapidjson::Value& irDeviceTypeMapping = document["irInputDeviceTypeMapping"];
+
+                if (irDeviceTypeMapping.IsArray())
+                {
+                    for (rapidjson::SizeType i = 0; i < irDeviceTypeMapping.Size(); i++)
+                    {
+                        const rapidjson::Value& irDeviceTypeEntry = irDeviceTypeMapping[i];
+
+                        if (irDeviceTypeEntry.IsObject() &&
+                            irDeviceTypeEntry.HasMember("filterCode") &&
+                            irDeviceTypeEntry.HasMember("deviceType"))
+                        {
+                           IrInputDeviceTypeMapping irDeviceMapping = {};
+
+                           const rapidjson::Value& filterCodeValue = irDeviceTypeEntry["filterCode"];
+                           if (filterCodeValue.IsUint())
+                           {
+                               irDeviceMapping.filterCode = filterCodeValue.GetUint();
+                           }
+                           else
+                           {
+                               Logger::log(LogLevel::Information,  "Ignoring irInputDeviceTypeMapping entry because of format issues of filterCode");
+                               continue;
+                           }
+
+                           const rapidjson::Value& typeValue = irDeviceTypeEntry["deviceType"];
+                           if (typeValue.IsString())
+                           {
+                               irDeviceMapping.deviceType = static_cast<uint8_t>(std::strtoul(typeValue.GetString(),nullptr,16));
+                           }
+                           else
+                           {
+                               Logger::log(LogLevel::Information,  "Ignoring irInputDeviceTypeMapping entry because of format issues of deviceType");
+                               continue;
+                           }
+
+                           std::cout << "irDeviceTypeMapping add entry: " <<
+                                        "{ filterCode: " << std::dec << static_cast<uint16_t>(irDeviceMapping.filterCode) <<
+                                        ", deviceType: 0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint16_t>(irDeviceMapping.deviceType) << " }" << std::endl;
+
+                           gIrInputDeviceTypeMapping.push_back(irDeviceMapping);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Logger::log(LogLevel::Information,  "irDeviceTypeMapping entry not present");
+            }
+        }
+        else
+        {
+            Logger::log(LogLevel::Information,  "Ignored file read due to input devices environment variable not set");
+        }
+
+#ifndef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA_EXTENDED_SUPPORT_FOR_IR
+        if (!gIrInputDeviceTypeMapping.empty())
+            Logger::log(LogLevel::Information,  "RDKWindowManager: warning: no extended support for IR so 'irInputDeviceTypeMapping' in 'RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG' will have no effect");
+#endif 
+    }
+
+    void inputDeviceTypeAndMode(const uint16_t vendor, const uint16_t product, const std::string& devicePath, uint8_t& type, uint8_t& mode)
+    {
+        if (vendor == 0x0 and product == 0x0 and devicePath.empty() == false)
+        {
+            auto it = std::find_if(std::begin(gRdkWindowManagerInputDevices), std::end(gRdkWindowManagerInputDevices),
+                        [devicePath](const RdkWindowManager::LinuxInputDevice& e)
+                        {
+                            return e.devicePath == devicePath;
+                        });
+
+            if (it != std::end(gRdkWindowManagerInputDevices))
+            {
+               type = it->deviceType;
+               mode = it->deviceMode;
+            }
+        }
+        else
+        {
+            auto it = std::find_if(std::begin(gRdkWindowManagerInputDevices), std::end(gRdkWindowManagerInputDevices),
+                        [vendor, product](const RdkWindowManager::LinuxInputDevice& e)
+                        {
+                            return e.vendor == vendor and e.product == product;
+                        });
+
+            if (it != std::end(gRdkWindowManagerInputDevices))
+            {
+               type = it->deviceType;
+               mode = it->deviceMode;
+            }
+        }
+    }
+
+    void irDeviceType(const uint8_t filterCode, uint8_t& type)
+    {
+        type = static_cast<uint8_t>(RdkWindowManager::DeviceType::Generic_IR);
+
+        auto it = std::find_if(std::begin(gIrInputDeviceTypeMapping), std::end(gIrInputDeviceTypeMapping),
+                [filterCode](const RdkWindowManager::IrInputDeviceTypeMapping& e)
+                {
+                    return e.filterCode == filterCode;
+                });
+
+        if (it != std::end(gIrInputDeviceTypeMapping))
+        {
+            type = it->deviceType;
+        }
+    }
+}
