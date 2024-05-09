@@ -27,12 +27,12 @@ typedef struct _WstContext WstContext;
 Firebolt_Surface::Firebolt_Surface(std::shared_ptr<RdkWindowManager::RdkCompositor> &client)
     : mClient(client)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltSurfaceModule constructor\n");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltSurfaceModule constructor");
 }
 
 Firebolt_Surface::~Firebolt_Surface()
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltSurfaceModule destructor\n");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltSurfaceModule destructor");
 }
 
 std::shared_ptr<RdkWindowManager::RdkCompositor> Firebolt_Surface::client() const
@@ -175,12 +175,12 @@ static void firebolt_surface_bind( struct wl_client *client, void *data, uint32_
 /*initialise function*/
 bool Firebolt_Surface::initialise()
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for fireboltSurface module\n");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for fireboltSurface module");
     bool initialised = true;
     WstCompositor *ctx;
     struct wl_display *display = wl_display_create();
     if (!display) {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "Failed to create Wayland display\n");
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "Failed to create Wayland display");
         initialised = false ;
     }
 
@@ -189,7 +189,7 @@ bool Firebolt_Surface::initialise()
     if (!shell)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-               "Error: failed to register firebolt_surface  interface\n");
+               "Error: failed to register firebolt_surface  interface");
         initialised = false;
     }
 
@@ -198,7 +198,7 @@ bool Firebolt_Surface::initialise()
 
 void Firebolt_Surface::terminate(WstCompositor *ctx)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_surface module\n");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_surface module");
 }
 
 

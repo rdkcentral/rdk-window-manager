@@ -58,7 +58,7 @@ if (RDK_WINDOW_MANAGER_BUILD_WEBSOCKET_IPC)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC")
 endif (RDK_WINDOW_MANAGER_BUILD_WEBSOCKET_IPC)
 
-include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include extensions/firebolt_surface/include)
 
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="${RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER}")
@@ -99,17 +99,11 @@ if(BUILD_ENABLE_ERM)
     set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lessosrmgr)
 endif()
 
-set(RDK_WINDOW_MANAGER_HEADERS
-    firebolt_surface.h
-    firebolt_surface_protocol_server.h)
-
-include_directories(extensions/firebolt_surface/include)
-
 add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES} extensions/firebolt_surface/src/firebolt_surface_protocol.c extensions/firebolt_surface/src/firebolt_surface.cpp)
 set_target_properties(rdkwindowmanager_shared PROPERTIES OUTPUT_NAME rdkwindowmanager)
 target_link_libraries(rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lwayland-server)
 
-add_library(rdkwindowmanagerclient SHARED extensions/firebolt_surface/src/firebolt_surface_protocol.c extensions/firebolt_surface/include/firebolt_surface_protocol_client.h)
+add_library(rdkwindowmanagerclient SHARED extensions/firebolt_surface/src/firebolt_surface_protocol.c)
 target_link_libraries(rdkwindowmanagerclient -lwayland-client)
 
 if (RDK_WINDOW_MANAGER_BUILD_APP)
@@ -119,9 +113,5 @@ if (RDK_WINDOW_MANAGER_BUILD_APP)
     target_link_libraries(rdkwindowmanager ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwindowmanager_shared -lpthread)
 endif (RDK_WINDOW_MANAGER_BUILD_APP)
 
-add_executable(fireboltExtensionTest tests/clientFireboltSurface/clientFirebolt.cpp extensions/firebolt_surface/src/firebolt_surface_protocol.c)
 
-target_link_libraries(fireboltExtensionTest  -lwayland-client)
-
-set_target_properties(fireboltExtensionTest  PROPERTIES OUTPUT_NAME fireboltExtensionTest)
 
