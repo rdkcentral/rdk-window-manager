@@ -25,6 +25,8 @@ struct fireboltWmContext
 {
     struct wl_display *display;
     struct wl_surface *firebolt_surface; 
+    wl_resource *wmResource;
+    wl_global *wmGlobal;
 };
 
 class firebolt_window_manager
@@ -35,9 +37,7 @@ public:
     ~firebolt_window_manager();
 
 protected:
-    fireboltWmContext  ctx;
-    wl_resource *wmResource;
-    wl_global *wmGlobal;
+    fireboltWmContext  *ctx;
     firebolt_window_manager() = default;
 };
 #endif

@@ -105,8 +105,8 @@ static const struct firebolt_wm_interface fireboltWindowManagerImplementation = 
 
 void fireboltWMBind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    firebolt_wm *wm= (WstContext*)data;
-    wm->wmResource = wl_resource_create(client, &firebolt_wm_interface,
+    fireboltWmContext *ctx= (fireboltWmContext*)data;
+    ctx->wmResource = wl_resource_create(client, &firebolt_wm_interface,
                                                              std::min<int>(version, 1), id);
     if (!wm->wmResource)
     {
@@ -114,7 +114,7 @@ void fireboltWMBind( struct wl_client *client, void *data, uint32_t version, uin
     }
     else
     {
-        wl_resource_set_implementation(wm->wmResource, &fireboltWindowManagerImplementation, wm->ctx, NULL);
+        wl_resource_set_implementation(ctx->wmResource, &fireboltWindowManagerImplementation, ctx, NULL);
     }
     return;
 }
@@ -123,12 +123,13 @@ bool firebolt_window_manager::initialise()
 {
     /*Need to connect with the actual window manager display*/
     bool retval = true;
-    ctx.display = wl_display_create();
+	ctx= (fireboltWmContext*)calloc( 1, sizeof(fireboltWmContext) );
+    ctx->display = wl_display_create();
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for fireboltSurface module\n");
 
-    wmGlobal = wl_global_create(display, &firebolt_wm_interface,
-                                               1, this, fireboltWMBind);
-    if (!wmGlobal)
+    ctx->wmGlobal = wl_global_create(ctx.display, &firebolt_wm_interface,
+                                               1, ctx, fireboltWMBind);
+    if (!ctx->wmGlobal)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
             "Error: failed to register firebolt_wm interface\n");
@@ -140,6 +141,15 @@ bool firebolt_window_manager::initialise()
 
 bool firebolt_window_manager::destroy(void)
 {
+    if (ctx->resource){
+       wl_resource_destroy(ctx->resource);
+	   ctx->resource = 0;
+    }
+    if ( ctx->display )
+    {
+      wl_display_destroy(ctx->display);
+      ctx->display= 0;
+    }
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_wm module\n");
 }
 
