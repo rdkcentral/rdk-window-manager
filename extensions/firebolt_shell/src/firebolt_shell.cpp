@@ -2,7 +2,7 @@
 * If not stated otherwise in this file or this component's LICENSE
 * file the following copyright and licenses apply:
 *
-* Copyright 2020 RDK Management
+* Copyright 2024 RDK Management
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,6 +19,18 @@
 
 #include "logger.h"
 #include "firebolt_shell.h"
+#include "firebolt_shell_protocol_server.h"
+
+typedef struct fireboltShellContext
+{
+    struct wl_display *display;
+    struct wl_surface *firebolt_surface;
+    struct wl_resource *shellResource;
+    struct wl_global *shellGlobal;
+}fireboltShellCtx;
+
+static fireboltShellCtx *ctx;
+static bool fireboltshell_initialised = false;
 
 static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                             struct wl_resource *resource,
@@ -48,7 +60,7 @@ void fireboltShell::~fireboltShell()
 
 void fireboltShellBind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    fireboltShell *shellData = (WstContext*)data;
+    fireboltShellCtx *shellData = (fireboltShellCtx*)data;
 
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltShell Bind");
 
@@ -60,7 +72,7 @@ void fireboltShellBind( struct wl_client *client, void *data, uint32_t version, 
     }
     else
     {
-        wl_resource_set_implementation(shellData->shellResource, &fireboltshellinterface_Impl, shellData->ctx, NULL);
+        wl_resource_set_implementation(shellData->shellResource, &fireboltshellinterface_Impl, shellData, NULL);
     }
 
     return;
@@ -91,22 +103,45 @@ bool fireboltShell::initialise()
     bool status = true;
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "initialiseFireboltShell called for firebolt shell module");
 
-    /*Need to connect with the actual window manager display*/
-    ctx.display = wl_display_create();
-
-    /* register our firebolt_shell interface with wayland */
-    shellGlobal = wl_global_create(display, &firebolt_shell_interface,
-                                               1, this, fireboltShellBind);
-    if (!shellGlobal)
+    /* If firebolt shell not initialised then only go ahead with initialisation */
+    if( fireboltshell_initialised ==  false )
     {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "Error: failed to register firebolt_interface shell interface");
-        status = false;
+        ctx = (fireboltShellCtx*)calloc( 1, sizeof(fireboltShellCtx));
+
+        /* Connecting to the window manager display */
+        ctx->display = wl_display_create();
+
+        /* register our firebolt_shell interface with wayland */
+        ctx->shellGlobal = wl_global_create(ctx->display , &firebolt_shell_interface,
+                                                   1, this, fireboltShellBind);
+        if (!ctx->shellGlobal)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "Error: failed to register firebolt_interface shell interface");
+            status = false;
+        }
+        else
+        {
+            fireboltshell_initialised = true;
+        }
     }
     return status;
 }
 
 bool fireboltShell::destroy(void)
 {
+    if (ctx->shellResource)
+    {
+        wl_resource_destroy(ctx->shellResource);
+        ctx->shellResource = 0;
+    }
+    
+    if ( ctx->display )
+    {
+        wl_display_destroy(ctx->display);
+        ctx->display= 0;
+    }
+    
+    fireboltshell_initialised = false;
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "destroyFireboltShell called for firebolt shell module");
     return true;
 }

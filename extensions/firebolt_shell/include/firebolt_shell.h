@@ -2,7 +2,7 @@
 * If not stated otherwise in this file or this component's LICENSE
 * file the following copyright and licenses apply:
 *
-* Copyright 2020 RDK Management
+* Copyright 2024 RDK Management
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,26 +20,15 @@
 #ifndef FIREBOLT_SHELL_H
 #define FIREBOLT_SHELL_H
 
-#include "firebolt_shell_protocol_server.h"
-
-struct fireboltShellContext
-{
-    struct wl_display *display;
-    struct wl_surface *firebolt_surface; 
-};
-
 class fireboltShell
 {
-public:
-    bool initialise();
-    bool destroy();
-    ~fireboltShell();
+    public:
+        static bool initialise();
+        static bool destroy();
+        ~fireboltShell();
 
-protected:
-    fireboltShellContext ctx;
-    wl_resource *shellResource;
-    wl_global *shellGlobal;
-    fireboltShell() = default;
+    protected:
+        fireboltShell() = default;
 };
 
 #endif
