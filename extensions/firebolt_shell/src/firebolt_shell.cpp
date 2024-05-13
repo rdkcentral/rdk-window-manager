@@ -36,27 +36,11 @@ static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                             struct wl_resource *resource,
                             uint32_t id,
                             struct wl_resource *surface,
-                            firebolt_shell_surface_type type);
+                            uint32_t type);
 
 static const struct firebolt_shell_interface fireboltshellinterface_Impl = {
     firebolt_shell_get_firebolt_surface
 };
-
-static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
-                                    struct wl_resource *resource,
-                                    uint32_t id,
-                                    struct wl_resource *surface,
-                                    firebolt_shell_surface_type type);
-
-void fireboltShell::fireboltShell()
-{
-   RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltShell constructor"); 
-}
-
-void fireboltShell::~fireboltShell()
-{
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltShell Desstructor");
-}
 
 void fireboltShellBind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
@@ -64,7 +48,7 @@ void fireboltShellBind( struct wl_client *client, void *data, uint32_t version, 
 
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltShell Bind");
 
-    shellData->shellResource = wl_resource_create(client,&firebolt_shell_interface,std::min<int>MIN(version, 1), id);
+    shellData->shellResource = wl_resource_create(client,&firebolt_shell_interface,std::min<int>(version, 1), id);
 
     if (!shellData->shellResource) 
     {
@@ -83,13 +67,13 @@ static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                                     struct wl_resource *resource,
                                     uint32_t id,
                                     struct wl_resource *surface,
-                                    firebolt_shell_surface_type type)
+                                    uint32_t type)
 {
-    std::string hdwre_video_surface_id = "1111"; /*dummy input for now */
+    const char * hdwre_video_surface_id = "1111"; /*dummy input for now */
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "fireboltShell Interface getFireboltSurface");
-    type = FIREBOLT_SHELL_SURFACE_TYPE_VIDEO ; /* dummy input for now */
+    type = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO ; /* dummy input for now */
 
-    if( type == FIREBOLT_SHELL_SURFACE_TYPE_VIDEO )
+    if( type == FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO )
     {
         firebolt_shell_send_firebolt_video_surface_id(resource,hdwre_video_surface_id);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "fireboltShell video id %s",hdwre_video_surface_id);
@@ -112,8 +96,7 @@ bool fireboltShell::initialise()
         ctx->display = wl_display_create();
 
         /* register our firebolt_shell interface with wayland */
-        ctx->shellGlobal = wl_global_create(ctx->display , &firebolt_shell_interface,
-                                                   1, this, fireboltShellBind);
+        ctx->shellGlobal = wl_global_create(ctx->display , &firebolt_shell_interface,1, ctx, fireboltShellBind);
         if (!ctx->shellGlobal)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "Error: failed to register firebolt_interface shell interface");
