@@ -2,7 +2,7 @@
  * * If not stated otherwise in this file or this component's LICENSE
  * * file the following copyright and licenses apply:
  * *
- * * Copyright 2022 RDK Management
+ * * Copyright 2024 RDK Management
  * *
  * * Licensed under the Apache License, Version 2.0 (the "License");
  * * you may not use this file except in compliance with the License.
@@ -20,22 +20,15 @@
 #ifndef FIREBOLT_SURFACE_H
 #define FIREBOLT_SURFACE_H
 
-#include "rdkcompositor.h"
-
-
 class Firebolt_Surface
 {
-public:
-    Firebolt_Surface(std::shared_ptr<RdkWindowManager::RdkCompositor> &client);
-    ~Firebolt_Surface();
+    public:
+        static bool initialise();
+        static void terminate();
+        ~Firebolt_Surface();
 
-    static bool initialise();
-    static void terminate(WstCompositor *ctx);
-
-    std::shared_ptr<RdkWindowManager::RdkCompositor> client() const;
-
-private:
-    std::weak_ptr<RdkWindowManager::RdkCompositor> mClient;
+    protected:
+        Firebolt_Surface() = default ;
 };
 
 #endif
