@@ -19,6 +19,10 @@
 
 #include "logger.h"
 #include "firebolt_wm.h"
+#include "firebolt_wm_protocol_server.h"
+
+static fireboltWmContext *ctx;
+static bool is_fireboltwm_init = false;
 
 static void firebolt_wm_set_properties(struct wl_client *client,
                              struct wl_resource *resource,
@@ -64,7 +68,8 @@ static void firebolt_wm_create_with_properties (struct wl_client *client,
                             wl_fixed_t crop_height,
                             int32_t focused);
 static void firebolt_wm_destroy (struct wl_client *client,
-                                 struct wl_resource *resource);
+                                 struct wl_resource *resource,
+                                  const char *id);
 static void firebolt_wm_set_client_bounds (struct wl_client *client,
                                  struct wl_resource *resource,
                                  const char *id,
@@ -108,7 +113,7 @@ void fireboltWMBind( struct wl_client *client, void *data, uint32_t version, uin
     fireboltWmContext *ctx= (fireboltWmContext*)data;
     ctx->wmResource = wl_resource_create(client, &firebolt_wm_interface,
                                                              std::min<int>(version, 1), id);
-    if (!wm->wmResource)
+    if (!ctx->wmResource)
     {
         wl_client_post_no_memory(client);
     }
@@ -123,34 +128,44 @@ bool firebolt_window_manager::initialise()
 {
     /*Need to connect with the actual window manager display*/
     bool retval = true;
-	ctx= (fireboltWmContext*)calloc( 1, sizeof(fireboltWmContext) );
-    ctx->display = wl_display_create();
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for fireboltSurface module\n");
+    if (is_fireboltwm_init == false)
+   {
+        ctx= (fireboltWmContext*)calloc( 1, sizeof(fireboltWmContext) );
+        ctx->display = wl_display_create();
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for firebolt_wm module\n");
 
-    ctx->wmGlobal = wl_global_create(ctx.display, &firebolt_wm_interface,
-                                               1, ctx, fireboltWMBind);
-    if (!ctx->wmGlobal)
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-            "Error: failed to register firebolt_wm interface\n");
-        retval = false;
+        ctx->wmGlobal = wl_global_create(ctx->display, &firebolt_wm_interface,
+                                                   1, ctx, fireboltWMBind);
+        if (!ctx->wmGlobal)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                "Error: failed to register firebolt_wm interface\n");
+            retval = false;
+        }
+        else
+        {
+            is_fireboltwm_init = true;
+        }
     }
-
     return retval;
 }
 
 bool firebolt_window_manager::destroy(void)
 {
-    if (ctx->resource){
-       wl_resource_destroy(ctx->resource);
-	   ctx->resource = 0;
+    bool retval = true;
+
+    if (ctx->wmResource){
+       wl_resource_destroy(ctx->wmResource);
+       ctx->wmResource = 0;
     }
     if ( ctx->display )
     {
       wl_display_destroy(ctx->display);
       ctx->display= 0;
     }
+    is_fireboltwm_init = false;
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_wm module\n");
+    return retval;
 }
 
 
@@ -189,7 +204,8 @@ static void firebolt_wm_set_properties(struct wl_client *client,
                              wl_fixed_t crop_width,
                              wl_fixed_t crop_height )
 {
-    RdkWindowManager::Logger::log("firebolt_wm_set_properties app id:%s x:%u y:%u width %u height %u order %u visiblity %u crop %u:%u:%u:%u", 
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, \
+        "firebolt_wm_set_properties app id:%s x:%u y:%u width %u height %u order %u visiblity %u crop %u:%u:%u:%u", \
         id,x,y,width,height, zorder,visible,crop_x,crop_y,crop_width, crop_height);
 }
 
@@ -202,7 +218,7 @@ static void firebolt_wm_create (struct wl_client *client,
                              struct wl_resource *resource,
                              const char *id )
 {
-    RdkWindowManager::Logger::log("firebolt_wm_create app id:%s",id);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_create app id:%s",id);
 }
 
 /**
@@ -222,7 +238,7 @@ static void firebolt_wm_create_with_bounds (struct wl_client *client,
                              uint32_t width,
                              uint32_t height)
 {
-    RdkWindowManager::Logger::log("firebolt_wm_create_with_bounds app id:%s x:%u y: %u width %u height %u\n",id,x,y,width,height);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_create_with_bounds app id:%s x:%u y: %u width %u height %u\n",id,x,y,width,height);
 }
 
 /**
@@ -262,7 +278,8 @@ static void firebolt_wm_create_with_properties (struct wl_client *client,
                             wl_fixed_t crop_height,
                             int32_t focused)
 {
-    RdkWindowManager::Logger::log("firebolt_wm_create_with_properties app id:%s x:%u y:%u width %u height %u order %u visiblity %u crop %u:%u:%u:%u focused: %u", 
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, \
+        "firebolt_wm_create_with_properties app id:%s x:%u y:%u width %u height %u order %u visiblity %u crop %u:%u:%u:%u focused: %u", \
         id,x,y,width,height, zorder,visible,crop_x,crop_y,crop_width, crop_height,focused);
 }
 
@@ -272,9 +289,10 @@ static void firebolt_wm_create_with_properties (struct wl_client *client,
  * @param id id of the app or group
  */
 static void firebolt_wm_destroy (struct wl_client *client,
-                                 struct wl_resource *resource)
+                                 struct wl_resource *resource,
+                                  const char *id)
 {
-    RdkWindowManager::Logger::log("%s %d> firebolt_wm_destroy" );
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_destroy id %s", id);
 }
 
 /**
@@ -297,7 +315,8 @@ static void firebolt_wm_set_client_bounds (struct wl_client *client,
                                  uint32_t width,
                                  uint32_t height)
 {
-    RdkWindowManager::Logger::log("firebolt_wm_set_client_bounds app id:%s x:%u y: %u width %u height %u",id,x,y,width,height);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, \
+        "firebolt_wm_set_client_bounds app id:%s x:%u y: %u width %u height %u",id,x,y,width,height);
 }
 
 /**
@@ -315,7 +334,8 @@ static void firebolt_wm_set_client_display_bounds (struct wl_client *client,
                                  uint32_t width,
                                  uint32_t height)
 {
-    RdkWindowManager::Logger::log("firebolt_wm_set_client_display_bounds app id:%s width %u height %u",id,width,height);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, \
+        "firebolt_wm_set_client_display_bounds app id:%s width %u height %u",id,width,height);
 }
 
 /**
@@ -328,7 +348,7 @@ static void firebolt_wm_set_client_focus (struct wl_client *client,
                                  struct wl_resource *resource,
                                  const char *id)
 {
-    RdkWindowManager::Logger::log(" firebolt_wm_set_client_focus app id:%s ",id);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_wm_set_client_focus app id:%s ",id);
 }
 
 /**
@@ -340,7 +360,7 @@ static void firebolt_wm_get_properties (struct wl_client *client,
                                  struct wl_resource *resource,
                                  const char *id)
 {
-    RdkWindowManager::Logger::log(" firebolt_wm_get_properties app id:%s ",id);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_wm_get_properties app id:%s ",id);
     firebolt_wm_send_client_properties(resource, "dummy-id", 0,0,640,480, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
@@ -352,7 +372,7 @@ static void firebolt_wm_get_properties (struct wl_client *client,
 static void firebolt_wm_get_focused_client (struct wl_client *client,
                                  struct wl_resource *resource)
 {
-    RdkWindowManager::Logger::log(" firebolt_wm_get_focused_client ");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_get_focused_client");
     firebolt_wm_send_focused_client(resource, "dummy-id");
 }
 
@@ -364,7 +384,7 @@ static void firebolt_wm_get_focused_client (struct wl_client *client,
 static void firebolt_wm_get_clients (struct wl_client *client,
                                  struct wl_resource *resource)
 {
-    RdkWindowManager::Logger::log(" firebolt_wm_get_clients ");
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_get_clients");
     firebolt_wm_send_clients(resource, "dummy-id");
 }
 

@@ -31,13 +31,12 @@ struct fireboltWmContext
 
 class firebolt_window_manager
 {
-public:
-    bool initialise();
-    bool destroy();
-    ~firebolt_window_manager();
+    public:
+        static bool initialise();
+        static bool destroy();
+        ~firebolt_window_manager();
 
-protected:
-    fireboltWmContext  *ctx;
-    firebolt_window_manager() = default;
+    protected:
+        firebolt_window_manager() = default;
 };
 #endif
