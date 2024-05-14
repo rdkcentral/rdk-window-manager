@@ -48,7 +48,7 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/permissions.cpp
   src/framebuffer.cpp
   src/framebufferrenderer.cpp
-  csrc/ursor.cpp
+  src/cursor.cpp
 )
 set(RDK_WINDOW_MANAGER_LINK_LIBRARIES -lz -lessos -lEGL -lGLESv2 -lwayland-client -lwesteros_compositor -lpthread -ljpeg -lpng16)
 
