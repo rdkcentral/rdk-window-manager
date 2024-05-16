@@ -23,8 +23,6 @@
 class fireboltShell
 {
     public:
-        static bool initialise();
-        static bool destroy();
         ~fireboltShell();
 
     protected:

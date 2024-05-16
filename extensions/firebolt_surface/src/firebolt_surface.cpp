@@ -1,37 +1,41 @@
 /**
- * * If not stated otherwise in this file or this component's LICENSE
- * * file the following copyright and licenses apply:
- * *
- * * Copyright 2024 RDK Management
- * *
- * * Licensed under the Apache License, Version 2.0 (the "License");
- * * you may not use this file except in compliance with the License.
- * * You may obtain a copy of the License at
- * *
- * * http://www.apache.org/licenses/LICENSE-2.0
- * *
- * * Unless required by applicable law or agreed to in writing, software
- * * distributed under the License is distributed on an "AS IS" BASIS,
- * * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * * See the License for the specific language governing permissions and
- * * limitations under the License.
- * **/
+ * If not stated otherwise in this file or this component's LICENSE
+ * file the following copyright and licenses apply:
+ *
+ * Copyright 2024 RDK Management
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
 
 #include "logger.h"
+#include <cstring>
+
 #include "firebolt_surface.h"
+#include "westeros-compositor.h"
 
 #include "firebolt_surface_protocol_server.h"
 
-struct fireboltSfContext
+struct fireboltSurfaceCtx
 {
-    struct wl_display *display;
-    struct wl_surface *firebolt_surface;
-    wl_resource *sfResource;
-    wl_global *sfGlobal;
+    WstCompositor       *wstComp;
+    struct wl_display   *wlDisplay;
+    struct wl_surface   *wlSurface;
+    wl_resource         *wlResource;
+    wl_global           *wlGlobal;
 };
 
-static fireboltSfContext *ctx;
-static bool is_fireboltsf_init = false;
+static fireboltSurfaceCtx   *f_fbSurfaceCtx = NULL;
+static bool                 bfbSurfaceInitialized = false;
 
 static void firebolt_surface_destroy(struct wl_client *client,
                                              struct wl_resource *resource);
@@ -132,13 +136,13 @@ static void firebolt_surface_setBounds(struct wl_client *client,
  */
 static void firebolt_surface_setCrop(struct wl_client *client,
                                              struct wl_resource *resource, wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t  sheight) {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "sx :%f sy:%f swidth:%f sheight:%f",
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " sx :%f sy:%f swidth:%f sheight:%f",
                       wl_fixed_to_double(sx) ,wl_fixed_to_double(sy),wl_fixed_to_double(swidth) ,wl_fixed_to_double(sheight)); 
 }
 
 /*
  * Sets the z-order of the surface relative to other surfaces within
-   the client’s display.
+   the client's display.
 
  * The z-order should be in the range of 0.0 - 1.0 inclusive.
 
@@ -166,76 +170,102 @@ static void firebolt_surface_setOpacity(struct wl_client *client,
 
 static void firebolt_Surface_ResourceDestroy(struct wl_resource *resource)
 {
-    auto *fireboltModule = reinterpret_cast<Firebolt_Surface*>(wl_resource_get_user_data(resource));
+    auto *fireboltModule = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
 
     wl_resource_set_user_data(resource, nullptr);
     delete fireboltModule;
-
 }
 
 /*firebolt_surface bind function*/
-void firebolt_surface_bind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
+void firebolt_surface_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    fireboltSfContext *ctx= (fireboltSfContext*)data;
-   
-    ctx->sfResource= wl_resource_create(client, &firebolt_surface_interface,
-                                                             std::min<int>(version, 1), id);
-    if (!ctx->sfResource)
+    fireboltSurfaceCtx *f_fbSurfaceCtx = (fireboltSurfaceCtx *)data;
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_surface_bind");
+
+    if (NULL == f_fbSurfaceCtx->wlResource)
     {
-        wl_client_post_no_memory(client);
-        return;
-    }
-
-    wl_resource_set_implementation(ctx->sfResource, &fireboltSurfaceInterfaceImpl, ctx, NULL);
-}
-
-/*initialise function*/
-bool Firebolt_Surface::initialise()
-{
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for fireboltSurface module\n");
-    
-    bool retval  = true; 
-    if (is_fireboltsf_init == false)
-    {
-        ctx= (fireboltSfContext*)calloc( 1, sizeof(fireboltSfContext) );
-        ctx->display = wl_display_create();
- 
-        if (!ctx->display) {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "Failed to create Wayland display\n");
-            retval = false ;
-            goto exit;
-        }
-
-        ctx->sfGlobal = wl_global_create(ctx->display, &firebolt_surface_interface,
-                                                   1, nullptr, firebolt_surface_bind);
-        if (!ctx->sfGlobal)
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_surface id:%d wl_resource_create", id);
+        f_fbSurfaceCtx->wlResource= wl_resource_create(client,
+                                                        &firebolt_surface_interface,
+                                                        std::min<int>(version, 1), id);
+        if (!f_fbSurfaceCtx->wlResource)
         {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-               "Error: failed to register firebolt_surface  interface\n");
-            retval = false;
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, " firebolt_surface id:%d wl_resource_create - no memory", id);
+            wl_client_post_no_memory(client);
         }
         else
         {
-           is_fireboltsf_init = true;
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_surface id:%d wl_resource_set_implementation", id);
+            wl_resource_set_implementation(f_fbSurfaceCtx->wlResource, &fireboltSurfaceInterfaceImpl, f_fbSurfaceCtx, NULL);
         }
-     }       
-exit:
-    return retval;
-}
-
-void Firebolt_Surface::terminate()
-{
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_surface module\n");
-    if (ctx->sfResource){
-       wl_resource_destroy(ctx->sfResource);
-       ctx->sfResource = 0;
     }
-    if ( ctx->display )
+    else
     {
-      wl_display_destroy(ctx->display);
-      ctx->display= 0;
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_surface_bind id:%d already bound!", id);
     }
-    is_fireboltsf_init = false;
+    return;
 }
 
+extern "C"
+{
+    bool moduleInit(WstCompositor *wstComp, struct wl_display *display)
+    {
+        bool ret = true;
+
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                        " moduleInit: firebolt_surface extension wstComp@%p wlDisplay@%p initializing",
+                                        wstComp, display);
+        if (!bfbSurfaceInitialized)
+        {
+            if (NULL == f_fbSurfaceCtx)
+            {
+                f_fbSurfaceCtx = (fireboltSurfaceCtx *)malloc(sizeof(fireboltSurfaceCtx));
+                if (NULL == f_fbSurfaceCtx)
+                {
+                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                                        " moduleInit: Failed to create memory for fireboltSurfaceCtx");
+                    ret = false;
+                }
+                else
+                {
+                    memset(f_fbSurfaceCtx, 0, sizeof(fireboltSurfaceCtx));
+                    f_fbSurfaceCtx->wstComp = wstComp;
+                    f_fbSurfaceCtx->wlDisplay = display;
+                    f_fbSurfaceCtx->wlGlobal = wl_global_create(display,
+                                                                &firebolt_surface_interface,
+                                                                1, f_fbSurfaceCtx,
+                                                                firebolt_surface_bind);
+                    if (NULL == f_fbSurfaceCtx->wlGlobal)
+                    {
+                        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                                        " moduleInit: Failed to wl_global_create interface:firebolt_surface");
+                        ret = false;
+                    }
+                    else
+                    {
+                        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                        " moduleInit: firebolt_surface extension wstComp@%p wlDisplay@%p wlGlobal@%p initialized",
+                                        f_fbSurfaceCtx->wstComp,
+                                        f_fbSurfaceCtx->wlDisplay,
+                                        f_fbSurfaceCtx->wlGlobal);
+                    }
+                    bfbSurfaceInitialized = true;
+                }
+            }
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                        " moduleInit: firebolt_surface extension already initialized");
+        }
+
+        return ret;
+    }
+
+    void moduleTerm(WstCompositor *wstComp)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " moduleTerm: firebolt_surface extension dummy");
+        bfbSurfaceInitialized = false;
+    }
+}
 

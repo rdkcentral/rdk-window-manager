@@ -20,15 +20,13 @@
 #ifndef FIREBOLT_SURFACE_H
 #define FIREBOLT_SURFACE_H
 
-class Firebolt_Surface
+class FireboltSurface
 {
     public:
-        static bool initialise();
-        static void terminate();
-        ~Firebolt_Surface();
+        ~FireboltSurface();
 
     protected:
-        Firebolt_Surface() = default ;
+        FireboltSurface() = default ;
 };
 
 #endif
