@@ -19,16 +19,6 @@
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
 
-#include "firebolt_wm_protocol_server.h"
-
-struct fireboltWmContext
-{
-    struct wl_display *display;
-    struct wl_surface *firebolt_surface; 
-    wl_resource *wmResource;
-    wl_global *wmGlobal;
-};
-
 class firebolt_window_manager
 {
     public:

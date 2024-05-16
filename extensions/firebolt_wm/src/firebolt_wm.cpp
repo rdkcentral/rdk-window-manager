@@ -16,13 +16,23 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 **/
-
+#include <cstring>
 #include "logger.h"
 #include "firebolt_wm.h"
 #include "firebolt_wm_protocol_server.h"
+#include "westeros-compositor.h"
 
-static fireboltWmContext *ctx;
-static bool is_fireboltwm_init = false;
+struct fireboltWmContext
+{
+    WstCompositor       *wstComp;
+    struct wl_display   *wlDisplay;
+    struct wl_surface   *wlSurface;
+    wl_resource         *wlResource;
+    wl_global           *wlGlobal;
+};
+
+static fireboltWmContext *f_fbWMCtx = NULL;
+static bool                 bfbWMInitialized = false;
 
 static void firebolt_wm_set_properties(struct wl_client *client,
                              struct wl_resource *resource,
@@ -108,66 +118,31 @@ static const struct firebolt_wm_interface fireboltWindowManagerImplementation = 
     firebolt_wm_get_clients
 };
 
-void fireboltWMBind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
+void firebolt_wm_bind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    fireboltWmContext *ctx= (fireboltWmContext*)data;
-    ctx->wmResource = wl_resource_create(client, &firebolt_wm_interface,
-                                                             std::min<int>(version, 1), id);
-    if (!ctx->wmResource)
-    {
-        wl_client_post_no_memory(client);
-    }
-    else
-    {
-        wl_resource_set_implementation(ctx->wmResource, &fireboltWindowManagerImplementation, ctx, NULL);
-    }
-    return;
-}
+    fireboltWmContext *f_fbWMCtx = (fireboltWmContext *)data;
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_bind");
 
-bool firebolt_window_manager::initialise()
-{
-    /*Need to connect with the actual window manager display*/
-    bool retval = true;
-    if (is_fireboltwm_init == false)
-   {
-        ctx= (fireboltWmContext*)calloc( 1, sizeof(fireboltWmContext) );
-        ctx->display = wl_display_create();
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleInit called for firebolt_wm module\n");
+    if (NULL == f_fbWMCtx->wlResource)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_wm id:%d wl_resource_create", id);
 
-        ctx->wmGlobal = wl_global_create(ctx->display, &firebolt_wm_interface,
-                                                   1, ctx, fireboltWMBind);
-        if (!ctx->wmGlobal)
+        f_fbWMCtx->wlResource = wl_resource_create(client, &firebolt_wm_interface,
+                                                                 std::min<int>(version, 1), id);
+
+        if (!f_fbWMCtx->wlResource)
         {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                "Error: failed to register firebolt_wm interface\n");
-            retval = false;
+            wl_client_post_no_memory(client);
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, " firebolt_wm id:%d wl_resource_create - no memory", id);
         }
         else
         {
-            is_fireboltwm_init = true;
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_wm id:%d wl_resource_set_implementation", id);
+            wl_resource_set_implementation(f_fbWMCtx->wlResource, &fireboltWindowManagerImplementation, f_fbWMCtx, NULL);
         }
     }
-    return retval;
+    return;
 }
-
-bool firebolt_window_manager::destroy(void)
-{
-    bool retval = true;
-
-    if (ctx->wmResource){
-       wl_resource_destroy(ctx->wmResource);
-       ctx->wmResource = 0;
-    }
-    if ( ctx->display )
-    {
-      wl_display_destroy(ctx->display);
-      ctx->display= 0;
-    }
-    is_fireboltwm_init = false;
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "moduleTerm called for firebolt_wm module\n");
-    return retval;
-}
-
 
 /**
  * Set the properties of the window manager client app.
@@ -238,7 +213,7 @@ static void firebolt_wm_create_with_bounds (struct wl_client *client,
                              uint32_t width,
                              uint32_t height)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_create_with_bounds app id:%s x:%u y: %u width %u height %u\n",id,x,y,width,height);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_create_with_bounds app id:%s x:%u y: %u width %u height %u",id,x,y,width,height);
 }
 
 /**
@@ -386,5 +361,68 @@ static void firebolt_wm_get_clients (struct wl_client *client,
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "firebolt_wm_get_clients");
     firebolt_wm_send_clients(resource, "dummy-id");
+}
+
+
+extern "C"
+{
+    bool moduleInit(WstCompositor *wstComp, struct wl_display *display)
+    {
+        bool ret = true;
+
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, 
+                                        " moduleInit: firebolt_wm extension wstComp@%p wlDisplay@%p initializing",
+                                        wstComp, display);
+
+        if (!bfbWMInitialized)
+        {
+            if (NULL == f_fbWMCtx)
+            {
+                f_fbWMCtx= (fireboltWmContext*)malloc(sizeof(fireboltWmContext));
+                if (NULL == f_fbWMCtx)
+                {
+                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                                        " moduleInit: Failed to create memory for fireboltSurfaceCtx");
+                    ret = false;
+                }
+                else
+                {
+                    memset(f_fbWMCtx, 0, sizeof(fireboltWmContext));
+                    f_fbWMCtx->wstComp = wstComp;
+                    f_fbWMCtx->wlDisplay = display;
+
+                    f_fbWMCtx->wlGlobal = wl_global_create(display, &firebolt_wm_interface,
+                                                           1, f_fbWMCtx, firebolt_wm_bind);
+
+                    if (!f_fbWMCtx->wlGlobal)
+                    {
+                        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,  " moduleInit: Failed to wl_global_create interface:firebolt_surface");
+                         ret = false;
+                    }
+                    else
+                    {
+                        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                        " moduleInit: firebolt_wm extension wstComp@%p wlDisplay@%p wlGlobal@%p initialized",
+                                        f_fbWMCtx->wstComp,
+                                        f_fbWMCtx->wlDisplay,
+                                        f_fbWMCtx->wlGlobal);
+                    }
+                    bfbWMInitialized = true;
+                }
+            }
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                        " moduleInit: firebolt_wm extension already initialized");
+        }
+        return ret;
+    }
+
+    void moduleTerm(WstCompositor *ctx)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  " moduleTerm: firebolt_wm extension dummy");
+        bfbWMInitialized = false;
+    }
 }
 
