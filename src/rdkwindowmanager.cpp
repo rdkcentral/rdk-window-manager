@@ -41,7 +41,6 @@
 #include <sys/sysinfo.h>
 #include <fstream>
 #include <thread>
-#include "firebolt_surface.h"
 
 #define RDK_WINDOW_MANAGER_FPS 40
 
@@ -480,7 +479,6 @@ namespace RdkWindowManager
         }
 
         CompositorController::initialize();
-        Firebolt_Surface::initialise();
         launchMemoryMonitorThread();
     }
 

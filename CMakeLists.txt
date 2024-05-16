@@ -29,7 +29,12 @@ option(RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION "RDK_WI
 option(RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE "RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE" ON)
 option(RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS "RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_EXTENSIONS "RDK_WINDOW_MANAGER_BUILD_EXTENSIONS" ON)
-option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" OFF)
+if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION" ON)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION" ON)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION" ON)
+endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" OFF) 
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -53,20 +58,22 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/cursor.cpp
 )
 
+# Wayland Extensions files and extension server portion binded with RDK window manager.
 if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
-  # Common Wayland Extensions protocol files for both server and client
-  set(RDK_WINDOW_MANAGER_EXTENSION_PROTOCOL_SOURCES
-    extensions/firebolt_surface/src/firebolt_surface_protocol.c
-    extensions/firebolt_shell/src/firebolt_shell_protocol.c
-    extensions/firebolt_wm/src/firebolt_wm_protocol.c
-  )
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
+    set(RDK_WM_EXT_FIREBOLT_SHELL_PROTOCOL_SOURCE extensions/firebolt_shell/src/firebolt_shell_protocol.c)
+	set(RDK_WM_EXT_FIREBOLT_SHELL_SERVER_SOURCE extensions/firebolt_shell/src/firebolt_shell.cpp)
+  endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
 
-  # Wayland Extensions server to be part of RDK window manager
-  set(RDK_WINDOW_MANAGER_SOURCES ${RDK_WINDOW_MANAGER_SOURCES} ${RDK_WINDOW_MANAGER_EXTENSION_PROTOCOL_SOURCES}
-    extensions/firebolt_surface/src/firebolt_surface.cpp
-    extensions/firebolt_shell/src/firebolt_shell.cpp
-    extensions/firebolt_wm/src/firebolt_wm.cpp
-  )
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+    set(RDK_WM_EXT_FIREBOLT_SURFACE_PROTOCOL_SOURCE extensions/firebolt_surface/src/firebolt_surface_protocol.c)
+	set(RDK_WM_EXT_FIREBOLT_SURFACE_SERVER_SOURCE extensions/firebolt_surface/src/firebolt_surface.cpp)
+  endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
+    set(RDK_WM_EXT_FIREBOLT_WM_PROTOCOL_SOURCE extensions/firebolt_wm/src/firebolt_wm_protocol.c)
+	set(RDK_WM_EXT_FIREBOLT_WM_SERVER_SOURCE extensions/firebolt_wm/src/firebolt_wm.cpp)
+ endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
 endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
 
 set(RDK_WINDOW_MANAGER_LINK_LIBRARIES -lz -lessos -lEGL -lGLESv2 -lwayland-client -lwesteros_compositor -lpthread -ljpeg -lpng16)
@@ -120,22 +127,58 @@ endif()
 
 if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
   add_definitions("-DRDK_WINDOW_MANAGER_BUILD_EXTENSIONS")
-  include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_surface/include)
-  include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_shell/include)
-  include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_wm/include)
 
-  set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lwayland-server)
-  set(RDK_WINDOW_MANAGER_CLIENT_LINK_LIBRARIES -lwayland-client)
+  set(RDK_WINDOW_MANAGER_WL_SERVER_LINK_LIBRARIES -lwayland-server)
+  set(RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES -lwayland-client)
+  set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES -lwayland-client)
 
-  add_library(rdkwindowmanagerextensions_shared SHARED ${RDK_WINDOW_MANAGER_EXTENSION_PROTOCOL_SOURCES})
-  set_target_properties(rdkwindowmanagerextensions_shared PROPERTIES OUTPUT_NAME rdkwindowmanagerextensions)
-  target_link_libraries(rdkwindowmanagerextensions_shared ${RDK_WINDOW_MANAGER_CLIENT_LINK_LIBRARIES})
+  # Generating extension client interface as shared library to be linked with respective application
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
+    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION")
+    include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_shell/include)
+
+    add_library(rdkwmextfireboltshell_shared SHARED ${RDK_WM_EXT_FIREBOLT_SHELL_PROTOCOL_SOURCE})
+    set_target_properties(rdkwmextfireboltshell_shared PROPERTIES OUTPUT_NAME rdkwmextfireboltshell)
+    target_link_libraries(rdkwmextfireboltshell_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES})
+    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
+
+    add_library(wstplugin_rdkwmfireboltshell_shared SHARED ${RDK_WM_EXT_FIREBOLT_SHELL_SERVER_SOURCE})
+    set_target_properties(wstplugin_rdkwmfireboltshell_shared PROPERTIES OUTPUT_NAME wstplugin_rdkwmfireboltshell)
+    target_link_libraries(wstplugin_rdkwmfireboltshell_shared ${RDK_WINDOW_MANAGER_WL_SERVER_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
+  endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
+
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION")
+    include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_surface/include)
+
+    add_library(rdkwmextfireboltsurface_shared SHARED ${RDK_WM_EXT_FIREBOLT_SURFACE_PROTOCOL_SOURCE})
+    set_target_properties(rdkwmextfireboltsurface_shared PROPERTIES OUTPUT_NAME rdkwmextfireboltsurface)
+    target_link_libraries(rdkwmextfireboltsurface_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES})
+    set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwmextfireboltsurface_shared)
+
+    add_library(wstplugin_rdkwmfireboltsurface_shared SHARED ${RDK_WM_EXT_FIREBOLT_SURFACE_SERVER_SOURCE})
+    set_target_properties(wstplugin_rdkwmfireboltsurface_shared PROPERTIES OUTPUT_NAME wstplugin_rdkwmfireboltsurface)
+    target_link_libraries(wstplugin_rdkwmfireboltsurface_shared ${RDK_WINDOW_MANAGER_WL_SERVER_LINK_LIBRARIES} rdkwmextfireboltsurface_shared)
+  endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+
+  if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
+    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION")
+    include_directories( ${PROJECT_SOURCE_DIR}/extensions/firebolt_wm/include)
+
+    add_library(rdkwmextfireboltwm_shared SHARED ${RDK_WM_EXT_FIREBOLT_WM_PROTOCOL_SOURCE})
+    set_target_properties(rdkwmextfireboltwm_shared PROPERTIES OUTPUT_NAME rdkwmextfireboltwm)
+    target_link_libraries(rdkwmextfireboltwm_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES})
+    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
+
+    add_library(wstplugin_rdkwmfireboltwm_shared SHARED ${RDK_WM_EXT_FIREBOLT_SURFACE_SERVER_SOURCE})
+    set_target_properties(wstplugin_rdkwmfireboltwm_shared PROPERTIES OUTPUT_NAME wstplugin_rdkwmfireboltwm)
+    target_link_libraries(wstplugin_rdkwmfireboltwm_shared ${RDK_WINDOW_MANAGER_WL_SERVER_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
+  endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
 endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
 
 add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES})
 set_target_properties(rdkwindowmanager_shared PROPERTIES OUTPUT_NAME rdkwindowmanager)
 target_link_libraries(rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_LINK_LIBRARIES})
-
 
 if (RDK_WINDOW_MANAGER_BUILD_APP)
     message("Building rdkwindowmanager executable")
@@ -145,9 +188,9 @@ if (RDK_WINDOW_MANAGER_BUILD_APP)
 endif (RDK_WINDOW_MANAGER_BUILD_APP)
 
 if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
+	add_definitions("-DRDK_WINDOW_MANAGER_BUILD_TEST_APP")
     message("Building rdkwindowmanagertest executable")
     add_executable(rdkwindowmanagertest tests/testmain.cpp)
-    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared rdkwindowmanagerextensions_shared)
-    target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared rdkwindowmanagerextensions_shared -lpthread -lwayland-client)
+    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
-

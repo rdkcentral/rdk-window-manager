@@ -117,6 +117,33 @@ namespace RdkWindowManager
             }
             #endif
 
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
+            {
+                std::vector<std::string> extensions;
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
+                extensions.push_back("libwstplugin_rdkwmfireboltsurface.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
+                extensions.push_back("libwstplugin_rdkwmfireboltshell.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+                extensions.push_back("libwstplugin_rdkwmfireboltwm.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
+                for (int i = 0; i < extensions.size(); ++i)
+                {
+                    const std::string extensionPath = RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY + extensions[i];
+                    Logger::log(LogLevel::Information,  "Attempting to load extension: %s", extensionPath.c_str());
+                    if (!WstCompositorAddModule(mMainWstContext, extensionPath.c_str()))
+                    {
+                        Logger::log(LogLevel::Warn,  "Failed to load plugin:: %s, westeros error: %s", extensionPath.c_str(), WstCompositorGetLastErrorDetail(mMainWstContext));
+                    }
+                }
+            }
+#endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
+
             if (!error)
             {
                 if (!WstCompositorSetDisplayName( mMainWstContext, displayName.c_str()))
