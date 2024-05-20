@@ -41,6 +41,7 @@
 #include <sys/sysinfo.h>
 #include <fstream>
 #include <thread>
+#include <cstring>
 
 #define RDK_WINDOW_MANAGER_FPS 40
 
