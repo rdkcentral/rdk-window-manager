@@ -140,7 +140,7 @@ struct firebolt_surface_interface {
 	 * set the relative z-order of the surface
 	 *
 	 * Sets the z-order of the surface relative to other surfaces
-	 * within the client’s display.
+	 * within the client's display.
 	 *
 	 * The z-order should be in the range of 0.0 - 1.0 inclusive.
 	 */

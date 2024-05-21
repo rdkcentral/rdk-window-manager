@@ -17,8 +17,8 @@
  * limitations under the License.
  **/
 
-#include "logger.h"
 #include <cstring>
+#include "logger.h"
 #include "westeros-compositor.h"
 #include "firebolt_shell.h"
 #include "firebolt_shell_protocol_server.h"
@@ -41,67 +41,116 @@ static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                             struct wl_resource *surface,
                             uint32_t type);
 
-/* struct for shell interface implementation*/
+/* vtable of firebolt_shell interface implementation */
 static const struct firebolt_shell_interface fireboltShellInterfaceImpl = {
-    firebolt_shell_get_firebolt_surface
-};
-
-/*firebolt_shell bind function*/
-void firebolt_shell_bind( struct wl_client *client, void *data, uint32_t version, uint32_t id)
-{
-    fireboltShellCtx *f_fbShellCtx = (fireboltShellCtx*)data;
-
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "FireboltShell Bind");
-
-    if (NULL == f_fbShellCtx->wlResource)
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_shell id:%d wl_resource_create", id);
-        f_fbShellCtx->wlResource= wl_resource_create(client,
-                                                        &firebolt_shell_interface,
-                                                        std::min<int>(version, 1), id);
-        if (!f_fbShellCtx->wlResource)
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, " firebolt_shell id:%d wl_resource_create - no memory", id);
-            wl_client_post_no_memory(client);
-        }
-        else
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_shell id:%d wl_resource_set_implementation", id);
-            wl_resource_set_implementation(f_fbShellCtx->wlResource, &fireboltShellInterfaceImpl, f_fbShellCtx, NULL);
-        }
-    }
-    else
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " firebolt_shell_bind id:%d already bound!", id);
-    }
-    return;
-}
+                        .get_firebolt_surface = firebolt_shell_get_firebolt_surface
+                    };
 
 
+/**
+ * create a firebolt shell surface from a given wayland surface
+ *
+ * Create a firebolt_surface wrapper around wl_surfaces, sent in reply
+ * to a get_firebolt_surface request for video surfaces
+ *
+ * @param id        : id of the firebolt_surface interface
+ * @param surface   : Object of the wayland surface to be converted as firebolt_surface
+ * @param type      : firebolt_shell_firebolt_surface_type FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_*
+ */
 static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                                     struct wl_resource *resource,
                                     uint32_t id,
                                     struct wl_resource *surface,
                                     uint32_t type)
 {
-    const char * hdwre_video_surface_id = "1111"; /*dummy input for now */
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "fireboltShell Interface getFireboltSurface");
-    type = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO ; /* dummy input for now */
+    const char *hwVideoSurfaceId = "1"; /* hardcorded for testing purpose */
 
-    if( type == FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO )
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " firebolt_shell@.get_firebolt_surface: client@%p resource@%p id:%u surface:%p type:%u",
+                    client, resource, resource, id, surface, type);
+
+    /* TODO: To be implemented */
+
+    /* Notifying event for video surfaces */
+    if (type == FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO)
     {
-        firebolt_shell_send_firebolt_video_surface_id(resource,hdwre_video_surface_id);
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "fireboltShell video id %s",hdwre_video_surface_id);
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                        " firebolt_shell@.event: firebolt_video_surface_id %s", hwVideoSurfaceId);
+
+        /* Sending hardcoded hw firebolt_video_surface_id for testing purpose */
+        firebolt_shell_send_firebolt_video_surface_id(resource, hwVideoSurfaceId);
     }
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "fireboltShell getFireboltSurface End videoId %s",hdwre_video_surface_id);
+    return;
+}
+
+/**
+ * firebolt_shell interfaces bind operation with wayland extension
+ * for the given interface version and id
+ *
+ * @param client  : wayland client object of the firebolt_shell interface
+ * @param data    : user defined data object of the firebolt_shell interface
+ * @param version : version of the firebolt_shell interface
+ * @param id      : id of the firebolt_shell interface
+ */
+void firebolt_shell_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
+{
+    fireboltShellCtx *f_fbShellCtx = reinterpret_cast<fireboltShellCtx*>(data);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                            " firebolt_shell@.bind: client@%p data:%p version:%u, id:%u",
+                            client, data, version, id);
+
+    if (NULL == f_fbShellCtx)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                        " firebolt_shell interface instance not valid");
+        goto ret_fail;
+    }
+
+    if (NULL == f_fbShellCtx->wlResource)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_shell id:%d wl_resource_create", id);
+        f_fbShellCtx->wlResource = wl_resource_create(client,
+                                                    &firebolt_shell_interface,
+                                                    std::min<int>(version, 1), id);
+        if (!f_fbShellCtx->wlResource)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                            " firebolt_shell id:%d wl_resource_create - no memory", id);
+            wl_client_post_no_memory(client);
+            goto ret_fail;
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                            " firebolt_shell id:%d wl_resource_set_implementation", id);
+            wl_resource_set_implementation(f_fbShellCtx->wlResource,
+                                            &fireboltShellInterfaceImpl,
+                                            f_fbShellCtx,
+                                            NULL);
+        }
+    }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                                " firebolt_shell@.bind: interface version:%u, id:%u already bound!");
+    }
+
+ret_fail:
+    return;
 }
 
 extern "C"
 {
+    /**
+     * moduleInit of firebolt_shell westeros extension plugin
+     *
+     * @param wstComp   : Object of westeros compositor instance
+     * @param display   : Object of the wayland display
+     */
     bool moduleInit(WstCompositor *wstComp, struct wl_display *display)
     {
         bool ret = true;
-
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                                         " moduleInit: firebolt_shell extension wstComp@%p wlDisplay@%p initializing",
                                         wstComp, display);
@@ -113,8 +162,9 @@ extern "C"
                 if (NULL == f_fbShellCtx)
                 {
                     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                        " moduleInit: Failed to create memory for fireboltShellCtx");
+                                        " moduleInit: firebolt_shell no memory for context object");
                     ret = false;
+                    goto ret_fail;
                 }
                 else
                 {
@@ -130,6 +180,7 @@ extern "C"
                         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                                         " moduleInit: Failed to wl_global_create interface:firebolt_shell");
                         ret = false;
+                        goto ret_fail;
                     }
                     else
                     {
@@ -149,12 +200,22 @@ extern "C"
                                         " moduleInit: firebolt_shell extension already initialized");
         }
 
+    ret_fail:
         return ret;
     }
 
+    /**
+     * moduleTerm of firebolt_shell westeros extension plugin
+     *
+     * @param wstComp : Object of westeros compositor instance
+     */
     void moduleTerm(WstCompositor *wstComp)
     {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, " moduleTerm: firebolt_shell extension dummy");
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " moduleTerm: firebolt_shell extension dummy!");
+
+        /* TODO: To be implemented */
+
         bfbShellInitialized = false;
     }
 }

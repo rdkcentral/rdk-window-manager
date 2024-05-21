@@ -74,8 +74,8 @@
         </request>
 
         <request name="set_client_display_bounds">
-            <description summary="sets client window bounds">
-                Sets client window bounds. This will change the size of a clients Wayland display
+            <description summary="sets client display window bounds">
+                Sets client display window bounds. This will change the size of a clients Wayland display
             </description>
                 <arg name="id" type="string" summary="Id of the app"/>
                 <arg name="width" type="uint" summary="the width of an apps Wayland display"/>

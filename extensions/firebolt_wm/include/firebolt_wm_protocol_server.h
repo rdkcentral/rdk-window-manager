@@ -170,9 +170,9 @@ struct firebolt_wm_interface {
 				  uint32_t width,
 				  uint32_t height);
 	/**
-	 * sets client window bounds
+	 * sets client display window bounds
 	 *
-	 * Sets client window bounds. This will change the size of a
+	 * Sets client display window bounds. This will change the size of a
 	 * clients Wayland display
 	 * @param id Id of the app
 	 * @param width the width of an apps Wayland display
