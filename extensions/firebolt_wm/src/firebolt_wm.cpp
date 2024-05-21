@@ -15,7 +15,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
+ */
 
 #include <cstring>
 #include "logger.h"
@@ -158,7 +158,7 @@ static void firebolt_wm_set_properties(struct wl_client *client,
 }
 
 /**
- * set surface opacity
+ * Create window manager surface for the app or group with defaults.
  *
  * Defaults: x, y = 0 Width, height, display width, display
  * height = device resolution Opacity = 1.0 Visible = false Z-order

@@ -15,7 +15,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
+ */
 
 #include <cstring>
 #include "logger.h"
@@ -36,24 +36,24 @@ static fireboltSurfaceCtx   *f_fbSurfaceCtx = NULL;
 static bool                 bfbSurfaceInitialized = false;
 
 static void firebolt_surface_destroy(struct wl_client *client, struct wl_resource *resource);
-static void firebolt_surface_setName(struct wl_client *client, struct wl_resource *resource, const char *name);
-static void firebolt_surface_setVisible(struct wl_client *client, struct wl_resource *resource, uint32_t visible);
-static void firebolt_surface_setBounds(struct wl_client *client, struct wl_resource *resource,
+static void firebolt_surface_set_name(struct wl_client *client, struct wl_resource *resource, const char *name);
+static void firebolt_surface_set_visible(struct wl_client *client, struct wl_resource *resource, uint32_t visible);
+static void firebolt_surface_set_bounds(struct wl_client *client, struct wl_resource *resource,
                                         int32_t x, int32_t y, int32_t width, int32_t height);
-static void firebolt_surface_setCrop(struct wl_client *client, struct wl_resource *resource,
+static void firebolt_surface_set_crop(struct wl_client *client, struct wl_resource *resource,
                                         wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t  sheight);
-static void firebolt_surface_setZOrder(struct wl_client *client, struct wl_resource *resource, wl_fixed_t zorder);
-static void firebolt_surface_setOpacity(struct wl_client *client, struct wl_resource *resource, wl_fixed_t opacity);
+static void firebolt_surface_set_zorder(struct wl_client *client, struct wl_resource *resource, wl_fixed_t zorder);
+static void firebolt_surface_set_opacity(struct wl_client *client, struct wl_resource *resource, wl_fixed_t opacity);
 
 /* vtable of firebot_surface interfaces implementation */
 static const struct firebolt_surface_interface fireboltSurfaceInterfaceImpl = {
                         .destroy        = firebolt_surface_destroy,
-                        .set_name       = firebolt_surface_setName,
-                        .set_visible    = firebolt_surface_setVisible,
-                        .set_bounds     = firebolt_surface_setBounds,
-                        .set_crop       = firebolt_surface_setCrop,
-                        .set_zorder     = firebolt_surface_setZOrder,
-                        .set_opacity    = firebolt_surface_setOpacity
+                        .set_name       = firebolt_surface_set_name,
+                        .set_visible    = firebolt_surface_set_visible,
+                        .set_bounds     = firebolt_surface_set_bounds,
+                        .set_crop       = firebolt_surface_set_crop,
+                        .set_zorder     = firebolt_surface_set_zorder,
+                        .set_opacity    = firebolt_surface_set_opacity
                     };
 
 /**
@@ -79,7 +79,7 @@ static void firebolt_surface_destroy(struct wl_client *client, struct wl_resourc
  * Sets the name of the firebolt surface
  *
  */
-static void firebolt_surface_setName(struct wl_client *client, struct wl_resource *resource,
+static void firebolt_surface_set_name(struct wl_client *client, struct wl_resource *resource,
                                     const char *name)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
@@ -97,7 +97,7 @@ static void firebolt_surface_setName(struct wl_client *client, struct wl_resourc
  *
  * @param visible : type usigned int of enum firebolt_surface_visibility
  */
-static void firebolt_surface_setVisible(struct wl_client *client, struct wl_resource *resource,
+static void firebolt_surface_set_visible(struct wl_client *client, struct wl_resource *resource,
                                         uint32_t visible)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
@@ -124,7 +124,7 @@ static void firebolt_surface_setVisible(struct wl_client *client, struct wl_reso
  * @param width     : the width of the surface
  * @param height    : the height of the surface
  */
-static void firebolt_surface_setBounds(struct wl_client *client,
+static void firebolt_surface_set_bounds(struct wl_client *client,
                                         struct wl_resource *resource, int32_t x, int32_t y, int32_t width, int32_t height)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
@@ -153,7 +153,7 @@ static void firebolt_surface_setBounds(struct wl_client *client,
  * @param swidth    : the width of the surface, fixed point number
  * @param sheight   : the height of the surface, fixed point number representing
  */
-static void firebolt_surface_setCrop(struct wl_client *client, struct wl_resource *resource,
+static void firebolt_surface_set_crop(struct wl_client *client, struct wl_resource *resource,
                                         wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t sheight)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
@@ -175,7 +175,7 @@ static void firebolt_surface_setCrop(struct wl_client *client, struct wl_resourc
  *
  * @param zorder : z-order of the surface relative to other surface
  */
-static void firebolt_surface_setZOrder(struct wl_client *client, struct wl_resource *resource, wl_fixed_t zorder)
+static void firebolt_surface_set_zorder(struct wl_client *client, struct wl_resource *resource, wl_fixed_t zorder)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_surface@.set_zorder: client@%p resource@%p zorder:%f",
@@ -195,7 +195,7 @@ static void firebolt_surface_setZOrder(struct wl_client *client, struct wl_resou
  *
  * @param opacity : opacity value of the surface
  */
-static void firebolt_surface_setOpacity(struct wl_client *client, struct wl_resource *resource, wl_fixed_t opacity)
+static void firebolt_surface_set_opacity(struct wl_client *client, struct wl_resource *resource, wl_fixed_t opacity)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_surface@.set_opacity: client@%p resource@%p opacity :%f",
