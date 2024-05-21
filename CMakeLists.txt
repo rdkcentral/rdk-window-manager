@@ -36,7 +36,7 @@ option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION "RDK_WINDOW_MANAGER_BUI
 endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
 option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION" ON)
 endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
-option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" OFF)
+option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -154,8 +154,9 @@ if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
 
     add_library(rdkwmextfireboltshell_shared SHARED ${RDK_WM_EXT_FIREBOLT_SHELL_PROTOCOL_SOURCE})
     set_target_properties(rdkwmextfireboltshell_shared PROPERTIES OUTPUT_NAME rdkwmextfireboltshell)
-    target_link_libraries(rdkwmextfireboltshell_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES} rdkwmextfireboltsurface_shared)
-    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
+    target_link_libraries(rdkwmextfireboltshell_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES})
+    set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
+#   set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
 
     add_library(wstplugin_rdkwmfireboltshell_shared SHARED ${RDK_WM_EXT_FIREBOLT_SHELL_SERVER_SOURCE})
     set_target_properties(wstplugin_rdkwmfireboltshell_shared PROPERTIES OUTPUT_NAME wstplugin_rdkwmfireboltshell)
@@ -170,7 +171,8 @@ if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
     add_library(rdkwmextfireboltwm_shared SHARED ${RDK_WM_EXT_FIREBOLT_WM_PROTOCOL_SOURCE})
     set_target_properties(rdkwmextfireboltwm_shared PROPERTIES OUTPUT_NAME rdkwmextfireboltwm)
     target_link_libraries(rdkwmextfireboltwm_shared ${RDK_WINDOW_MANAGER_WL_CLIENT_LINK_LIBRARIES})
-    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
+    set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
+#   set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
 
     add_library(wstplugin_rdkwmfireboltwm_shared SHARED ${RDK_WM_EXT_FIREBOLT_WM_SERVER_SOURCE})
     set_target_properties(wstplugin_rdkwmfireboltwm_shared PROPERTIES OUTPUT_NAME wstplugin_rdkwmfireboltwm)
