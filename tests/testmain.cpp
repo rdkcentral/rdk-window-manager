@@ -95,6 +95,35 @@ typedef struct rdkwmTestAppCtx
    pollfd                   wlpollfd;
 } rdkwmTestAppCtx;
 
+#ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
+static void shellFireboltVideoSurfaceId(void *data, struct firebolt_shell *firebolt_shell,
+                                        const char *video_id);
+
+static const struct firebolt_shell_listener  fbShellListener =
+{
+   .firebolt_video_surface_id = shellFireboltVideoSurfaceId
+};
+#endif
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+static void wmClientProperties(void *data, struct firebolt_wm *firebolt_wm, const char *id,
+                               int32_t x, int32_t y, uint32_t width, uint32_t height,
+                               wl_fixed_t opacity, int32_t zorder, int32_t visible,
+                               wl_fixed_t crop_x, wl_fixed_t crop_y, wl_fixed_t crop_width,
+                               wl_fixed_t crop_height, int32_t textured);
+
+static void wmFocusedClient(void *data, struct firebolt_wm *firebolt_wm, const char *id);
+static void wmClients(void *data, struct firebolt_wm *firebolt_wm, const char *id);
+
+static const struct firebolt_wm_listener fbWmListener =
+{
+   .client_properties = wmClientProperties,
+   .focused_client    = wmFocusedClient,
+   .clients           = wmClients
+};
+#endif
+#endif
+
 static void registryHandleGlobal(void *data,
                                  struct wl_registry *registry, uint32_t id,
                                  const char *interface, uint32_t version);
@@ -177,6 +206,7 @@ static void registryHandleGlobal(void *data,
         if(NULL != ctx->fbShell)
         {
             RDKWM_TEST_INFO(("wl_registry_bind id:%d interface:%s version:%d client object:%p success", id, interface, version, ctx->fbShell));
+            firebolt_shell_add_listener(ctx->fbShell, &fbShellListener, ctx);
         }
         else
         {
@@ -193,6 +223,7 @@ static void registryHandleGlobal(void *data,
         if(NULL != ctx->fbWm)
         {
             RDKWM_TEST_INFO(("wl_registry_bind id:%d interface:%s version:%d client object:%p success", id, interface, version, ctx->fbWm));
+            firebolt_wm_add_listener(ctx->fbWm, &fbWmListener, ctx);
         }
         else
         {
@@ -213,6 +244,38 @@ static void registryHandleGlobalRemove(void *data,
 }
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
+static void shellFireboltVideoSurfaceId(void *data, struct firebolt_shell *firebolt_shell,
+                                        const char *video_id)
+{
+   rdkwmTestAppCtx *ctx = (rdkwmTestAppCtx*)data;
+   RDKWM_TEST_INFO(("shell: video Id %s\n",video_id));
+}
+#endif
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+static void wmClientProperties(void *data, struct firebolt_wm *firebolt_wm, const char *id,
+                               int32_t x, int32_t y, uint32_t width, uint32_t height,
+                               wl_fixed_t opacity, int32_t zorder, int32_t visible,
+                               wl_fixed_t crop_x, wl_fixed_t crop_y, wl_fixed_t crop_width,
+                               wl_fixed_t crop_height, int32_t textured)
+{
+   rdkwmTestAppCtx *ctx = (rdkwmTestAppCtx*)data;
+   RDKWM_TEST_INFO(("wm: id = %s, x = %d ,y = %d ,W = %d , H = %d , op = %f , zorder = %d , v = %d , cropx = %f , crop_y = %f , crop_w = %f , crop_h = %f , texture = %d \n",id,x,y,width,height,opacity,zorder,visible,crop_x,crop_y,crop_width,crop_height,textured));
+}
+
+static void wmFocusedClient(void *data, struct firebolt_wm *firebolt_wm, const char *id)
+{
+   rdkwmTestAppCtx *ctx = (rdkwmTestAppCtx*)data;
+   RDKWM_TEST_INFO(("wm: focused client Id %s\n",id));
+}
+
+static void wmClients(void *data, struct firebolt_wm *firebolt_wm, const char *id)
+{
+   rdkwmTestAppCtx *ctx = (rdkwmTestAppCtx*)data;
+   RDKWM_TEST_INFO(("wm: Clients Id %s\n",id));
+}
+#endif
+
 void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
 {
     RDKWM_TEST_INFO(("rdkwmTestAppCtx:%p", ctx));
@@ -239,7 +302,7 @@ void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
         {
             RDKWM_TEST_INFO(("firebolt_shell interface tests"));
             firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_STANDARD);
-            //firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO);
+            firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO);
             firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_POPUP);
             firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_NOTIFICATION);
         }
@@ -256,6 +319,9 @@ void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
             const char *id = "1";
             RDKWM_TEST_INFO(("firebolt_wm interface tests"));
             firebolt_wm_create(ctx->fbWm, id);
+            firebolt_wm_get_properties(ctx->fbWm ,id);
+            firebolt_wm_get_focused_client(ctx->fbWm);
+            firebolt_wm_get_clients(ctx->fbWm);
         }
         else
         {
