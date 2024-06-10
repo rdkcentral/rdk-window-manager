@@ -19,15 +19,17 @@
 
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
+#include "rdkcompositor.h"
 
 class firebolt_window_manager
 {
     public:
-        static bool initialise();
-        static bool destroy();
+        firebolt_window_manager(std::shared_ptr<RdkWindowManager::RdkCompositor> &Compositor);
         ~firebolt_window_manager();
 
-    protected:
-        firebolt_window_manager() = default;
+        std::shared_ptr<RdkWindowManager::RdkCompositor> Compositor() const;
+
+    private:
+        std::weak_ptr<RdkWindowManager::RdkCompositor> mCompositor;
 };
 #endif
