@@ -63,7 +63,8 @@ namespace RdkWindowManager
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
         std::vector<std::shared_ptr<RdkWindowManagerEventListener>> eventListeners;
         std::string mimeType;
-	bool autoDestroy;
+        bool autoDestroy;
+        int32_t zorder;
     };
 
     struct KeyInterceptInfo
@@ -108,6 +109,8 @@ namespace RdkWindowManager
 
     typedef std::vector<CompositorInfo> CompositorList;
     typedef CompositorList::iterator CompositorListIterator;
+
+    static bool addCompositor(CompositorList* compositorList, CompositorInfo compositorInfo);
 
     CompositorList gCompositorList;
     CompositorList gTopmostCompositorList;
@@ -459,6 +462,34 @@ namespace RdkWindowManager
             else
                 ++it;
         }
+    }
+
+    bool addCompositor(CompositorList* compositorList, CompositorInfo compositorInfo)
+    {
+        if (compositorList->empty())
+        {
+            compositorList->push_back(compositorInfo);
+        }
+        else
+        {
+            CompositorListIterator it = compositorList->begin();
+            for (it = compositorList->begin(); it != compositorList->end(); ++it)
+            {
+                if (compositorInfo.zorder > it->zorder)
+                {
+                    break;
+                }
+            }
+            if (it == compositorList->end())
+            {
+                compositorList->push_back(compositorInfo);
+            }
+            else
+            {
+                compositorList->insert(it, compositorInfo);
+            }
+        }
+        return true;
     }
 
     std::shared_ptr<RdkCompositor> CompositorController::getCompositor(const std::string& displayName)
@@ -1156,6 +1187,52 @@ namespace RdkWindowManager
         return true;
     }
 
+    bool CompositorController::setZorder(const std::string& client, int32_t zorder)
+    {
+        CompositorListIterator it;
+        CompositorList* compositorInfoList = nullptr;
+
+        if (!getCompositorInfo(client, it, &compositorInfoList))
+        {
+            Logger::log(LogLevel::Error,  "%s not found and cannot set zorder:%d", client.c_str(), zorder);
+            return false;
+        }
+
+        CompositorInfo compositorInfo = *it;
+        if (zorder != compositorInfo.zorder)
+        {
+            CompositorListIterator listIt = compositorInfoList->begin();
+            Logger::log(LogLevel::Information,  "%s compositor:%s zorder:%d -> new zorder:%d",
+                        client.c_str(), compositorInfo.name.c_str(), compositorInfo.zorder, zorder);
+
+            /* Updating compositor list based on zorder */
+            compositorInfo.zorder = zorder;
+            compositorInfoList->erase(it);
+            for (listIt = compositorInfoList->begin(); listIt != compositorInfoList->end(); ++listIt)
+            {
+                if (zorder > listIt->zorder)
+                {
+                    break;
+                }
+            }
+            if (listIt == compositorInfoList->end())
+            {
+                compositorInfoList->push_back(compositorInfo);
+            }
+            else
+            {
+                compositorInfoList->insert(listIt, compositorInfo);
+            }
+            Logger::log(LogLevel::Information,  "%s compositor:%s zorder:%d repositioned",
+                        client.c_str(), compositorInfo.name.c_str(), compositorInfo.zorder);
+        }
+        else
+        {
+            Logger::log(LogLevel::Information,  "%s on the same compositor stack zorder:%d", client.c_str(), zorder);
+        }
+        return true;
+    }
+
     bool CompositorController::getBounds(const std::string& client, uint32_t &x, uint32_t &y, uint32_t &width, uint32_t &height)
     {
         CompositorListIterator it;
@@ -1279,6 +1356,29 @@ namespace RdkWindowManager
         {
             it->compositor->setHolePunch(holePunch);
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "hole punch for %s set to %s", client.c_str(), holePunch ? "true" : "false");
+            return true;
+        }
+        return false;
+    }
+
+    bool CompositorController::getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            it->compositor->crop(cropX, cropY, cropWidth, cropHeight);
+            return true;
+        }
+        return false;
+    }
+
+    bool CompositorController::setCrop(const std::string& client, int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            it->compositor->setCrop(cropX, cropY, cropWidth, cropHeight);
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "crop  function for %s set to x=%f,y=%f,w=%f,h=%f", client.c_str(),cropX,cropY,cropWidth,cropHeight);
             return true;
         }
         return false;
@@ -1519,13 +1619,16 @@ namespace RdkWindowManager
 		 gFocusedCompositor = compositorInfo;
 	    }
 
+            /* Updating compositor list based on topmost+1 zorder */
             if (topmost)
             {
-                gTopmostCompositorList.insert(gTopmostCompositorList.begin(), compositorInfo);
+                compositorInfo.zorder = (gTopmostCompositorList.empty() == true) ? 0 : (gTopmostCompositorList.begin()->zorder + 1);
+                addCompositor(&gTopmostCompositorList, compositorInfo);
             }
             else
             {
-                gCompositorList.insert(gCompositorList.begin(), compositorInfo);
+                compositorInfo.zorder = (gCompositorList.empty() == true) ? 0 : (gCompositorList.begin()->zorder + 1);
+                addCompositor(&gCompositorList, compositorInfo);
             }
         }
         return ret;
@@ -1875,13 +1978,16 @@ namespace RdkWindowManager
                     Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
                 }
 
+                /* Updating compositor list based on topmost+1 zorder */
                 if (topmost)
                 {
-                    gTopmostCompositorList.insert(gTopmostCompositorList.begin(), compositorInfo);
+                    compositorInfo.zorder = (gTopmostCompositorList.empty() == true) ? 0 : (gTopmostCompositorList.begin()->zorder + 1);
+                    addCompositor(&gTopmostCompositorList, compositorInfo);
                 }
                 else
                 {
-                    gCompositorList.insert(gCompositorList.begin(), compositorInfo);
+                    compositorInfo.zorder = (gCompositorList.empty() == true) ? 0 : (gCompositorList.begin()->zorder + 1);
+                    addCompositor(&gCompositorList, compositorInfo);
                 }
             }
             return true;
@@ -2553,11 +2659,12 @@ namespace RdkWindowManager
         auto c = it->compositor;
 
         c->visible(ci.visible);
-        //c->zorder(ci.zorder);
+        ci.zorder = it->zorder;
         c->opacity(ci.opacity);
         c->scale(ci.sx, ci.sy);
         c->position(ci.x, ci.y);
         c->size(ci.width, ci.height);
+        c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
 
         return true;
     }
@@ -2570,12 +2677,12 @@ namespace RdkWindowManager
         auto c = it->compositor;
 
         c->setVisible(ci.visible);
-        //c->setZorder(ci.zorder);
+        setZorder(client, ci.zorder);
         c->setOpacity(ci.opacity);
         c->setScale(ci.sx, ci.sy);
         c->setPosition(ci.x, ci.y);
         c->setSize(ci.width, ci.height);
-
+        c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         return true;
     }
 

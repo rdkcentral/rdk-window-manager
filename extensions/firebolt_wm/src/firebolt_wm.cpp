@@ -31,6 +31,8 @@
 #define FB_WM_DISPLAY_DEFAULT_VISIBILE_FLAG     (false)
 #define FB_WM_DISPLAY_DEFAULT_FOCUS_FLAG        (false)
 #define FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG       (true)
+#define FB_WM_DISPLAY_DEFAULT_CROP_XY_POSITION  (0)
+#define FB_WM_DISPLAY_DEFAULT_CROP_WH           (0)
 
 struct fireboltWmContext
 {
@@ -191,22 +193,26 @@ static void firebolt_wm_set_properties(struct wl_client *client,
 
         /* Set the properties of the client display */
         memset(&clientInfo, 0, sizeof(clientInfo));
-        clientInfo.x        = x;
-        clientInfo.y        = y;
-        clientInfo.width    = width;
-        clientInfo.height   = height;
-        clientInfo.opacity  = wl_fixed_to_double(opacity);
-        clientInfo.zorder   = zorder; /* TBD: zorder to be supported */
-        clientInfo.visible  = visible;
+        clientInfo.x          = x;
+        clientInfo.y          = y;
+        clientInfo.width      = width;
+        clientInfo.height     = height;
+        clientInfo.opacity    = wl_fixed_to_double(opacity);
+        clientInfo.zorder     = zorder;
+        clientInfo.visible    = visible;
+        clientInfo.cropX      = wl_fixed_to_int(crop_x);
+        clientInfo.cropY      = wl_fixed_to_int(crop_y);
+        clientInfo.cropWidth  = wl_fixed_to_int(crop_width);
+        clientInfo.cropHeight = wl_fixed_to_int(crop_height);
         if (!RdkWindowManager::CompositorController::setClientInfo(id, clientInfo))
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.set_properties: client@%p resource@%p id:%s"
                     " clientInfo{x:%d y:%d width:%u height:%u" \
-                    " opacity:%f zorder:%u visible:%u} - id not exist!",
+                    " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - id not exist!",
                     client, resource, id, clientInfo.x, clientInfo.y,
                     clientInfo.width, clientInfo.height, clientInfo.opacity,
-                    clientInfo.zorder, clientInfo.visible);
+                    clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
             goto ret_fail;
         }
         else
@@ -214,10 +220,10 @@ static void firebolt_wm_set_properties(struct wl_client *client,
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_wm@.set_properties: client@%p resource@%p id:%s"
                     " clientInfo{x:%d y:%d width:%u height:%u" \
-                    " opacity:%f zorder:%u visible:%u} - Success",
+                    " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
                     client, resource, id, clientInfo.x, clientInfo.y,
                     clientInfo.width, clientInfo.height, clientInfo.opacity,
-                    clientInfo.zorder, clientInfo.visible);
+                    clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
 
             if ((render_width > 0) || (render_height > 0))
             {
@@ -245,10 +251,10 @@ static void firebolt_wm_set_properties(struct wl_client *client,
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                 " firebolt_wm@.set_properties: client@%p resource@%p" \
                 " id:%p surface{x:%d y:%d width:%u height:%u} render{width:%u height:%u}" \
-                " opacity:%f zorder:%u visible:%u crop{x:%f y:%f width:%f height:%f} - invalid id param!",
+                " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d} - invalid id param!",
                 client, resource, id, x, y, width, height, render_width, render_height,
-                wl_fixed_to_double(opacity), zorder, visible, wl_fixed_to_double(crop_x),
-                wl_fixed_to_double(crop_y), wl_fixed_to_double(crop_width), wl_fixed_to_double(crop_height));
+                wl_fixed_to_double(opacity), zorder, visible, wl_fixed_to_int(crop_x),
+                wl_fixed_to_int(crop_y), wl_fixed_to_int(crop_width), wl_fixed_to_int(crop_height));
     }
 
 ret_fail:
@@ -260,7 +266,7 @@ ret_fail:
  *
  * Defaults: x, y = 0 Width, height, display width, display
  * height = device resolution Opacity = 1.0 Visible = false Z-order
- * = topmost + 1 Crop_x, crop_y = 0 Crop_width, crop_height = 1.0
+ * = topmost + 1 crop_x, crop_y = 0 Crop_width, crop_height = 0
  *
  * @param id : id of the app or group
  */
@@ -271,6 +277,8 @@ static void firebolt_wm_create (struct wl_client *client,
     if (id != NULL)
     {
         RdkWindowManager::ClientInfo clientInfo;
+        RdkWindowManager::ClientInfo getInfo;
+        std::string topClientName;
         std::string displayName = "display_";
         bool virtualDispEnabled = true;
         uint32_t virtualWidth;
@@ -316,9 +324,28 @@ static void firebolt_wm_create (struct wl_client *client,
             clientInfo.x = clientInfo.y = FB_WM_DISPLAY_DEFAULT_XY_POSITION;
             clientInfo.width   = width;
             clientInfo.height  = height;
-            clientInfo.zorder  = 1; /* TBD: topmost + 1 to be supported */
             clientInfo.opacity = FB_WM_DISPLAY_DEFAULT_OPACITY;
             clientInfo.visible = FB_WM_DISPLAY_DEFAULT_VISIBILE_FLAG;
+            clientInfo.cropX = clientInfo.cropY = FB_WM_DISPLAY_DEFAULT_CROP_XY_POSITION;
+            clientInfo.cropWidth  = clientInfo.cropHeight = FB_WM_DISPLAY_DEFAULT_CROP_WH;
+
+            /* Trying to get current compositor zorder, else trying to apply topmost zorder + 1 */
+            if (!RdkWindowManager::CompositorController::getClientInfo(id, getInfo))
+            {
+                /* Fallback: Querying top most client info and to apply topmost zorder + 1 */
+                if (RdkWindowManager::CompositorController::getTopmost(topClientName))
+                {
+                    if (RdkWindowManager::CompositorController::getClientInfo(topClientName, getInfo))
+                    {
+                        /* topmost + 1 */
+                        clientInfo.zorder  = (getInfo.zorder + 1);
+                    }
+                }
+            }
+            else
+            {
+                clientInfo.zorder  = getInfo.zorder;
+            }
 
             /* Set the properties of the client display */
             if (!RdkWindowManager::CompositorController::setClientInfo(id, clientInfo))
@@ -326,23 +353,21 @@ static void firebolt_wm_create (struct wl_client *client,
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                         " firebolt_wm@.create: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u} - id not exist!",
+                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - id not exist!",
                         id, clientInfo.x, clientInfo.y, clientInfo.width,
                         clientInfo.height, clientInfo.opacity,
-                        clientInfo.zorder, clientInfo.visible);
+                        clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_wm@.create: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u} - Success",
+                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
                         id, clientInfo.x, clientInfo.y, clientInfo.width,
                         clientInfo.height, clientInfo.opacity,
-                        clientInfo.zorder, clientInfo.visible);
+                        clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
             }
-
-            /* TODO: crop properties to be supported */
         }
     }
     else
@@ -507,13 +532,17 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
 
             /* Set display settings */
             memset(&clientInfo, 0, sizeof(clientInfo));
-            clientInfo.x       = x;
-            clientInfo.y       = y;
-            clientInfo.width   = width;
-            clientInfo.height  = height;
-            clientInfo.zorder  = zorder; /* TBD: zorder to be supported */
-            clientInfo.opacity = wl_fixed_to_double(opacity);
-            clientInfo.visible = visible;
+            clientInfo.x          = x;
+            clientInfo.y          = y;
+            clientInfo.width      = width;
+            clientInfo.height     = height;
+            clientInfo.zorder     = zorder;
+            clientInfo.opacity    = wl_fixed_to_double(opacity);
+            clientInfo.visible    = visible;
+            clientInfo.cropX      = wl_fixed_to_int(crop_x);
+            clientInfo.cropY      = wl_fixed_to_int(crop_y);
+            clientInfo.cropWidth  = wl_fixed_to_int(crop_width);
+            clientInfo.cropHeight = wl_fixed_to_int(crop_height);
 
             /* Set the properties of the client display */
             if (!RdkWindowManager::CompositorController::setClientInfo(id, clientInfo))
@@ -521,20 +550,20 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                         " firebolt_wm@.create_with_properties: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u} - id not exist!",
+                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - id not exist!",
                         id, clientInfo.x, clientInfo.y, clientInfo.width,
                         clientInfo.height, clientInfo.opacity,
-                        clientInfo.zorder, clientInfo.visible);
+                        clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_wm@.create_with_properties: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u} - Success",
+                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
                         id, clientInfo.x, clientInfo.y, clientInfo.width,
                         clientInfo.height, clientInfo.opacity,
-                        clientInfo.zorder, clientInfo.visible);
+                        clientInfo.zorder, clientInfo.visible, clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
 
                 /* TBD: createDisplay() call already has focus parameter, so need to be decided */
                 if (!RdkWindowManager::CompositorController::setFocus(id))
@@ -548,8 +577,6 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
                             " firebolt_wm@.create_with_properties: setFocus id:%s - Success!", id);
 
                 }
-
-                /* TODO: crop properties to be supported */
             }
         }
     }
@@ -774,26 +801,25 @@ static void firebolt_wm_get_properties(struct wl_client *client,
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_wm@.get_properties: getClientInfo id:%s" \
                     " clientInfo{x:%d y:%d width:%u height:%u" \
-                    " opacity:%f zorder:%u visible:%u} - Success",
+                    " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
                     id, clientInfo.x, clientInfo.y, clientInfo.width,
                     clientInfo.height, clientInfo.opacity,
-                    clientInfo.zorder, clientInfo.visible);
+                    clientInfo.zorder, clientInfo.visible,  clientInfo.cropX , clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
         }
 
-        /* TODO: crop and textured properties yet to be filled */
-
+        /* TODO: textured properties yet to be filled */
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_wm@.event: post client_properties resource@%p id:%s" \
                 " surface{x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
-                " crop{x:%f y:%f width:%f height:%f} textured:%d",
+                " crop{x:%d y:%d width:%d height:%d} textured:%d",
                 resource, id, clientInfo.x, clientInfo.y, clientInfo.width, clientInfo.height,
-                clientInfo.opacity, clientInfo.zorder, clientInfo.visible, 0, 0, 0, 0, 0);
+                clientInfo.opacity, clientInfo.zorder, clientInfo.visible, clientInfo.cropX , clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight, 0);
 
         /* Notifying client_properties event to the caller of the app id */
         firebolt_wm_send_client_properties(resource, id, clientInfo.x, clientInfo.y,
                     clientInfo.width, clientInfo.height, wl_fixed_from_double(clientInfo.opacity),
-                    clientInfo.zorder, clientInfo.visible, wl_fixed_from_double(0),
-                    wl_fixed_from_double(0), wl_fixed_from_double(0), wl_fixed_from_double(0), 0);
+                    clientInfo.zorder, clientInfo.visible, wl_fixed_from_int(clientInfo.cropX),
+                    wl_fixed_from_int(clientInfo.cropY), wl_fixed_from_int(clientInfo.cropWidth), wl_fixed_from_int(clientInfo.cropHeight), 0);
     }
 
 ret_fail:

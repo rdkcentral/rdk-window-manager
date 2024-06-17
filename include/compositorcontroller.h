@@ -44,6 +44,10 @@ namespace RdkWindowManager
         double opacity;
         int32_t zorder;
         bool visible;
+        int32_t cropX;
+        int32_t cropY;
+        int32_t cropWidth;
+        int32_t cropHeight;
     };
 
     class CompositorController
@@ -83,6 +87,8 @@ namespace RdkWindowManager
             static bool setScale(const std::string& client, double scaleX, double scaleY);
             static bool getHolePunch(const std::string& client, bool& holePunch);
             static bool setHolePunch(const std::string& client, const bool holePunch);
+            static bool getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
+            static bool setCrop(const std::string& client, int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
             static bool scaleToFit(const std::string& client, const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);
             static void onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress=true);
             static void onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress=true);
@@ -147,6 +153,7 @@ namespace RdkWindowManager
             static bool isErmEnabled();
             static bool getClientInfo(const std::string& client, ClientInfo& ci);
             static bool setClientInfo(const std::string& client, const ClientInfo& ci);
+            static bool setZorder(const std::string& client, int32_t zorder);
     };
 }
 

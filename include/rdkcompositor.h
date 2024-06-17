@@ -62,6 +62,8 @@ namespace RdkWindowManager
             void setAnimating(bool animating);
             void setHolePunch(bool holePunchEnabled);
             void holePunch(bool &holePunchEnabled);
+            void setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
+            void crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
             void keyMetadataEnabled(bool &enabled);
             void setKeyMetadataEnabled(bool enable);
             int registerInputEventListener(std::function<void(const RdkWindowManager::InputEvent&)> listener);
@@ -118,6 +120,10 @@ namespace RdkWindowManager
             bool mHolePunch;
             double mScaleX;
             double mScaleY;
+            int32_t mCropX;
+            int32_t mCropY;
+            int32_t mCropWidth;
+            int32_t mCropHeight;
             bool mEnableKeyMetadata;
             int mInputListenerTags;
             std::mutex mInputLock;

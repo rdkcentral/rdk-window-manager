@@ -27,7 +27,7 @@
                x, y = 0 Width, height, display width,
                display height = device resolution Opacity = 1.0
                Visible = false Z-order = topmost + 1 Crop_x, crop_y = 0
-               Crop_width, crop_height = 1.0
+               Crop_width, crop_height = 0.0
             </description>
                 <arg name="id" type="string" summary="id of the app or group"/>
         </request>

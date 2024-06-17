@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false)
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false),mCropX(0),mCropY(0),mCropWidth(0),mCropHeight(0)
     {
         if (gForce720)
         {
@@ -308,8 +308,16 @@ namespace RdkWindowManager
             0.f, 0.f, 0.f, 1.f
         };
 
-        WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-            matrix, opacity, hints, &needsHolePunch, rects);
+        if (mCropWidth > 0 || mCropHeight > 0)
+        {
+            WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
+                                     matrix, opacity, hints, &needsHolePunch, rects);
+        }
+        else
+        {
+            WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
+                                     matrix, opacity, hints, &needsHolePunch, rects);
+        }
 
         if (needsHolePunch)
         {
@@ -529,6 +537,22 @@ namespace RdkWindowManager
     void RdkCompositor::holePunch(bool &holePunchEnabled)
     {
         holePunchEnabled = mHolePunch;
+    }
+
+    void RdkCompositor::setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
+    {
+        mCropX = cropX;
+        mCropY = cropY;
+        mCropWidth = cropWidth;
+        mCropHeight = cropHeight;
+    }
+
+    void RdkCompositor::crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
+    {
+        cropX = mCropX;
+        cropY = mCropY;
+        cropWidth = mCropWidth;
+        cropHeight = mCropHeight;
     }
 
     void RdkCompositor::keyMetadataEnabled(bool &enabled)

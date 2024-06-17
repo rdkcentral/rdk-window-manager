@@ -219,7 +219,7 @@ firebolt_wm_set_properties(struct firebolt_wm *firebolt_wm, const char *id, int3
  * x, y = 0 Width, height, display width,
  * display height = device resolution Opacity = 1.0
  * Visible = false Z-order = topmost + 1 Crop_x, crop_y = 0
- * Crop_width, crop_height = 1.0
+ * Crop_width, crop_height = 0.0
  */
 static inline void
 firebolt_wm_create(struct firebolt_wm *firebolt_wm, const char *id)
