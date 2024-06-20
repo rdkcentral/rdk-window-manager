@@ -25,13 +25,36 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
+#include <memory>
 #include "westeros-compositor.h"
 #include "inputevent.h"
 #include "application.h"
 #include "rdkwindowmanagerrect.h"
+#include "rdkwindowmanagertypes.h"
+
 
 namespace RdkWindowManager
 {
+
+    struct FireboltSurfaceInfo
+    {
+        WstCompositor* westerosCompositor;
+        int surfaceId;
+        SurfaceType surfaceType;
+        int32_t x;
+        int32_t y;
+        uint32_t width;
+        uint32_t height;
+        int32_t sx;
+        int32_t sy;
+        uint32_t swidth;
+        uint32_t sheight;
+        double opacity;
+        bool visible;
+        int zOrder;
+        FireboltSurfaceInfo():westerosCompositor(NULL),surfaceId(0),surfaceType(SurfaceType::Standard),x(0),y(0),
+            width(1920),height(1080),sx(0),sy(0),swidth(1920),sheight(1080),opacity(1.0),visible(true),zOrder(0){}
+    };
 
     class FrameBuffer;
 
@@ -43,7 +66,7 @@ namespace RdkWindowManager
             virtual ~RdkCompositor();
             virtual bool createDisplay(const std::string& displayName, const std::string& clientName,
                 uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight) = 0;
-            void draw(bool &needsHolePunch, RdkWindowManagerRect& rect);
+            void draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata);
             void onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata);
             void onPointerMotion(uint32_t x, uint32_t y);
@@ -84,6 +107,13 @@ namespace RdkWindowManager
             void enableInputEvents(bool enable);
             bool getInputEventsEnabled() const;
             void setFocused(bool focused);
+            bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
+            void setFireboltSurfaceZOrder(int surfaceId, int zOrder);
+            void setFireboltSurfaceOpacity(int surfaceId, double opacity);
+            void setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);
+            void setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
+            void setFireboltSurfaceVisibility(int surfaceId, bool visible);
+            bool hasOverlays();
 
         private:
             void prepareHolePunchRects(std::vector<WstRect> wstrects, RdkWindowManagerRect& rect);
@@ -101,8 +131,8 @@ namespace RdkWindowManager
             void launchApplicationInBackground();
             void shutdownApplication();
             static bool loadExtensions(WstCompositor *compositor, const std::string& clientName);
-            void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect);
-            void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect);
+            void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
+            void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void updateWaylandState();
             
             std::string mDisplayName;
@@ -141,6 +171,7 @@ namespace RdkWindowManager
             bool mInputEventsEnabled;
             bool mSuspendedBeforeStart;
             bool mFocused;
+            std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
     };
 }
 
