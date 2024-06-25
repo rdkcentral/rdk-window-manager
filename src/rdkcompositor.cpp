@@ -941,6 +941,22 @@ namespace RdkWindowManager
         return result;
     }
 
+    bool RdkCompositor::hasCompositor(WstCompositor* compositor)
+    {
+        if (mWstContext == compositor) {
+          return true;
+	    }
+
+        for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+        {
+            if (fireboltSurface->westerosCompositor == compositor)
+            {
+                return true;
+            }
+        }
+	    return false;
+    }
+
     bool RdkCompositor::hasOverlays()
     {
         if(mFireboltSurfaces.empty())

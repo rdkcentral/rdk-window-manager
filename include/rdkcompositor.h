@@ -114,6 +114,7 @@ namespace RdkWindowManager
             void setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
             void setFireboltSurfaceVisibility(int surfaceId, bool visible);
             bool hasOverlays();
+            bool hasCompositor(WstCompositor* compositor);
 
         private:
             void prepareHolePunchRects(std::vector<WstRect> wstrects, RdkWindowManagerRect& rect);

@@ -2582,6 +2582,19 @@ namespace RdkWindowManager
         return true;
     }
 
+    bool CompositorController::getClientName(WstCompositor* compositor, std::string& clientName)
+    {
+        for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
+        {
+            if(it->compositor->hasCompositor(compositor))
+            {
+                clientName =  it->name;
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool CompositorController::getFireboltSurface(const std::string& client, int surfaceId, uint32_t type)
     {
         CompositorListIterator it;
