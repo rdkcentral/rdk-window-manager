@@ -19,17 +19,21 @@
 
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
-#include "rdkcompositor.h"
+#include "westeros-compositor.h"
+#include "firebolt_wm_protocol_server.h"
 
 class firebolt_window_manager
 {
     public:
-        firebolt_window_manager(std::shared_ptr<RdkWindowManager::RdkCompositor> &Compositor);
+        firebolt_window_manager();
         ~firebolt_window_manager();
+        static firebolt_window_manager *mInstance;
+        static std::mutex mContextLock;
 
-        std::shared_ptr<RdkWindowManager::RdkCompositor> Compositor() const;
-
-    private:
-        std::weak_ptr<RdkWindowManager::RdkCompositor> mCompositor;
+        WstCompositor     *mWstComp;
+        struct wl_display *mWlDisplay;
+        wl_resource       *mWlResource;
+        wl_global         *mWlGlobal;
+        std::string        mWstDispName;
 };
 #endif

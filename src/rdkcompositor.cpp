@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false),mCropX(0),mCropY(0),mCropWidth(0),mCropHeight(0)
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
     {
         if (gForce720)
         {
@@ -184,6 +184,46 @@ namespace RdkWindowManager
             mSizeChangeRequestPresent = false;
             CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_SIZE_CHANGE_COMPLETE);
         }
+    }
+
+    bool RdkCompositor::loadfireboltExtensions(WstCompositor *compositor)
+    {
+        Logger::log(LogLevel::Information,  "loadfireboltExtensions WstCompositor:%p", compositor);
+        bool success = true;
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
+        if (compositor)
+        {
+            std::vector<std::string> extensions;
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltsurface.so");
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltshell.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltwm.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
+            for (int i = 0; i < extensions.size(); ++i)
+            {
+                const std::string extensionPath = RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY + extensions[i];
+                Logger::log(LogLevel::Information,  "Attempting to load extension: %s", extensionPath.c_str());
+                if (!WstCompositorAddModule(compositor, extensionPath.c_str()))
+                {
+                    Logger::log(LogLevel::Warn,  "Failed to load plugin:: %s, westeros error: %s", extensionPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                }
+            }
+        }
+        else
+#endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
+        {
+            success = false;
+        }
+
+        return success;
     }
 
     bool RdkCompositor::loadExtensions(WstCompositor *compositor, const std::string& clientName)

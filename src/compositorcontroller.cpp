@@ -1571,7 +1571,7 @@ namespace RdkWindowManager
         }
         CompositorInfo compositorInfo;
         compositorInfo.name = clientDisplayName;
-	compositorInfo.autoDestroy = autodestroy;
+        compositorInfo.autoDestroy = autodestroy;
         if (gRdkWindowManagerCompositorType == SURFACE)
         {
             compositorInfo.compositor = std::make_shared<RdkCompositorSurface>();
@@ -1614,10 +1614,10 @@ namespace RdkWindowManager
                 gFocusedCompositor = compositorInfo;
                 Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
             }
-	    else if (focus)
-	    {
-		 gFocusedCompositor = compositorInfo;
-	    }
+            else if (focus)
+            {
+                gFocusedCompositor = compositorInfo;
+            }
 
             /* Updating compositor list based on topmost+1 zorder */
             if (topmost)

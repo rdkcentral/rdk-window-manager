@@ -2,7 +2,7 @@
 
 <protocol name="firebolt_surface">
 
-   <interface name="firebolt_surface" version="1"> 
+   <interface name="firebolt_surface" version="1">
 
       <enum name="firebolt_surface_visibility">
          <description summary="surface visibility">

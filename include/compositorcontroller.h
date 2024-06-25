@@ -77,6 +77,7 @@ namespace RdkWindowManager
             static bool setScreenResolution(const uint32_t width, const uint32_t height);
             static bool getClients(std::vector<std::string>& clients);
             static bool getZOrder(std::vector<std::string>&clients);
+            static bool setZorder(const std::string& client, int32_t zorder);
             static bool getBounds(const std::string& client, uint32_t &x, uint32_t &y, uint32_t &width, uint32_t &height);
             static bool setBounds(const std::string& client, const uint32_t x, const uint32_t y, const uint32_t width, const uint32_t height);
             static bool getVisibility(const std::string& client, bool& visible);
@@ -153,7 +154,6 @@ namespace RdkWindowManager
             static bool isErmEnabled();
             static bool getClientInfo(const std::string& client, ClientInfo& ci);
             static bool setClientInfo(const std::string& client, const ClientInfo& ci);
-            static bool setZorder(const std::string& client, int32_t zorder);
     };
 }
 

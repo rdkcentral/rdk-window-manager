@@ -218,8 +218,8 @@ firebolt_wm_set_properties(struct firebolt_wm *firebolt_wm, const char *id, int3
  * Defaults:
  * x, y = 0 Width, height, display width,
  * display height = device resolution Opacity = 1.0
- * Visible = false Z-order = topmost + 1 Crop_x, crop_y = 0
- * Crop_width, crop_height = 0.0
+ * Visible = false Z-order = topmost + 1 crop_x, crop_y = 0
+ * crop_width, crop_height = 0.0
  */
 static inline void
 firebolt_wm_create(struct firebolt_wm *firebolt_wm, const char *id)
@@ -275,7 +275,7 @@ firebolt_wm_set_client_bounds(struct firebolt_wm *firebolt_wm, const char *id, i
 /**
  * @ingroup iface_firebolt_wm
  *
- * Sets client window bounds. This will change the size of a clients Wayland display
+ * Sets client display window bounds. This will change the size of a clients Wayland display
  */
 static inline void
 firebolt_wm_set_client_display_bounds(struct firebolt_wm *firebolt_wm, const char *id, uint32_t width, uint32_t height)

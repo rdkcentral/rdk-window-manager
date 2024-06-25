@@ -60,7 +60,7 @@ static const struct firebolt_shell_interface fireboltShellInterfaceImpl = {
 static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                                     struct wl_resource *resource,
                                     uint32_t id,
-                                    struct wl_resource *surface,
+                                    struct wl_surface *surface,
                                     uint32_t type)
 {
     const char *hwVideoSurfaceId = "1"; /* hardcorded for testing purpose */

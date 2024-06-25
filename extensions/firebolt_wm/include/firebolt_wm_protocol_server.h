@@ -90,7 +90,7 @@ struct firebolt_wm_interface {
 	 *
 	 * Defaults: x, y = 0 Width, height, display width, display
 	 * height = device resolution Opacity = 1.0 Visible = false Z-order
-	 * = topmost + 1 Crop_x, crop_y = 0 Crop_width, crop_height = 0.0
+	 * = topmost + 1 crop_x, crop_y = 0 crop_width, crop_height = 0.0
 	 * @param id id of the app or group
 	 */
 	void (*create)(struct wl_client *client,
@@ -172,8 +172,8 @@ struct firebolt_wm_interface {
 	/**
 	 * sets client display window bounds
 	 *
-	 * Sets client display window bounds. This will change the size of a
-	 * clients Wayland display
+	 * Sets client display window bounds. This will change the size
+	 * of a clients Wayland display
 	 * @param id Id of the app
 	 * @param width the width of an apps Wayland display
 	 * @param height the height of an apps Wayland display
