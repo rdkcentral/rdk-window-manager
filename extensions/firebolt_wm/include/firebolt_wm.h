@@ -22,15 +22,15 @@
 #include "westeros-compositor.h"
 #include "firebolt_wm_protocol_server.h"
 
-class firebolt_window_manager
+class FireboltWindowManager
 {
     public:
-        firebolt_window_manager();
-        ~firebolt_window_manager();
-        static firebolt_window_manager *mInstance;
+        FireboltWindowManager();
+        ~FireboltWindowManager();
+        static FireboltWindowManager *mInstance;
         static std::mutex mContextLock;
 
-        WstCompositor     *mWstComp;
+        WstCompositor     *mWstCompositor;
         struct wl_display *mWlDisplay;
         wl_resource       *mWlResource;
         wl_global         *mWlGlobal;
