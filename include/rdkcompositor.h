@@ -108,11 +108,11 @@ namespace RdkWindowManager
             bool getInputEventsEnabled() const;
             void setFocused(bool focused);
             bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
-            void setFireboltSurfaceZOrder(int surfaceId, int zOrder);
-            void setFireboltSurfaceOpacity(int surfaceId, double opacity);
-            void setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);
-            void setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
-            void setFireboltSurfaceVisibility(int surfaceId, bool visible);
+            bool setFireboltSurfaceZOrder(int surfaceId, int zOrder);
+            bool setFireboltSurfaceOpacity(int surfaceId, double opacity);
+            bool setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);
+            bool setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
+            bool setFireboltSurfaceVisibility(int surfaceId, bool visible);
             bool hasOverlays();
             bool hasCompositor(WstCompositor* compositor);
 

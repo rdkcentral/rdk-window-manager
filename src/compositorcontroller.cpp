@@ -1567,7 +1567,9 @@ namespace RdkWindowManager
             reverseIterator->compositor->displayName(compositorName);
             std::cout << "rendering deleted compositor " << compositorName << std::endl;
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
+            reverseIterator->compositor->draw(needsHolePunch, rect, true);
         }
+
         gDeletedCompositors.clear();
 
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
@@ -2611,8 +2613,8 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            it->compositor->setFireboltSurfaceZOrder(surfaceId, zOrder);
-            return true;
+            bool result = it->compositor->setFireboltSurfaceZOrder(surfaceId, zOrder);
+            return result;
         }
         return false;
     }

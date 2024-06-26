@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false)
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces()
     {
         if (gForce720)
         {
@@ -329,8 +329,8 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, mVirtualWidth, mVirtualHeight,
-                            matrix, opacity, hints, &needsHolePunch, rects);
+                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
                         }
                     }
                 }
@@ -346,8 +346,8 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, mVirtualWidth, mVirtualHeight,
-                            matrix, opacity, hints, &needsHolePunch, rects);
+                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
                         }
                     }
                 }
@@ -415,8 +415,8 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, mWidth, mHeight,
-                            mMatrix, mOpacity, hints, &needsHolePunch, rects );
+                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
                         }
                     }
                 }
@@ -433,8 +433,8 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, mWidth, mHeight,
-                            mMatrix, mOpacity, hints, &needsHolePunch, rects );
+                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
                         }
                     }
                 }
@@ -888,12 +888,11 @@ namespace RdkWindowManager
 
         if(mFireboltSurfaces.empty())
         {
-            bool result = WstCompositorHasSurface(mWstContext, surfaceId);
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
 
-            for (std::vector<int>::iterator surface = surfaceIds.begin(); surface != surfaceIds.end(); surface++)
+            for (std::vector<int>::iterator id = surfaceIds.begin(); id != surfaceIds.end(); id++)
             {
-                if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *surface == surfaceId)
+                if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *id == surfaceId)
                 {
                     WstCompositor* overlayCompositor = NULL;
                     overlayCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
@@ -908,7 +907,7 @@ namespace RdkWindowManager
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
                     FireboltSurfaceInfo mainSurfaceInfo;
                     mainSurfaceInfo.surfaceId = surfaceId;
-                    mainSurfaceInfo.surfaceType = SurfaceType::Standard;
+                    mainSurfaceInfo.surfaceType = surfaceType;
                     mainSurfaceInfo.westerosCompositor = westerosCompositor;
                     mFireboltSurfaces.push_back(mainSurfaceInfo);
                 }
@@ -928,10 +927,40 @@ namespace RdkWindowManager
             WstCompositor* westerosCompositor = NULL;
             westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
             result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
-            surfaceInfo.westerosCompositor = westerosCompositor;
             if (result)
             {
-                mFireboltSurfaces.push_back(surfaceInfo);
+                surfaceInfo.westerosCompositor = westerosCompositor;
+                for (auto reverseIterator = mFireboltSurfaces.rbegin(); reverseIterator != mFireboltSurfaces.rend(); reverseIterator++)
+                {
+                    if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) &&
+                     (reverseIterator->surfaceType == SurfaceType::Notification || reverseIterator->surfaceType == SurfaceType::Popup))
+                    {
+                        surfaceInfo.zOrder = reverseIterator->zOrder + 1;
+                        break;
+                    }
+                    else if ((surfaceType == SurfaceType::Standard || surfaceType == SurfaceType::Video) &&
+                     (reverseIterator->surfaceType == SurfaceType::Standard || reverseIterator->surfaceType == SurfaceType::Video))
+                    {
+                        surfaceInfo.zOrder = reverseIterator->zOrder + 1;
+                        break;
+                    }
+                }
+                std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
+                for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
+                {
+                    if (fireboltSurfaceIt->zOrder > surfaceInfo.zOrder)
+                    {
+                        break;
+                    }
+                }
+                if (fireboltSurfaceIt == mFireboltSurfaces.end())
+                {
+                    mFireboltSurfaces.push_back(surfaceInfo);
+                }
+                else
+                {
+                    mFireboltSurfaces.insert(fireboltSurfaceIt, surfaceInfo);
+                }
             }
             else
             {
@@ -944,8 +973,8 @@ namespace RdkWindowManager
     bool RdkCompositor::hasCompositor(WstCompositor* compositor)
     {
         if (mWstContext == compositor) {
-          return true;
-	    }
+            return true;
+        }
 
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
@@ -976,18 +1005,20 @@ namespace RdkWindowManager
         return false;
     }
 
-    void RdkCompositor::setFireboltSurfaceOpacity(int surfaceId, double opacity)
+    bool RdkCompositor::setFireboltSurfaceOpacity(int surfaceId, double opacity)
     {
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
             {
                 fireboltSurface->opacity = opacity;
+                return true;
             }
         }
+        return false;
     }
 
-    void RdkCompositor::setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height)
+    bool RdkCompositor::setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height)
     {
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
@@ -997,11 +1028,13 @@ namespace RdkWindowManager
                 fireboltSurface->y = y;
                 fireboltSurface->width = width;
                 fireboltSurface->height = height;
+                return true;
             }
         }
+        return false;
     }
 
-    void RdkCompositor::setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight)
+    bool RdkCompositor::setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight)
     {
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
@@ -1011,24 +1044,29 @@ namespace RdkWindowManager
                 fireboltSurface->sy = sy;
                 fireboltSurface->swidth = swidth;
                 fireboltSurface->sheight = sheight;
+                return true;
             }
         }
+        return false;
     }
 
-    void RdkCompositor::setFireboltSurfaceVisibility(int surfaceId, bool visible)
+    bool RdkCompositor::setFireboltSurfaceVisibility(int surfaceId, bool visible)
     {
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
             {
                 fireboltSurface->visible = visible;
+                return true;
             }
         }
+        return false;
     }
 
-    void RdkCompositor::setFireboltSurfaceZOrder(int surfaceId, int zOrder)
+    bool RdkCompositor::setFireboltSurfaceZOrder(int surfaceId, int zOrder)
     {
         FireboltSurfaceInfo tempFireboltSurface;
+        bool surfaceFound = false;
         std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
 
         for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
@@ -1038,8 +1076,13 @@ namespace RdkWindowManager
                 tempFireboltSurface = *fireboltSurfaceIt;
                 mFireboltSurfaces.erase(fireboltSurfaceIt);
                 tempFireboltSurface.zOrder = zOrder;
+                surfaceFound = true;
                 break;
             }
+        }
+        if (!surfaceFound)
+        {
+            return false;
         }
 
         for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
@@ -1057,5 +1100,6 @@ namespace RdkWindowManager
         {
             mFireboltSurfaces.insert(fireboltSurfaceIt, tempFireboltSurface);
         }
+        return true;
     }
 }
