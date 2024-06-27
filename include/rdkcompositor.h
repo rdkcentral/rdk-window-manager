@@ -51,8 +51,9 @@ namespace RdkWindowManager
         double opacity;
         bool visible;
         int zOrder;
+        std::string name;
         FireboltSurfaceInfo():westerosCompositor(NULL),surfaceId(0),surfaceType(SurfaceType::Standard),x(0),y(0),
-            width(1920),height(1080),sx(0),sy(0),swidth(1920),sheight(1080),opacity(1.0),visible(true),zOrder(0){}
+            width(1920),height(1080),sx(0),sy(0),swidth(1920),sheight(1080),opacity(1.0),visible(true),zOrder(0),name(){}
     };
 
     class FrameBuffer;
@@ -114,6 +115,8 @@ namespace RdkWindowManager
             bool setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);
             bool setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
             bool setFireboltSurfaceVisibility(int surfaceId, bool visible);
+            bool setFireboltSurfaceName(int surfaceId, const std::string& surfaceName);
+            bool fireboltSurfaceDestroy(int surfaceId);
             bool hasOverlays();
             bool hasCompositor(WstCompositor* compositor);
 

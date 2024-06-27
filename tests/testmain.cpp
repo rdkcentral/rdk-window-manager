@@ -282,35 +282,38 @@ void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
     if (NULL != ctx)
     {
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
-        if (ctx->fbSurface != NULL)
-        {
-            RDKWM_TEST_INFO(("firebolt_surface interface tests"));
-            firebolt_surface_set_name(ctx->fbSurface, RDK_WINDOW_MANAGER_TESTAPP_NAME);
-            firebolt_surface_set_visible(ctx->fbSurface, 1);
-            firebolt_surface_set_bounds(ctx->fbSurface, 1, 1, 1080, 1920);
-            firebolt_surface_set_crop(ctx->fbSurface, 0.5, 0, 0.5, 0.5);
-            firebolt_surface_set_zorder(ctx->fbSurface, 0.1);
-            firebolt_surface_set_opacity(ctx->fbSurface, 0.2);
-        }
-        else
-        {
-            RDKWM_TEST_WARN(("firebolt_surface extension interface not yet registered"));
-        }
-
+        int videoSurfaceId =1;
+        int popupSurfaceId =2;
+        int notificationSurfaceId =3;
+        int standardSurfaceId =4;
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
         if (ctx->fbShell != NULL)
         {
             RDKWM_TEST_INFO(("firebolt_shell interface tests"));
-            firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_STANDARD);
-            firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO);
-            firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_POPUP);
-            firebolt_shell_get_firebolt_surface(ctx->fbShell, ctx->wlsurface, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_NOTIFICATION);
+            firebolt_shell_get_firebolt_surface(ctx->fbShell, standardSurfaceId, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_STANDARD);
+            firebolt_shell_get_firebolt_surface(ctx->fbShell, videoSurfaceId, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO);
+            firebolt_shell_get_firebolt_surface(ctx->fbShell, popupSurfaceId, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_POPUP);
+            firebolt_shell_get_firebolt_surface(ctx->fbShell, notificationSurfaceId, FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_NOTIFICATION);
         }
         else
         {
             RDKWM_TEST_WARN(("firebolt_shell extension interface not yet registered"));
         }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
+        if (ctx->fbSurface != NULL)
+        {
+            RDKWM_TEST_INFO(("firebolt_surface interface tests"));
+            firebolt_surface_set_name(ctx->fbSurface,videoSurfaceId, "video-01");
+            firebolt_surface_set_visible(ctx->fbSurface, videoSurfaceId, 1);
+            firebolt_surface_set_bounds(ctx->fbSurface ,videoSurfaceId, 50, 50, 1080, 1920);
+            firebolt_surface_set_crop(ctx->fbSurface ,videoSurfaceId, 0.5, 0, 0.5, 0.5);
+            firebolt_surface_set_zorder(ctx->fbSurface ,videoSurfaceId, wl_fixed_from_int(5));
+            firebolt_surface_set_opacity(ctx->fbSurface ,videoSurfaceId, wl_fixed_from_int(200));
+        }
+        else
+        {
+            RDKWM_TEST_WARN(("firebolt_surface extension interface not yet registered"));
+        }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION

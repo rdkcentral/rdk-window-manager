@@ -19,14 +19,26 @@
 
 #ifndef FIREBOLT_SURFACE_H
 #define FIREBOLT_SURFACE_H
+#include <map>
+#include "westeros-compositor.h"
+#include "firebolt_surface_protocol_server.h"
 
 class FireboltSurface
 {
     public:
+        FireboltSurface();
         ~FireboltSurface();
+        bool getClientNameByResource(wl_resource *resource, std::string& surfaceName);
 
-    protected:
-        FireboltSurface() = default ;
+        static FireboltSurface *mInstance;
+        static std::mutex mContextLock;
+        WstCompositor     *mWstCompositor;
+        struct wl_display *mWlDisplay;
+        wl_resource       *mWlResource;
+        wl_global         *mWlGlobal;
+        std::string        mWstDisplayName;
+        std::map<wl_resource *,std::string> mClientNames;
+
 };
 
 #endif

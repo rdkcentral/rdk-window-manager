@@ -1165,4 +1165,32 @@ namespace RdkWindowManager
         }
         return true;
     }
+
+    bool RdkCompositor::setFireboltSurfaceName(int surfaceId, const std::string& surfaceName)
+    {
+        for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+        {
+            if (fireboltSurface->surfaceId == surfaceId )
+            {
+                fireboltSurface->name = surfaceName;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool RdkCompositor::fireboltSurfaceDestroy(int surfaceId)
+    {
+        std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
+
+        for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
+        {
+            if (fireboltSurfaceIt->surfaceId == surfaceId )
+            {
+                mFireboltSurfaces.erase(fireboltSurfaceIt);
+                return true;
+            }
+        }
+        return false;
+    }
 }

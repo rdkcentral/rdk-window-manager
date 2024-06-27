@@ -81,7 +81,8 @@ struct firebolt_surface_interface {
 	 * surface and removes the surface from the composition.
 	 */
 	void (*destroy)(struct wl_client *client,
-			struct wl_resource *resource);
+			struct wl_resource *resource,
+			int32_t surfaceId);
 	/**
 	 * set the name of the firebolt_surface
 	 *
@@ -89,6 +90,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_name)(struct wl_client *client,
 			 struct wl_resource *resource,
+			 int32_t surfaceId,
 			 const char *name);
 	/**
 	 * set the visibility of the surface
@@ -97,6 +99,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_visible)(struct wl_client *client,
 			    struct wl_resource *resource,
+			    int32_t surfaceId,
 			    uint32_t visible);
 	/**
 	 * set the surface bounds
@@ -113,6 +116,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_bounds)(struct wl_client *client,
 			   struct wl_resource *resource,
+			   int32_t surfaceId,
 			   int32_t x,
 			   int32_t y,
 			   int32_t width,
@@ -132,6 +136,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_crop)(struct wl_client *client,
 			 struct wl_resource *resource,
+			 int32_t surfaceId,
 			 wl_fixed_t sx,
 			 wl_fixed_t sy,
 			 wl_fixed_t swidth,
@@ -146,6 +151,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_zorder)(struct wl_client *client,
 			   struct wl_resource *resource,
+			   int32_t surfaceId,
 			   wl_fixed_t zorder);
 	/**
 	 * set surface opacity
@@ -157,6 +163,7 @@ struct firebolt_surface_interface {
 	 */
 	void (*set_opacity)(struct wl_client *client,
 			    struct wl_resource *resource,
+			    int32_t surfaceId,
 			    wl_fixed_t opacity);
 };
 

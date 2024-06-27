@@ -131,10 +131,10 @@ firebolt_surface_get_version(struct firebolt_surface *firebolt_surface)
  * surface and removes the surface from the composition.
  */
 static inline void
-firebolt_surface_destroy(struct firebolt_surface *firebolt_surface)
+firebolt_surface_destroy(struct firebolt_surface *firebolt_surface, int32_t surfaceId)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_DESTROY);
+			 FIREBOLT_SURFACE_DESTROY, surfaceId);
 
 	wl_proxy_destroy((struct wl_proxy *) firebolt_surface);
 }
@@ -145,10 +145,10 @@ firebolt_surface_destroy(struct firebolt_surface *firebolt_surface)
  * Sets the name of the surface
  */
 static inline void
-firebolt_surface_set_name(struct firebolt_surface *firebolt_surface, const char *name)
+firebolt_surface_set_name(struct firebolt_surface *firebolt_surface, int32_t surfaceId, const char *name)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_NAME, name);
+			 FIREBOLT_SURFACE_SET_NAME, surfaceId, name);
 }
 
 /**
@@ -157,10 +157,10 @@ firebolt_surface_set_name(struct firebolt_surface *firebolt_surface, const char 
  * Setting to 0 makes the surface not visible.
  */
 static inline void
-firebolt_surface_set_visible(struct firebolt_surface *firebolt_surface, uint32_t visible)
+firebolt_surface_set_visible(struct firebolt_surface *firebolt_surface, int32_t surfaceId, uint32_t visible)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_VISIBLE, visible);
+			 FIREBOLT_SURFACE_SET_VISIBLE, surfaceId, visible);
 }
 
 /**
@@ -177,10 +177,10 @@ firebolt_surface_set_visible(struct firebolt_surface *firebolt_surface, uint32_t
  * invalid_size error.
  */
 static inline void
-firebolt_surface_set_bounds(struct firebolt_surface *firebolt_surface, int32_t x, int32_t y, int32_t width, int32_t height)
+firebolt_surface_set_bounds(struct firebolt_surface *firebolt_surface, int32_t surfaceId, int32_t x, int32_t y, int32_t width, int32_t height)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_BOUNDS, x, y, width, height);
+			 FIREBOLT_SURFACE_SET_BOUNDS, surfaceId, x, y, width, height);
 }
 
 /**
@@ -197,25 +197,25 @@ firebolt_surface_set_bounds(struct firebolt_surface *firebolt_surface, int32_t x
  * then set (x, y, width, height) to (0.5, 0.0, 0.5, 0.5).
  */
 static inline void
-firebolt_surface_set_crop(struct firebolt_surface *firebolt_surface, wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t sheight)
+firebolt_surface_set_crop(struct firebolt_surface *firebolt_surface, int32_t surfaceId, wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t sheight)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_CROP, sx, sy, swidth, sheight);
+			 FIREBOLT_SURFACE_SET_CROP, surfaceId, sx, sy, swidth, sheight);
 }
 
 /**
  * @ingroup iface_firebolt_surface
  *
  * Sets the z-order of the surface relative to other surfaces within
- * the client’s display.
+ * the client's display.
  *
  * The z-order should be in the range of 0.0 - 1.0 inclusive.
  */
 static inline void
-firebolt_surface_set_zorder(struct firebolt_surface *firebolt_surface, wl_fixed_t zorder)
+firebolt_surface_set_zorder(struct firebolt_surface *firebolt_surface, int32_t surfaceId, wl_fixed_t zorder)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_ZORDER, zorder);
+			 FIREBOLT_SURFACE_SET_ZORDER, surfaceId, zorder);
 }
 
 /**
@@ -226,10 +226,10 @@ firebolt_surface_set_zorder(struct firebolt_surface *firebolt_surface, wl_fixed_
  * The opacity should be in the range of 0.0 - 1.0 inclusive.
  */
 static inline void
-firebolt_surface_set_opacity(struct firebolt_surface *firebolt_surface, wl_fixed_t opacity)
+firebolt_surface_set_opacity(struct firebolt_surface *firebolt_surface, int32_t surfaceId, wl_fixed_t opacity)
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
-			 FIREBOLT_SURFACE_SET_OPACITY, opacity);
+			 FIREBOLT_SURFACE_SET_OPACITY, surfaceId, opacity);
 }
 
 #ifdef  __cplusplus

@@ -18,12 +18,14 @@
              association with the underlying wl_surface or hardware video
              surface and removes the surface from the composition.
          </description>
+         <arg name="surfaceId" type="int"/>
      </request>
 
      <request name="set_name">
          <description summary="set the name of the firebolt_surface">
              Sets the name of the surface
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="name" type="string"/>
      </request>
 
@@ -31,6 +33,7 @@
          <description summary="set the visibility of the surface">
             Setting to 0 makes the surface not visible.
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="visible" type="uint" enum="firebolt_surface_visibility"/>
      </request>
 
@@ -46,6 +49,7 @@
 
             invalid_size error.
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="x" type="int"/>
          <arg name="y" type="int"/>
          <arg name="width" type="int"/>
@@ -64,6 +68,7 @@
             For example to crop the top right quarter of the video
             then set (x, y, width, height) to (0.5, 0.0, 0.5, 0.5).
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="sx" type="fixed"/>
          <arg name="sy" type="fixed"/>
          <arg name="swidth" type="fixed"/>
@@ -77,6 +82,7 @@
 
             The z-order should be in the range of 0.0 - 1.0 inclusive.
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="zorder" type="fixed"/>
      </request>
 
@@ -86,6 +92,7 @@
 
             The opacity should be in the range of 0.0 - 1.0 inclusive.
          </description>
+         <arg name="surfaceId" type="int"/>
          <arg name="opacity" type="fixed"/>
      </request>
 

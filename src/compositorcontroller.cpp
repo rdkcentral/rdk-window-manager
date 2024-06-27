@@ -2725,4 +2725,69 @@ namespace RdkWindowManager
         return false;
     }
 
+    bool CompositorController::setFireboltSurfaceName(const std::string& client, int surfaceId, const std::string& surfaceName)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceName(surfaceId, surfaceName);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::setFireboltSurfaceOpacity(const std::string& client, int surfaceId, double opacity)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceOpacity(surfaceId, opacity);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::setFireboltSurfaceBounds(const std::string& client, int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceBounds(surfaceId, x, y, width, height);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::setFireboltSurfaceCrop(const std::string& client, int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceCrop(surfaceId, sx, sy, swidth, sheight);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::fireboltSurfaceDestroy(const std::string& client, int surfaceId)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->fireboltSurfaceDestroy(surfaceId);
+            return result;
+        }
+        return false;
+    }
 }
