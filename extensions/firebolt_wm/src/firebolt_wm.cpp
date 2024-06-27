@@ -115,7 +115,7 @@ static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
  *
  */
 FireboltWindowManager::FireboltWindowManager()
-        :mWstCompositor(NULL), mWlDisplay(NULL), mWlResource(NULL), mWlGlobal(NULL), mWstDispName()
+        :mWstCompositor(NULL), mWlDisplay(NULL), mWlResource(NULL), mWlGlobal(NULL), mWstDisplayName()
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.FireboltWindowManager: constructor");
@@ -863,12 +863,12 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.resource_destory: resource@%p", resource);
 
-    FireboltWindowManager *l_fbWmCtx = reinterpret_cast<FireboltWindowManager*>(wl_resource_get_user_data(resource));
-    if (NULL != l_fbWmCtx)
+    FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(wl_resource_get_user_data(resource));
+    if (NULL != fbWmCtx)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_wm@.resource_destory: instance@%p resource:%p mWlResource:%p",
-                l_fbWmCtx->mInstance, resource, l_fbWmCtx->mWlResource);
+                fbWmCtx->mInstance, resource, fbWmCtx->mWlResource);
 
         /* To clear resource user data */
         wl_resource_set_user_data(resource, NULL);
@@ -876,7 +876,7 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
         /* resource destroy */
         wl_resource_destroy(resource);
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        l_fbWmCtx->mWlResource = NULL;
+        fbWmCtx->mWlResource = NULL;
     }
     else
     {
@@ -898,11 +898,11 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
  */
 static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    FireboltWindowManager *l_fbWmCtx = reinterpret_cast<FireboltWindowManager*>(data);
+    FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(data);
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.bind: client@%p data:%p version:%u, id:%u",
             client, data, version, id);
-    if (NULL == l_fbWmCtx)
+    if (NULL == fbWmCtx)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                 " firebolt_wm@.bind: interface context object not valid");
@@ -912,15 +912,15 @@ static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t vers
     {
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
         /* To get westeros compositor object */
-        l_fbWmCtx->mWstDispName = WstCompositorGetDisplayName(l_fbWmCtx->mWstCompositor);
+        fbWmCtx->mWstDisplayName = WstCompositorGetDisplayName(fbWmCtx->mWstCompositor);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                " firebolt_wm@.bind: WstCompositor display name:%s", l_fbWmCtx->mWstDispName.c_str());
+                " firebolt_wm@.bind: WstCompositor display name:%s", fbWmCtx->mWstDisplayName.c_str());
 
         /* To create resource object for firebolt window manager extension  */
-        l_fbWmCtx->mWlResource = wl_resource_create(client,
+        fbWmCtx->mWlResource = wl_resource_create(client,
                                                 &firebolt_wm_interface,
                                                 std::min<int>(version, 1), id);
-        if (!l_fbWmCtx->mWlResource)
+        if (!fbWmCtx->mWlResource)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.bind: id:%d wl_resource_create - no memory", id);
@@ -932,15 +932,15 @@ static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t vers
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_wm@.bind: id:%d wl_resource_create resource:%p",
-                    id, l_fbWmCtx->mWlResource);
+                    id, fbWmCtx->mWlResource);
         }
 
         /* Set the implementation of firebolt window manager extension */
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_wm@.bind: id:%d wl_resource_set_implementation", id);
-        wl_resource_set_implementation(l_fbWmCtx->mWlResource,
+        wl_resource_set_implementation(fbWmCtx->mWlResource,
                                         &fireboltWindowManagerImpl,
-                                        l_fbWmCtx,
+                                        fbWmCtx,
                                         firebolt_wm_resource_destory);
     }
 ret_fail:
@@ -1001,8 +1001,8 @@ extern "C"
     /**
      * moduleInit of firebolt_wm westeros extension plugin
      *
-     * @param wstCompositor   : Object of westeros compositor instance
-     * @param display   : Object of the wayland display
+     * @param wstCompositor : Object of westeros compositor instance
+     * @param display       : Object of the wayland display
      */
     bool moduleInit(WstCompositor *wstCompositor, struct wl_display *display)
     {
@@ -1017,7 +1017,7 @@ extern "C"
             fbWmCtx = fireboltWmCreateContext();
             if (NULL != fbWmCtx)
             {
-                fbWmCtx->mWstCompositor   = wstCompositor;
+                fbWmCtx->mWstCompositor = wstCompositor;
                 fbWmCtx->mWlDisplay = display;
 
                 /* Create extension global object */

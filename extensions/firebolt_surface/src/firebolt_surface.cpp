@@ -50,23 +50,25 @@ static const struct firebolt_surface_interface fireboltSurfaceInterfaceImpl = {
                     };
 
 /**
- * get the client name from wayland resource
+ * Get the client name from wayland resource
  *
  * @param resource      : wayland resource
  * @param clientName    : client name associated with the resource
  */
-bool FireboltSurface::getClientNameByResource ( wl_resource *resource, std::string& clientName)
+bool FireboltSurface::getClientNameByResource(wl_resource *resource, std::string& clientName)
 {
     bool ret = false;
 
     if (resource != nullptr)
     {
         FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-        clientName =  fbSurfaceCtx->mClientNames.find(resource)->second;
-
-        if (!clientName.empty())
+        if(NULL != fbSurfaceCtx)
         {
-            ret = true;
+            clientName =  fbSurfaceCtx->mClientNamesMap.find(resource)->second;
+            if (!clientName.empty())
+            {
+                ret = true;
+            }
         }
     }
     return ret;
@@ -77,7 +79,7 @@ bool FireboltSurface::getClientNameByResource ( wl_resource *resource, std::stri
  *
  */
 FireboltSurface::FireboltSurface()
-        :mWstCompositor(NULL), mWlDisplay(NULL), mWlResource(NULL), mWlGlobal(NULL), mWstDisplayName(), mClientNames()
+        :mWstCompositor(NULL), mWlDisplay(NULL), mWlResource(NULL), mWlGlobal(NULL), mWstDisplayName(), mClientNamesMap()
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_surface@.FireboltSurface: constructor");
@@ -105,41 +107,37 @@ FireboltSurface::~FireboltSurface()
 static void firebolt_surface_destroy(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
-    std::map<wl_resource *,std::string>::iterator it;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if (!RdkWindowManager::CompositorController::fireboltSurfaceDestroy(clientName, surfaceId))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.destroy failed client@%p resource@%p surfaceId:%d",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.destroy: failed client@%p resource@%p surfaceId:%d",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.destroy client@%p resource@%p surfaceId:%d",
-                                client, resource, surfaceId);
-
-                it=fbSurfaceCtx->mClientNames.find(resource);
-                fbSurfaceCtx->mClientNames.erase (it);
+                        " firebolt_surface@.destroy: client@%p resource@%p surfaceId:%d",
+                        client, resource, surfaceId);
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.destroy failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.destroy: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                    client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.destroy: Client name not found client@%p resource@%p surfaceId:%d",
+                 client, resource, surfaceId);
     }
     return;
 }
@@ -156,37 +154,37 @@ static void firebolt_surface_set_name(struct wl_client *client, struct wl_resour
                                     const char *name)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if (!RdkWindowManager::CompositorController::setFireboltSurfaceName(clientName, surfaceId, name))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_name failed client@%p resource@%p surfaceId:%d",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_name: failed client@%p resource@%p surfaceId:%d",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_name client@%p resource@%p surfaceId:%d name:%s",
-                                client, resource, surfaceId, name);
+                        " firebolt_surface@.set_name: client@%p resource@%p surfaceId:%d name:%s",
+                        client, resource, surfaceId, name);
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_name failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_name: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.set_name:: Client name not found client@%p resource@%p surfaceId:%d",
+                client, resource, surfaceId);
     }
     return;
 }
@@ -203,37 +201,37 @@ static void firebolt_surface_set_visible(struct wl_client *client, struct wl_res
                                         uint32_t visible)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if (!RdkWindowManager::CompositorController::setFireboltSurfaceVisibility(clientName, surfaceId, visible))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_visible failed client@%p resource@%p surfaceId:%d ",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_visible: failed client@%p resource@%p surfaceId:%d ",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_visible: client@%p resource@%p surfaceId:%d visible:%u",
-                                client, resource, surfaceId, visible);
+                        " firebolt_surface@.set_visible: client@%p resource@%p surfaceId:%d visible:%u",
+                        client, resource, surfaceId, visible);
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_visible failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_visible: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.set_visible: Client name not found client@%p resource@%p surfaceId:%d",
+                client, resource, surfaceId);
     }
     return;
 }
@@ -259,37 +257,37 @@ static void firebolt_surface_set_bounds(struct wl_client *client,
                                         struct wl_resource *resource, int32_t surfaceId, int32_t x, int32_t y, int32_t width, int32_t height)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if (!RdkWindowManager::CompositorController::setFireboltSurfaceBounds(clientName, surfaceId, x, y, width, height))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_bounds failed client@%p resource@%p surfaceId:%d ",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_bounds: failed client@%p resource@%p surfaceId:%d ",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_bounds: client@%p resource@%p surfaceId:%d x:%d y:%d width:%d height:%d",
-                                client, resource, surfaceId, x, y, width, height);
+                        " firebolt_surface@.set_bounds: client@%p resource@%p surfaceId:%d x:%d y:%d width:%d height:%d",
+                        client, resource, surfaceId, x, y, width, height);
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_bounds failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_bounds: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.set_bounds: Client name not found client@%p resource@%p surfaceId:%d",
+                client, resource, surfaceId);
     }
     return;
 }
@@ -317,39 +315,39 @@ static void firebolt_surface_set_crop(struct wl_client *client, struct wl_resour
                                         wl_fixed_t sx, wl_fixed_t sy, wl_fixed_t swidth, wl_fixed_t sheight)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if ( !RdkWindowManager::CompositorController::setFireboltSurfaceCrop(clientName, surfaceId, wl_fixed_to_int(sx), wl_fixed_to_int(sy),\
                                     wl_fixed_to_int(swidth), wl_fixed_to_int(sheight)))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_crop failed client@%p resource@%p surfaceId:%d ",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_crop: failed client@%p resource@%p surfaceId:%d ",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_crop: client@%p resource@%p surfaceId:%d x:%f y:%f width:%f height:%f",
-                                client, resource, surfaceId, wl_fixed_to_double(sx), wl_fixed_to_double(sy),
-                                wl_fixed_to_double(swidth), wl_fixed_to_double(sheight));
+                        " firebolt_surface@.set_crop: client@%p resource@%p surfaceId:%d x:%f y:%f width:%f height:%f",
+                        client, resource, surfaceId, wl_fixed_to_double(sx), wl_fixed_to_double(sy),
+                        wl_fixed_to_double(swidth), wl_fixed_to_double(sheight));
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_crop failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_crop: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.set_crop: Client name not found client@%p resource@%p surfaceId:%d",
+                client, resource, surfaceId);
     }
     return;
 }
@@ -368,37 +366,37 @@ static void firebolt_surface_set_crop(struct wl_client *client, struct wl_resour
 static void firebolt_surface_set_zorder(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId, wl_fixed_t zorder)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if ( !RdkWindowManager::CompositorController::setFireboltSurfaceZorder(clientName, surfaceId, wl_fixed_to_int(zorder)))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_zorder failed client@%p resource@%p surfaceId:%d ",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_zorder: failed client@%p resource@%p surfaceId:%d ",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_zorder: client@%p resource@%p surfaceId:%d zorder:%f",
-                                client, resource, surfaceId, wl_fixed_to_double(zorder));
+                        " firebolt_surface@.set_zorder: client@%p resource@%p surfaceId:%d zorder:%f",
+                        client, resource, surfaceId, wl_fixed_to_double(zorder));
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_zorder failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_zorder: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+                " firebolt_surface@.set_zorder: Client name not found client@%p resource@%p surfaceId:%d",
+                client, resource, surfaceId);
     }
     return;
 }
@@ -417,37 +415,74 @@ static void firebolt_surface_set_zorder(struct wl_client *client, struct wl_reso
 static void firebolt_surface_set_opacity(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId, wl_fixed_t opacity)
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
-    std::string     clientName;
+    std::string     clientName = "";
 
-    if (nullptr != fbSurfaceCtx )
+    if (nullptr != fbSurfaceCtx)
     {
-        if ( true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
+        if (true == fbSurfaceCtx->getClientNameByResource(resource, clientName))
         {
             if ( !RdkWindowManager::CompositorController::setFireboltSurfaceOpacity(clientName, surfaceId, wl_fixed_to_double(opacity)))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                                " firebolt_surface@.set_opacity failed client@%p resource@%p surfaceId:%d ",
-                                 client, resource, surfaceId);
+                        " firebolt_surface@.set_opacity: failed client@%p resource@%p surfaceId:%d ",
+                         client, resource, surfaceId);
             }
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface@.set_opacity: client@%p resource@%p surfaceId:%d opacity :%f",
-                                client, resource, surfaceId, wl_fixed_to_double(opacity));
+                        " firebolt_surface@.set_opacity: client@%p resource@%p surfaceId:%d opacity :%f",
+                        client, resource, surfaceId, wl_fixed_to_double(opacity));
             }
         }
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                            " firebolt_surface@.set_opacity failed to get the surface name client@%p resource@%p surfaceId:%d",
-                             client, resource, surfaceId);
+                    " firebolt_surface@.set_opacity: failed to get the surface name client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
         }
     }
     else
     {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface@.destroy failed to get the surface instance client@%p resource@%p surfaceId:%d",
-                         client, resource, surfaceId);
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_surface@.set_opacity: Client name not found client@%p resource@%p surfaceId:%d",
+                     client, resource, surfaceId);
+    }
+    return;
+}
+
+/**
+ * To destory firebolt_surface interface resource
+ *
+ */
+static void firebolt_surface_resource_destory(struct wl_resource *resource)
+{
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+            " firebolt_surface@.resource_destory: resource@%p", resource);
+
+    FireboltSurface *fbShellCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
+    if (nullptr != fbShellCtx)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                " firebolt_surface@.resource_destory: instance@%p resource:%p mWlResource:%p",
+                fbShellCtx->mInstance, resource, fbShellCtx->mWlResource);
+
+        /* Erase map of resource and client name */
+        FireboltSurface::ClientNamesMap::iterator it = fbShellCtx->mClientNamesMap.find(resource);
+        fbShellCtx->mClientNamesMap.erase(it);
+        
+        /* To clear resource user data */
+        wl_resource_set_user_data(resource, nullptr);
+
+        /* resource destroy */
+        wl_resource_destroy(resource);
+        std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
+        fbShellCtx->mWlResource = NULL;
+    }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                " firebolt_surface@.resource_destory: resource@%p - instance not vaild!", resource);
+
     }
     return;
 }
@@ -465,13 +500,13 @@ void firebolt_surface_bind(struct wl_client *client, void *data, uint32_t versio
 {
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(data);
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                            " firebolt_surface@.bind: client@%p data:%p version:%u, id:%u",
-                            client, data, version, id);
+                    " firebolt_surface@.bind: client@%p data:%p version:%u, id:%u",
+                    client, data, version, id);
 
     if (NULL == fbSurfaceCtx)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_surface interface instance not valid");
+                    " firebolt_surface@.bind: interface instance not valid");
         goto ret_fail;
     }
     else
@@ -504,13 +539,15 @@ void firebolt_surface_bind(struct wl_client *client, void *data, uint32_t versio
                         " firebolt_wm@.bind: id:%d wl_resource_create resource:%p",
                         id, fbSurfaceCtx->mWlResource);
 
-                fbSurfaceCtx->mClientNames[fbSurfaceCtx->mWlResource] = clientName;
+                /* Map of wl_resource against client name */
+                fbSurfaceCtx->mClientNamesMap[fbSurfaceCtx->mWlResource] = clientName;
+
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                " firebolt_surface id:%d wl_resource_set_implementation", id);
+                                " firebolt_surface@.bind: id:%d wl_resource_set_implementation", id);
                 wl_resource_set_implementation(fbSurfaceCtx->mWlResource,
                                             &fireboltSurfaceInterfaceImpl,
                                             fbSurfaceCtx,
-                                            NULL);
+                                            firebolt_surface_resource_destory);
             }
         }
         else
@@ -539,7 +576,7 @@ extern "C"
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.fireboltWmCreateContext instance:%p created", FireboltSurface::mInstance);
+                        " firebolt_wm@.fireboltWmCreateContext: instance:%p created", FireboltSurface::mInstance);
 
             }
         }
@@ -552,7 +589,7 @@ extern "C"
         if (NULL != FireboltSurface::mInstance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                    " firebolt_surface@.fireboltSurfaceDeleteContext instance:%p wlGlobal@%p destory",
+                    " firebolt_surface@.fireboltSurfaceDeleteContext: instance:%p wlGlobal@%p destory",
                     FireboltSurface::mInstance, FireboltSurface::mInstance->mWlGlobal);
 
             /* Remove extension global object and destroy it */
@@ -561,7 +598,7 @@ extern "C"
                 wl_global_destroy (FireboltSurface::mInstance->mWlGlobal);
                 FireboltSurface::mInstance->mWlGlobal = NULL;
             }
-            FireboltSurface::mInstance->mClientNames.clear();
+            FireboltSurface::mInstance->mClientNamesMap.clear();
 
             delete(FireboltSurface::mInstance);
             FireboltSurface::mInstance = NULL;
@@ -585,8 +622,8 @@ extern "C"
     {
         bool ret = true;
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                        " moduleInit: firebolt_surface extension wstComp@%p wlDisplay@%p initializing",
-                                        wstComp, display);
+                " firebolt_surface@.moduleInit: firebolt_surface extension wstComp@%p wlDisplay@%p initializing",
+                wstComp, display);
 
         if (!fireboltSurfaceHasContext())
         {
@@ -596,7 +633,7 @@ extern "C"
 
             if (NULL != fbSurfaceCtx)
             {
-                fbSurfaceCtx->mWstCompositor   = wstComp;
+                fbSurfaceCtx->mWstCompositor = wstComp;
                 fbSurfaceCtx->mWlDisplay = display;
 
                 /* Create extension global object */
@@ -629,7 +666,7 @@ extern "C"
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                                        " moduleInit: firebolt_surface extension already initialized");
+                     " firebolt_surface@.moduleInit: firebolt_surface extension already initialized");
         }
 
     ret_fail:

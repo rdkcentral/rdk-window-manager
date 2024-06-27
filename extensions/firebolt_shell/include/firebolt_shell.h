@@ -19,14 +19,28 @@
 
 #ifndef FIREBOLT_SHELL_H
 #define FIREBOLT_SHELL_H
+#include <map>
+#include "westeros-compositor.h"
+#include "firebolt_shell_protocol_server.h"
 
-class fireboltShell
+
+class FireboltShell
 {
     public:
-        ~fireboltShell();
+        FireboltShell();
+        ~FireboltShell();
+        bool getClientNameByResource(wl_resource *resource, std::string& clientName);
 
-    protected:
-        fireboltShell() = default;
+        static FireboltShell *mInstance;
+        static std::mutex mContextLock;
+
+        WstCompositor     *mWstCompositor;
+        struct wl_display *mWlDisplay;
+        wl_resource       *mWlResource;
+        wl_global         *mWlGlobal;
+        std::string        mWstDisplayName;
+
+        typedef std::map<wl_resource*, std::string> ClientNamesMap;
+        ClientNamesMap mClientNamesMap;
 };
-
 #endif

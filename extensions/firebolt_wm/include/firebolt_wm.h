@@ -34,6 +34,6 @@ class FireboltWindowManager
         struct wl_display *mWlDisplay;
         wl_resource       *mWlResource;
         wl_global         *mWlGlobal;
-        std::string        mWstDispName;
+        std::string        mWstDisplayName;
 };
 #endif

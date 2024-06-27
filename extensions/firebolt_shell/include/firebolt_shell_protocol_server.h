@@ -37,8 +37,6 @@ struct wl_resource;
  * - @subpage page_iface_firebolt_shell - 
  */
 struct firebolt_shell;
-struct firebolt_surface;
-struct wl_surface;
 
 /**
  * @page page_iface_firebolt_shell firebolt_shell
@@ -95,8 +93,7 @@ struct firebolt_shell_interface {
 	 */
 	void (*get_firebolt_surface)(struct wl_client *client,
 				     struct wl_resource *resource,
-				     uint32_t id,
-				     struct wl_resource *surface,
+				     int32_t surfaceId,
 				     uint32_t type);
 };
 

@@ -28,17 +28,19 @@ class FireboltSurface
     public:
         FireboltSurface();
         ~FireboltSurface();
-        bool getClientNameByResource(wl_resource *resource, std::string& surfaceName);
+        bool getClientNameByResource(wl_resource *resource, std::string& clientName);
 
         static FireboltSurface *mInstance;
         static std::mutex mContextLock;
+
         WstCompositor     *mWstCompositor;
         struct wl_display *mWlDisplay;
         wl_resource       *mWlResource;
         wl_global         *mWlGlobal;
         std::string        mWstDisplayName;
-        std::map<wl_resource *,std::string> mClientNames;
 
+        typedef std::map<wl_resource*, std::string> ClientNamesMap;
+        ClientNamesMap mClientNamesMap;
 };
 
 #endif

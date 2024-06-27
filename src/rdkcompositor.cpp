@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0),mFireboltSurfaces()
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
     {
         if (gForce720)
         {
@@ -317,7 +317,7 @@ namespace RdkWindowManager
         }
     }
 
-    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays)
+    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
         // create the FBO if it's not created yet or its size was changed
         if (!mFbo ||
@@ -355,17 +355,17 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-	    if(mFireboltSurfaces.empty())
+            if(mFireboltSurfaces.empty())
             {
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
-                      WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
-                      matrix, opacity, hints, &needsHolePunch, rects);
+                    WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
+                    matrix, opacity, hints, &needsHolePunch, rects);
                 }
                 else
                 {
-                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-                     matrix, opacity, hints, &needsHolePunch, rects);
+                    WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
+                    matrix, opacity, hints, &needsHolePunch, rects);
                 }
             }
             else
@@ -376,8 +376,16 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
                         }
                     }
                 }
@@ -393,8 +401,16 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
                         }
                     }
                 }
@@ -1046,7 +1062,7 @@ namespace RdkWindowManager
                 return true;
             }
         }
-	    return false;
+        return false;
     }
 
     bool RdkCompositor::hasOverlays()

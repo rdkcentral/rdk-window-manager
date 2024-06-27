@@ -21,18 +21,14 @@
 #include <stdint.h>
 #include "wayland-util.h"
 
-extern const struct wl_interface firebolt_surface_interface;
-extern const struct wl_interface wl_surface_interface;
 
 static const struct wl_interface *types[] = {
 	NULL,
-	&firebolt_surface_interface,
-	&wl_surface_interface,
 	NULL,
 };
 
 static const struct wl_message firebolt_shell_requests[] = {
-	{ "get_firebolt_surface", "nou", types + 1 },
+	{ "get_firebolt_surface", "iu", types + 0 },
 };
 
 static const struct wl_message firebolt_shell_events[] = {

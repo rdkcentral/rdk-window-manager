@@ -21,8 +21,7 @@
             <description summary="create a firebolt shell surface from a surface">
                 Create a firebolt_surface wrapper around wl_surfaces  
             </description>
-            <arg name="id" type="new_id" interface="firebolt_surface"/>
-            <arg name="surface" type="object" interface="wl_surface"/>
+            <arg name="surfaceId" type="int"/>
             <arg name="type" type="uint" enum="firebolt_surface_type"/>
         </request>
 

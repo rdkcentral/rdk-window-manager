@@ -34,8 +34,6 @@ extern "C" {
  * - @subpage page_iface_firebolt_shell - 
  */
 struct firebolt_shell;
-struct firebolt_surface;
-struct wl_surface;
 
 /**
  * @page page_iface_firebolt_shell firebolt_shell
@@ -152,15 +150,11 @@ firebolt_shell_destroy(struct firebolt_shell *firebolt_shell)
  *
  * Create a firebolt_surface wrapper around wl_surfaces  
  */
-static inline struct firebolt_surface *
-firebolt_shell_get_firebolt_surface(struct firebolt_shell *firebolt_shell, struct wl_surface *surface, uint32_t type)
+static inline void
+firebolt_shell_get_firebolt_surface(struct firebolt_shell *firebolt_shell, int32_t surfaceId, uint32_t type)
 {
-	struct wl_proxy *id;
-
-	id = wl_proxy_marshal_constructor((struct wl_proxy *) firebolt_shell,
-			 FIREBOLT_SHELL_GET_FIREBOLT_SURFACE, &firebolt_surface_interface, NULL, surface, type);
-
-	return (struct firebolt_surface *) id;
+	wl_proxy_marshal((struct wl_proxy *) firebolt_shell,
+			 FIREBOLT_SHELL_GET_FIREBOLT_SURFACE, surfaceId, type);
 }
 
 #ifdef  __cplusplus
