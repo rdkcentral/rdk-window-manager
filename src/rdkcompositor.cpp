@@ -983,7 +983,7 @@ namespace RdkWindowManager
                 return true;
             }
         }
-	    return false;
+        return false;
     }
 
     bool RdkCompositor::hasOverlays()
