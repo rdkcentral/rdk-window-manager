@@ -1669,7 +1669,8 @@ namespace RdkWindowManager
             std::string compositorName = "unknown";
             reverseIterator->compositor->displayName(compositorName);
             std::cout << "rendering deleted compositor " << compositorName << std::endl;
-            reverseIterator->compositor->draw(needsHolePunch, rect);
+            reverseIterator->compositor->draw(needsHolePunch, rect, false);
+            reverseIterator->compositor->draw(needsHolePunch, rect, true);
         }
         gDeletedCompositors.clear();
 
@@ -1677,18 +1678,21 @@ namespace RdkWindowManager
         {
             bool needsHolePunch = false;
             RdkWindowManagerRect rect;
-            reverseIterator->compositor->draw(needsHolePunch, rect);
+            reverseIterator->compositor->draw(needsHolePunch, rect, false);
             if (needsHolePunch && !gAlwaysShowWatermarkImageOnTop)
             {
                 drawWatermarkImages(rect, true);
             }
         }
 
-        for (auto reverseIterator = gTopmostCompositorList.rbegin(); reverseIterator != gTopmostCompositorList.rend(); reverseIterator++)
+        for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
         {
-            bool needsHolePunch = false;
-            RdkWindowManagerRect rect;
-            reverseIterator->compositor->draw(needsHolePunch, rect);
+            if (reverseIterator->compositor->hasOverlays())
+            {
+                bool needsHolePunch = false;
+                RdkWindowManagerRect rect;
+                reverseIterator->compositor->draw(needsHolePunch, rect, true);
+            }
         }
 
         if (gAlwaysShowWatermarkImageOnTop)
@@ -2684,6 +2688,41 @@ namespace RdkWindowManager
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         return true;
+    }
+
+    bool CompositorController::getClientName(WstCompositor* compositor, std::string& clientName)
+    {
+        for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
+        {
+            if(it->compositor->hasCompositor(compositor))
+            {
+                clientName =  it->name;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool CompositorController::getFireboltSurface(const std::string& client, int surfaceId, uint32_t type)
+    {
+        CompositorListIterator it;
+	    if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::setFireboltSurfaceZorder(const std::string& client, int surfaceId, int zOrder)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result = it->compositor->setFireboltSurfaceZOrder(surfaceId, zOrder);
+            return result;
+        }
+        return false;
     }
 
 }

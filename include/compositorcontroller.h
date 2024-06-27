@@ -152,8 +152,11 @@ namespace RdkWindowManager
             static bool setAVBlocked(std::string callsign, bool blockAV);
             static bool getBlockedAVApplications(std::vector<std::string>& apps);
             static bool isErmEnabled();
+            static bool getClientName(WstCompositor* compositor, std::string& clientName);
             static bool getClientInfo(const std::string& client, ClientInfo& ci);
             static bool setClientInfo(const std::string& client, const ClientInfo& ci);
+            static bool getFireboltSurface(const std::string& client, int surfaceId, uint32_t type);
+            static bool setFireboltSurfaceZorder(const std::string& client, int surfaceId, int zOrder);
     };
 }
 
