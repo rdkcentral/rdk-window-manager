@@ -1672,6 +1672,7 @@ namespace RdkWindowManager
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
             reverseIterator->compositor->draw(needsHolePunch, rect, true);
         }
+
         gDeletedCompositors.clear();
 
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
@@ -2687,6 +2688,7 @@ namespace RdkWindowManager
         c->setPosition(ci.x, ci.y);
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
+
         return true;
     }
 
@@ -2790,4 +2792,5 @@ namespace RdkWindowManager
         }
         return false;
     }
+
 }

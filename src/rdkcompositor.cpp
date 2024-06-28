@@ -87,6 +87,7 @@ namespace RdkWindowManager
                 fireboltSurface->westerosCompositor = NULL;
             }
             WstCompositorDestroy(mWstContext);
+
             //shutdownApplication();
         }
         mWstContext = NULL;
@@ -317,7 +318,7 @@ namespace RdkWindowManager
         }
     }
 
-    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
+    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays)
     {
         // create the FBO if it's not created yet or its size was changed
         if (!mFbo ||

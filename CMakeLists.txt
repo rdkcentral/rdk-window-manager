@@ -184,6 +184,7 @@ add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES})
 set_target_properties(rdkwindowmanager_shared PROPERTIES OUTPUT_NAME rdkwindowmanager)
 target_link_libraries(rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_LINK_LIBRARIES})
 
+
 if (RDK_WINDOW_MANAGER_BUILD_APP)
     message("Building rdkwindowmanager executable")
     add_executable(rdkwindowmanager src/main.cpp)
