@@ -28,6 +28,13 @@ option(RDK_WINDOW_MANAGER_BUILD_FORCE_ANIMATE "RDK_WINDOW_MANAGER_BUILD_FORCE_AN
 option(RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION "RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION" ON)
 option(RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE "RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE" ON)
 option(RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS "RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS" OFF)
+option(RDK_WINDOW_MANAGER_BUILD_EXTENSIONS "RDK_WINDOW_MANAGER_BUILD_EXTENSIONS" ON)
+if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION" ON)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION" ON)
+option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION" ON)
+endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -99,6 +106,37 @@ if(BUILD_ENABLE_ERM)
     set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lessosrmgr)
 endif()
 
+# Wayland Extensions files and extension server portion binded with RDK window manager.
+# Extension protocol interface as shared library to be linked with respective application
+if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_EXTENSIONS")
+    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES -lwayland-client)
+
+    if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+        message("Building rdkwindowmanager firebolt_surface extension") 
+        add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION")
+        include_directories(${PROJECT_SOURCE_DIR}/extensions/firebolt_surface/include)
+        add_subdirectory(extensions/firebolt_surface)
+        set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltsurface_shared)
+    endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
+
+    if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
+        message("Building rdkwindowmanager firebolt_shell extension") 
+        add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION")
+        include_directories(${PROJECT_SOURCE_DIR}/extensions/firebolt_shell/include)
+        add_subdirectory(extensions/firebolt_shell)
+        set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltshell_shared)
+    endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION)
+
+    if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
+        message("Building rdkwindowmanager firebolt_wm extension") 
+        add_definitions("-DRDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION")
+        include_directories(${PROJECT_SOURCE_DIR}/extensions/firebolt_wm/include)
+        add_subdirectory(extensions/firebolt_wm)
+        set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} rdkwmextfireboltwm_shared)
+    endif (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION)
+endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
+
 add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES})
 set_target_properties(rdkwindowmanager_shared PROPERTIES OUTPUT_NAME rdkwindowmanager)
 target_link_libraries(rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_LINK_LIBRARIES})
@@ -110,3 +148,11 @@ if (RDK_WINDOW_MANAGER_BUILD_APP)
     add_dependencies(rdkwindowmanager rdkwindowmanager_shared)
     target_link_libraries(rdkwindowmanager ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwindowmanager_shared -lpthread)
 endif (RDK_WINDOW_MANAGER_BUILD_APP)
+
+if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
+    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_TEST_APP")
+    message("Building rdkwindowmanagertest executable")
+    add_executable(rdkwindowmanagertest tests/testmain.cpp)
+    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
+endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)

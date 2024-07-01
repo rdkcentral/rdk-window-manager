@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<protocol name="firebolt_wm">
+
+   <interface name="firebolt_wm" version="1"> 
+
+        <request name="set_properties">
+            <arg name="id" type="string" summary="id of the app or group"/>
+            <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+            <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+            <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+            <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+            <arg name="render_width" type="uint" summary="the width of the graphics rendering"/>
+            <arg name="render_height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+            <arg name="opacity" type="fixed" summary="opacity factor"/>
+            <arg name="zorder" type="int" summary="location in the z-order"/>
+            <arg name="visible" type="int" summary="the visibility of the surface"/>
+            <arg name="crop_x" type="fixed" summary="the cropping left insert (before scale?)"/>
+            <arg name="crop_y" type="fixed" summary="the cropping top insert (before scale?)"/>
+            <arg name="crop_width" type="fixed" summary="the cropping width (before scale?)"/>
+            <arg name="crop_height" type="fixed" summary="the cropping height (before scale?)"/>
+        </request>
+
+        <request name="create"> 
+            <description summary="set surface opacity">
+               Defaults:
+               x, y = 0 Width, height, display width,
+               display height = device resolution Opacity = 1.0
+               Visible = false Z-order = topmost + 1 crop_x, crop_y = 0
+               crop_width, crop_height = 0.0
+            </description>
+                <arg name="id" type="string" summary="id of the app or group"/>
+        </request>
+
+        <request name="create_with_bounds">
+                <arg name="id" type="string" summary="id of the app or group"/>
+                <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+                <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+                <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+                <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+        </request>
+
+        <request name="create_with_properties">
+                <arg name="id" type="string" summary="id of the app or group"/>
+                <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+                <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+                <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+                <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+                <arg name="display_width" type="uint" summary="the width of the Waylands display"/>
+                <arg name="display_height" type="uint" summary="the height of the Waylands display "/>
+                <arg name="opacity" type="fixed" summary="opacity factor"/>
+                <arg name="zorder" type="int" summary="location in the z-order"/>
+                <arg name="visible" type="int" summary="the visibility of the surface"/>
+                <arg name="crop_x" type="fixed" summary="the cropping left insert"/>
+                <arg name="crop_y" type="fixed" summary="the cropping top insert"/>
+                <arg name="crop_width" type="fixed" summary="the cropping width"/>
+                <arg name="crop_height" type="fixed" summary="the cropping height"/>
+                <arg name="focused" type="int" summary="focused"/>
+        </request>
+
+        <request name="destroy" type="destructor">
+                <arg name="id" type="string" summary="id of the app or group"/>
+        </request>
+
+        <request name="set_client_bounds">
+            <description summary="sets client window bounds">
+                Sets client window bounds for rendering.  The client will be rendered inside these bounds without a change to its Wayland display size
+            </description>
+                <arg name="id" type="string" summary="Id of the app"/>
+                <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+                <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+                <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+                <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+        </request>
+
+        <request name="set_client_display_bounds">
+            <description summary="sets client display window bounds">
+                Sets client display window bounds. This will change the size of a clients Wayland display
+            </description>
+                <arg name="id" type="string" summary="Id of the app"/>
+                <arg name="width" type="uint" summary="the width of an apps Wayland display"/>
+                <arg name="height" type="uint" summary="the height of an apps Wayland display"/>
+        </request>
+
+        <request name="set_client_focus">
+            <description summary="sets a client to be the focused app">
+            </description>
+                <arg name="id" type="string" summary="Id of the app to focus"/>
+        </request>
+
+        <request name="get_properties">
+                <arg name="id" type="string" summary="id of the client or group"/>
+        </request>
+
+        <request name="get_focused_client">
+            <description summary="get the focused client id"/>
+        </request>
+
+
+        <request name="get_clients">
+            <description summary="returns a list of clients"/>
+        </request>
+
+        <event name="client_properties">
+            <arg name="id" type="string" summary="Id of the app"/>
+            <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+            <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+            <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+            <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+            <arg name="opacity" type="fixed" summary="opacticty factor"/>
+            <arg name="zorder" type="int" summary="location in the z-order"/>
+            <arg name="visible" type="int" summary="the visibility of the surface"/>
+            <arg name="crop_x" type="fixed" summary="the cropping left insert"/>
+            <arg name="crop_y" type="fixed" summary="the cropping top insert"/>
+            <arg name="crop_width" type="fixed" summary="the cropping width"/>
+           <arg name="crop_height" type="fixed" summary="the cropping height"/>
+           <arg name="textured" type="int" summary="boolean for whether should use textured graphics (fbo or video) or not"/>
+        </event>
+
+        <event name="focused_client">
+            <description summary="sent in reply to a get_focused_client request">
+                Returns the focused client id.  Empty string means no focused client
+            </description>
+                <arg name="id" type="string" summary="focused client id"/>
+        </event>
+
+        <event name="clients">
+            <description summary="sent in reply to a get_clients request">
+            Returns list of clients
+            </description>
+                <arg name="id" type="string" summary="focused client id"/>
+        </event>
+   </interface>
+</protocol>
+

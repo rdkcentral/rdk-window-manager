@@ -32,7 +32,6 @@
 #include "rdkwindowmanagerrect.h"
 #include "rdkwindowmanagertypes.h"
 
-
 namespace RdkWindowManager
 {
 
@@ -52,8 +51,9 @@ namespace RdkWindowManager
         double opacity;
         bool visible;
         int zOrder;
+        std::string name;
         FireboltSurfaceInfo():westerosCompositor(NULL),surfaceId(0),surfaceType(SurfaceType::Standard),x(0),y(0),
-            width(1920),height(1080),sx(0),sy(0),swidth(1920),sheight(1080),opacity(1.0),visible(true),zOrder(0){}
+            width(1920),height(1080),sx(0),sy(0),swidth(1920),sheight(1080),opacity(1.0),visible(true),zOrder(0),name(){}
     };
 
     class FrameBuffer;
@@ -85,6 +85,8 @@ namespace RdkWindowManager
             void setAnimating(bool animating);
             void setHolePunch(bool holePunchEnabled);
             void holePunch(bool &holePunchEnabled);
+            void setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
+            void crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
             void keyMetadataEnabled(bool &enabled);
             void setKeyMetadataEnabled(bool enable);
             int registerInputEventListener(std::function<void(const RdkWindowManager::InputEvent&)> listener);
@@ -113,6 +115,8 @@ namespace RdkWindowManager
             bool setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);
             bool setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
             bool setFireboltSurfaceVisibility(int surfaceId, bool visible);
+            bool setFireboltSurfaceName(int surfaceId, const std::string& surfaceName);
+            bool fireboltSurfaceDestroy(int surfaceId);
             bool hasOverlays();
             bool hasCompositor(WstCompositor* compositor);
 
@@ -132,6 +136,7 @@ namespace RdkWindowManager
             void launchApplicationInBackground();
             void shutdownApplication();
             static bool loadExtensions(WstCompositor *compositor, const std::string& clientName);
+            static bool loadfireboltExtensions(WstCompositor *compositor);
             void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void updateWaylandState();
@@ -149,6 +154,10 @@ namespace RdkWindowManager
             bool mHolePunch;
             double mScaleX;
             double mScaleY;
+            int32_t mCropX;
+            int32_t mCropY;
+            int32_t mCropWidth;
+            int32_t mCropHeight;
             bool mEnableKeyMetadata;
             int mInputListenerTags;
             std::mutex mInputLock;

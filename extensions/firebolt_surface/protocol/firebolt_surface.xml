@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<protocol name="firebolt_surface">
+
+   <interface name="firebolt_surface" version="1">
+
+      <enum name="firebolt_surface_visibility">
+         <description summary="surface visibility">
+             Passed as the visibility argument for the set_visible request.
+         </description>
+         <entry name="hide" value="0" summary="hide the surface"/>
+         <entry name="show" value="1" summary="show the surface"/>
+      </enum>
+
+      <request name="destroy" type="destructor">
+         <description summary="destroy the firebolt_surface">
+             Destroy the firebolt_surface object. This removes the
+             association with the underlying wl_surface or hardware video
+             surface and removes the surface from the composition.
+         </description>
+         <arg name="surfaceId" type="int"/>
+     </request>
+
+     <request name="set_name">
+         <description summary="set the name of the firebolt_surface">
+             Sets the name of the surface
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="name" type="string"/>
+     </request>
+
+     <request name="set_visible">
+         <description summary="set the visibility of the surface">
+            Setting to 0 makes the surface not visible.
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="visible" type="uint" enum="firebolt_surface_visibility"/>
+     </request>
+
+     <request name="set_bounds">
+         <description summary="set the surface bounds">
+            The surface bounds of a surface is its composited pixel
+            position and dimensions.  If unset then the surface is set
+            to the top left, with width and height that match the underlying
+            surface dimensions.
+
+            The width and height of the effective surface bounds must be
+            greater than zero. Setting an invalid size will raise an
+
+            invalid_size error.
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="x" type="int"/>
+         <arg name="y" type="int"/>
+         <arg name="width" type="int"/>
+         <arg name="height" type="int"/>
+     </request>
+
+     <request name="set_crop">
+         <description summary="set the cropping of the surface within the surface">
+            Sets the cropping of a given surface.
+
+            Cropping works on an arbitrary scale, not on pixels. The input
+            surface is defined as a rectangle with width and height of 1.0
+            and therefore all cropping values should be fixed point
+            values between 0.0 and 1.0 inclusive.
+
+            For example to crop the top right quarter of the video
+            then set (x, y, width, height) to (0.5, 0.0, 0.5, 0.5).
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="sx" type="fixed"/>
+         <arg name="sy" type="fixed"/>
+         <arg name="swidth" type="fixed"/>
+         <arg name="sheight" type="fixed"/>
+     </request>
+
+     <request name="set_zorder">
+         <description summary="set the relative z-order of the surface">
+            Sets the z-order of the surface relative to other surfaces within
+            the client's display.
+
+            The z-order should be in the range of 0.0 - 1.0 inclusive.
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="zorder" type="fixed"/>
+     </request>
+
+     <request name="set_opacity">
+         <description summary="set surface opacity">
+            Sets the opacity of the surface.  It may not be possible to set the opacity on hardware video surfaces.
+
+            The opacity should be in the range of 0.0 - 1.0 inclusive.
+         </description>
+         <arg name="surfaceId" type="int"/>
+         <arg name="opacity" type="fixed"/>
+     </request>
+
+   </interface>
+
+</protocol>
+

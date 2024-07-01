@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces()
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
     {
         if (gForce720)
         {
@@ -192,6 +192,46 @@ namespace RdkWindowManager
         }
     }
 
+    bool RdkCompositor::loadfireboltExtensions(WstCompositor *compositor)
+    {
+        Logger::log(LogLevel::Information,  "loadfireboltExtensions WstCompositor:%p", compositor);
+        bool success = true;
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
+        if (compositor)
+        {
+            std::vector<std::string> extensions;
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltsurface.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltshell.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
+
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+            extensions.push_back("libwstplugin_rdkwmfireboltwm.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
+            for (int i = 0; i < extensions.size(); ++i)
+            {
+                const std::string extensionPath = RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY + extensions[i];
+                Logger::log(LogLevel::Information,  "Attempting to load extension: %s", extensionPath.c_str());
+                if (!WstCompositorAddModule(compositor, extensionPath.c_str()))
+                {
+                    Logger::log(LogLevel::Warn,  "Failed to load plugin:: %s, westeros error: %s", extensionPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                }
+            }
+        }
+        else
+#endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
+        {
+            success = false;
+        }
+
+        return success;
+    }
+
     bool RdkCompositor::loadExtensions(WstCompositor *compositor, const std::string& clientName)
     {
         Logger::log(LogLevel::Information,  "loadExtensions clientName: %s", clientName.c_str());
@@ -318,8 +358,16 @@ namespace RdkWindowManager
         {
             if(mFireboltSurfaces.empty())
             {
-                 WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-                 matrix, opacity, hints, &needsHolePunch, rects);
+                if (mCropWidth > 0 || mCropHeight > 0)
+                {
+                    WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
+                    matrix, opacity, hints, &needsHolePunch, rects);
+                }
+                else
+                {
+                    WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
+                    matrix, opacity, hints, &needsHolePunch, rects);
+                }
             }
             else
             {
@@ -329,8 +377,16 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
                         }
                     }
                 }
@@ -346,8 +402,16 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                            matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                            }
                         }
                     }
                 }
@@ -611,6 +675,22 @@ namespace RdkWindowManager
     void RdkCompositor::holePunch(bool &holePunchEnabled)
     {
         holePunchEnabled = mHolePunch;
+    }
+
+    void RdkCompositor::setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
+    {
+        mCropX = cropX;
+        mCropY = cropY;
+        mCropWidth = cropWidth;
+        mCropHeight = cropHeight;
+    }
+
+    void RdkCompositor::crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
+    {
+        cropX = mCropX;
+        cropY = mCropY;
+        cropWidth = mCropWidth;
+        cropHeight = mCropHeight;
     }
 
     void RdkCompositor::keyMetadataEnabled(bool &enabled)
@@ -1101,5 +1181,33 @@ namespace RdkWindowManager
             mFireboltSurfaces.insert(fireboltSurfaceIt, tempFireboltSurface);
         }
         return true;
+    }
+
+    bool RdkCompositor::setFireboltSurfaceName(int surfaceId, const std::string& surfaceName)
+    {
+        for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+        {
+            if (fireboltSurface->surfaceId == surfaceId )
+            {
+                fireboltSurface->name = surfaceName;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool RdkCompositor::fireboltSurfaceDestroy(int surfaceId)
+    {
+        std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
+
+        for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
+        {
+            if (fireboltSurfaceIt->surfaceId == surfaceId )
+            {
+                mFireboltSurfaces.erase(fireboltSurfaceIt);
+                return true;
+            }
+        }
+        return false;
     }
 }

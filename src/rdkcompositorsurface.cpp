@@ -126,7 +126,10 @@ namespace RdkWindowManager
                 mMainCompositorDisplayName = displayName;
 
                 Logger::log(LogLevel::Information,  "The display name is: %s", mMainCompositorDisplayName.c_str());
-                
+
+                /* Load Westeros extensions for WM firebolt interfaces */
+                loadfireboltExtensions(mMainWstContext);           
+
                 if (!error && !WstCompositorStart(mMainWstContext))
                 {
                     Logger::log(LogLevel::Information,  "errored in starting compositor ");

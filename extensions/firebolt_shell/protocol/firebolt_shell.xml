@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="firebolt_shell">
+
+    <interface name="firebolt_shell" version="1">
+
+        <description summary="">
+            Enhance westeros to support the new shell APIs.
+        </description>
+
+        <enum name="firebolt_surface_type">
+            <description summary="surface types">
+                Describes the surface type and passed to the get_firebolt_surface
+            </description>
+            <entry name="standard" value="1" summary="a regular surface"/> 
+            <entry name="video" value="2" summary="a video surface"/>
+            <entry name="popup" value="3" summary="Display on top of all other surfaces.  Does not have input focus."/>
+            <entry name="notification" value="4" summary="Display on top of all other surfaces.  Receives input focus."/>
+        </enum> 
+
+        <request name="get_firebolt_surface">
+            <description summary="create a firebolt shell surface from a surface">
+                Create a firebolt_surface wrapper around wl_surfaces  
+            </description>
+            <arg name="surfaceId" type="int"/>
+            <arg name="type" type="uint" enum="firebolt_surface_type"/>
+        </request>
+
+        <event name="firebolt_video_surface_id">
+            <description summary="sent in reply to a get_firebolt_surface request for video surfaces">
+                Returns a video id string if a video surface is requested from the get_firebolt_surface request
+            </description>
+            <arg name="video_id" type="string" summary="the video id for identifying the hardware video surface"/> 
+        </event>
+
+    </interface>
+
+</protocol>
