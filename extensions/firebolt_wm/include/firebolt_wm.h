@@ -41,7 +41,7 @@ class FireboltWindowManager
         typedef std::map<wl_resource*, FireboltWmClientInfo*> ClientListMap;
         ClientListMap                 mClientListMap;
 
-        static FireboltWindowManager *mInstance;
+        FireboltWindowManager        *mInstance;
         static std::mutex             mContextLock;
 
         wl_global                    *mWlGlobal;

@@ -41,7 +41,7 @@ class FireboltShell
         typedef std::map<wl_resource*, FireboltShellClientInfo*> ClientListMap;
         ClientListMap           mClientListMap;
 
-        static FireboltShell   *mInstance;
+        FireboltShell           *mInstance;
         static std::mutex       mContextLock;
 
         wl_global              *mWlGlobal;

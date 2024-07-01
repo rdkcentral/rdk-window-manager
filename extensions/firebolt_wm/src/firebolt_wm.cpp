@@ -33,7 +33,8 @@
 #define FB_WM_DISPLAY_DEFAULT_CROP_XY_POSITION  (0)
 #define FB_WM_DISPLAY_DEFAULT_CROP_WH           (0)
 
-FireboltWindowManager* FireboltWindowManager::mInstance = NULL;
+typedef std::map<WstCompositor*, FireboltWindowManager*> FireboltWMCompositorListMap;
+static FireboltWMCompositorListMap f_fireboltWmCompositorList;
 std::mutex FireboltWindowManager::mContextLock;
 
 static void firebolt_wm_set_properties(struct wl_client *client,
@@ -1039,41 +1040,40 @@ extern "C"
     static FireboltWindowManager* fireboltWmCreateContext(void)
     {
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        if (NULL == FireboltWindowManager::mInstance)
+        FireboltWindowManager *instance = new FireboltWindowManager();
+        if (NULL == instance)
         {
-            FireboltWindowManager::mInstance = new FireboltWindowManager();
-            if (NULL == FireboltWindowManager::mInstance)
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_wm@.fireboltWmCreateContext: no memory for context object");
-            }
-            else
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.fireboltWmCreateContext: instance@%p created", FireboltWindowManager::mInstance);
-            }
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_wm@.fireboltWmCreateContext: no memory for context object");
         }
-        return FireboltWindowManager::mInstance;
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " firebolt_wm@.fireboltWmCreateContext: instance@%p created", instance);
+            instance->mInstance = instance;
+        }
+
+        return instance;
     }
 
-    static void fireboltWmDeleteContext(void)
+    static void fireboltWmDeleteContext(FireboltWindowManager *fireboltWmContext)
     {
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        if (NULL != FireboltWindowManager::mInstance)
+        if (NULL != fireboltWmContext->mInstance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_wm@.fireboltWmDeleteContext: instance@%p wlGlobal@%p destory",
-                    FireboltWindowManager::mInstance, FireboltWindowManager::mInstance->mWlGlobal);
+                    fireboltWmContext->mInstance, fireboltWmContext->mInstance->mWlGlobal);
 
             /* Remove extension global object and destroy it */
-            if (NULL != FireboltWindowManager::mInstance->mWlGlobal)
+            if (NULL != fireboltWmContext->mInstance->mWlGlobal)
             {
-                wl_global_destroy (FireboltWindowManager::mInstance->mWlGlobal);
-                FireboltWindowManager::mInstance->mWlGlobal = NULL;
+                wl_global_destroy (fireboltWmContext->mInstance->mWlGlobal);
+                fireboltWmContext->mInstance->mWlGlobal = NULL;
             }
 
             /* Clear map of resource and client Info */
-            for (auto it = FireboltWindowManager::mInstance->mClientListMap.begin(); it != FireboltWindowManager::mInstance->mClientListMap.end(); it++)
+            for (auto it = fireboltWmContext->mInstance->mClientListMap.begin(); it != fireboltWmContext->mInstance->mClientListMap.end(); it++)
             {
                 FireboltWmClientInfo *clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
                 if (NULL != clientInfo)
@@ -1089,19 +1089,28 @@ extern "C"
                     it->second = NULL;
                 }
             }
-            FireboltWindowManager::mInstance->mClientListMap.clear();
+            fireboltWmContext->mInstance->mClientListMap.clear();
 
             /* Delete context */
-            delete(FireboltWindowManager::mInstance);
-            FireboltWindowManager::mInstance = NULL;
+            delete(fireboltWmContext->mInstance);
+            fireboltWmContext->mInstance = NULL;
         }
         return;
     }
 
-    static bool fireboltWmHasContext(void)
+    static FireboltWindowManager* fireboltWmHasContext(WstCompositor *wstCompositor)
     {
+        FireboltWindowManager* fbWmCtx = NULL;
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        return (NULL != FireboltWindowManager::mInstance) ? true : false;
+        if (NULL != wstCompositor)
+        {
+            FireboltWMCompositorListMap::iterator it = f_fireboltWmCompositorList.find(wstCompositor);
+            if (it != f_fireboltWmCompositorList.end()) 
+            {
+                fbWmCtx = reinterpret_cast<FireboltWindowManager*>(it->second);
+            }
+        }
+        return fbWmCtx;
     }
 
     /**
@@ -1117,13 +1126,14 @@ extern "C"
                 " firebolt_wm@.moduleInit: firebolt_wm extension wstCompositor@%p display@%p initializing",
                 wstCompositor, display);
 
-        if (!fireboltWmHasContext())
+        if ((NULL != wstCompositor) && (NULL == fireboltWmHasContext(wstCompositor)))
         {
             FireboltWindowManager* fbWmCtx = NULL;
             /* To create a new instance of firebolt window manager extension */
             fbWmCtx = fireboltWmCreateContext();
             if (NULL != fbWmCtx)
             {
+                std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
                 fbWmCtx->mWstCompositor  = wstCompositor;
                 fbWmCtx->mWlDisplay      = display;
 
@@ -1146,6 +1156,7 @@ extern "C"
                             fbWmCtx->mWstCompositor,
                             fbWmCtx->mWlDisplay,
                             fbWmCtx->mWlGlobal);
+                    f_fireboltWmCompositorList[wstCompositor] = fbWmCtx;
                 }
             }
             else
@@ -1174,10 +1185,12 @@ extern "C"
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_wm@.moduleTerm: firebolt_wm extension terminating");
 
-        if (fireboltWmHasContext())
+        FireboltWindowManager *fireboltWmContext = fireboltWmHasContext(wstCompositor);
+        if (NULL != fireboltWmContext)
         {
             /* Delete extension context */
-            fireboltWmDeleteContext();
+            fireboltWmDeleteContext(fireboltWmContext);
+            f_fireboltWmCompositorList.erase(wstCompositor);
         }
         else
         {

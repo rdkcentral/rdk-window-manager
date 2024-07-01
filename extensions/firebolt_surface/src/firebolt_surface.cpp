@@ -25,7 +25,8 @@
 #include "firebolt_surface.h"
 #include "compositorcontroller.h"
 
-FireboltSurface* FireboltSurface::mInstance = NULL;
+typedef std::map<WstCompositor*, FireboltSurface*> FireboltSurfaceCompositorListMap;
+static FireboltSurfaceCompositorListMap           f_fireboltSurfaceCompositorList;
 std::mutex FireboltSurface::mContextLock;
 
 static void firebolt_surface_destroy(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId);
@@ -764,41 +765,39 @@ extern "C"
     static FireboltSurface* fireboltSurfaceCreateContext(void)
     {
         std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
-        if (NULL == FireboltSurface::mInstance)
+        FireboltSurface *instance = new FireboltSurface();
+        if (NULL == instance)
         {
-            FireboltSurface::mInstance = new FireboltSurface();
-            if (NULL == FireboltSurface::mInstance)
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                        " firebolt_wm@.fireboltWmCreateContext: no memory for context object");
-            }
-            else
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.fireboltWmCreateContext: instance:%p created", FireboltSurface::mInstance);
-            }
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_surface@.fireboltSurfaceCreateContext: no memory for context object");
         }
-        return FireboltSurface::mInstance;
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " firebolt_surface@.fireboltSurfaceCreateContext: instance@%p created", instance);
+            instance->mInstance = instance;
+        }
+        return instance;
     }
 
-    static void fireboltSurfaceDeleteContext(void)
+    static void fireboltSurfaceDeleteContext(FireboltSurface *fireboltSurfaceContext)
     {
-        std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
-        if (NULL != FireboltSurface::mInstance)
+        std::lock_guard<std::mutex> locker(fireboltSurfaceContext->mContextLock);
+        if (NULL != fireboltSurfaceContext->mInstance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_surface@.fireboltSurfaceDeleteContext: instance@%p wlGlobal@%p destory",
-                    FireboltSurface::mInstance, FireboltSurface::mInstance->mWlGlobal);
+                    fireboltSurfaceContext->mInstance, fireboltSurfaceContext->mInstance->mWlGlobal);
 
             /* Remove extension global object and destroy it */
-            if (NULL != FireboltSurface::mInstance->mWlGlobal)
+            if (NULL != fireboltSurfaceContext->mInstance->mWlGlobal)
             {
-                wl_global_destroy (FireboltSurface::mInstance->mWlGlobal);
-                FireboltSurface::mInstance->mWlGlobal = NULL;
+                wl_global_destroy (fireboltSurfaceContext->mInstance->mWlGlobal);
+                fireboltSurfaceContext->mInstance->mWlGlobal = NULL;
             }
 
             /* Clear map of resource and client Info */
-            for (auto it = FireboltSurface::mInstance->mClientListMap.begin(); it != FireboltSurface::mInstance->mClientListMap.end(); it++)
+            for (auto it = fireboltSurfaceContext->mInstance->mClientListMap.begin(); it != fireboltSurfaceContext->mInstance->mClientListMap.end(); it++)
             {
                 FireboltSurfaceClientInfo *clientInfo = reinterpret_cast<FireboltSurfaceClientInfo*>(it->second);
                 if (NULL != clientInfo)
@@ -814,19 +813,29 @@ extern "C"
                     it->second = NULL;
                 }
             }
-            FireboltSurface::mInstance->mClientListMap.clear();
+            fireboltSurfaceContext->mInstance->mClientListMap.clear();
 
             /* Delete context */
-            delete(FireboltSurface::mInstance);
-            FireboltSurface::mInstance = NULL;
+            delete(fireboltSurfaceContext->mInstance);
+            fireboltSurfaceContext->mInstance = NULL;
         }
         return;
     }
 
-    static bool fireboltSurfaceHasContext(void)
+    static FireboltSurface* fireboltSurfaceHasContext(WstCompositor *wstCompositor)
     {
         std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
-        return (NULL != FireboltSurface::mInstance) ? true : false;
+        FireboltSurface* fbSurfaceCtx = NULL;
+        if (NULL != wstCompositor)
+        {
+            FireboltSurfaceCompositorListMap::iterator it = f_fireboltSurfaceCompositorList.find(wstCompositor);
+            if (it != f_fireboltSurfaceCompositorList.end())
+            {
+                fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(it->second);
+            }
+        }
+
+        return fbSurfaceCtx;
     }
 
     /**
@@ -842,13 +851,14 @@ extern "C"
                 " firebolt_surface@.moduleInit: firebolt_surface extension wstCompositor@%p display@%p initializing",
                 wstCompositor, display);
 
-        if (!fireboltSurfaceHasContext())
+        if (NULL == fireboltSurfaceHasContext(wstCompositor))
         {
             FireboltSurface* fbSurfaceCtx = NULL;
             /* To create a new instance of firebolt window manager extension */
             fbSurfaceCtx = fireboltSurfaceCreateContext();
             if (NULL != fbSurfaceCtx)
             {
+                std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
                 fbSurfaceCtx->mWstCompositor = wstCompositor;
                 fbSurfaceCtx->mWlDisplay = display;
 
@@ -871,6 +881,7 @@ extern "C"
                             fbSurfaceCtx->mWstCompositor,
                             fbSurfaceCtx->mWlDisplay,
                             fbSurfaceCtx->mWlGlobal);
+                    f_fireboltSurfaceCompositorList[wstCompositor] = fbSurfaceCtx;
                 }
             }
             else
@@ -899,10 +910,12 @@ extern "C"
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_surface@.moduleTerm: firebolt_surface extension terminating");
 
-        if (fireboltSurfaceHasContext())
+        FireboltSurface *fireboltSurfaceContext = fireboltSurfaceHasContext(wstCompositor);
+        if (NULL != fireboltSurfaceContext)
         {
             /* Delete extension context */
-            fireboltSurfaceDeleteContext();
+            fireboltSurfaceDeleteContext(fireboltSurfaceContext);
+            f_fireboltSurfaceCompositorList.erase(wstCompositor);
         }
         else
         {

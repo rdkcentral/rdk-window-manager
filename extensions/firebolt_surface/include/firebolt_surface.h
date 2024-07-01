@@ -42,7 +42,7 @@ class FireboltSurface
         typedef std::map<wl_resource*, FireboltSurfaceClientInfo*> ClientListMap;
         ClientListMap           mClientListMap;
 
-        static FireboltSurface *mInstance;
+        FireboltSurface        *mInstance;
         static std::mutex       mContextLock;
 
         wl_global              *mWlGlobal;
