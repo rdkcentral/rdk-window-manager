@@ -115,7 +115,7 @@ static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
  *
  */
 FireboltWindowManager::FireboltWindowManager()
-        :mWstCompositor(NULL), mWlDisplay(NULL), mWlResource(NULL), mWlGlobal(NULL), mWstDisplayName()
+        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap()
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.FireboltWindowManager: constructor");
@@ -128,6 +128,31 @@ FireboltWindowManager::~FireboltWindowManager()
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.~FireboltWindowManager: destructor");
+}
+
+/**
+ * Get Firebolt window manager ClientInfo from wayland resource
+ *
+ * @param resource  : wayland resource
+ * @return FireboltWmClientInfo: Pointer to associated clientInfo struct
+ */
+FireboltWmClientInfo* FireboltWindowManager::getFireboltWmClientInfo(wl_resource *resource)
+{
+    FireboltWmClientInfo *clientInfo = NULL;
+
+    if (NULL != resource)
+    {
+        FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(wl_resource_get_user_data(resource));
+        if (NULL != fbWmCtx)
+        {
+            FireboltWindowManager::ClientListMap::iterator it = fbWmCtx->mClientListMap.find(resource);
+            if (it != fbWmCtx->mClientListMap.end()) 
+            {
+                clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
+            }
+        }
+    }
+    return clientInfo;
 }
 
 /**
@@ -227,7 +252,7 @@ static void firebolt_wm_set_properties(struct wl_client *client,
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                 " firebolt_wm@.set_properties: client@%p resource@%p" \
-                " id:%p surface{x:%d y:%d width:%u height:%u} render{width:%u height:%u}" \
+                " id@%p surface{x:%d y:%d width:%u height:%u} render{width:%u height:%u}" \
                 " opacity:%f zorder:%u visible:%u crop{x:%f y:%f width:%f height:%f} - invalid id param!",
                 client, resource, id, x, y, width, height, render_width, render_height,
                 wl_fixed_to_double(opacity), zorder, visible, wl_fixed_to_double(crop_x),
@@ -350,7 +375,7 @@ static void firebolt_wm_create (struct wl_client *client,
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.create: client@%p resource@%p id:%p - invalid id param!",
+                " firebolt_wm@.create: client@%p resource@%p id@%p - invalid id param!",
                 client, resource, id);
     }
 }
@@ -429,7 +454,7 @@ static void firebolt_wm_create_with_bounds (struct wl_client *client,
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.create_with_bounds: client@%p resource@%p id:%p - invalid id param!",
+                " firebolt_wm@.create_with_bounds: client@%p resource@%p id@%p - invalid id param!",
                 client, resource, id);
     }
 }
@@ -547,7 +572,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.create_with_properties: client@%p resource@%p id:%p - invalid id param!",
+                " firebolt_wm@.create_with_properties: client@%p resource@%p id@%p - invalid id param!",
                 client, resource, id);
     }
 }
@@ -579,7 +604,7 @@ static void firebolt_wm_destroy(struct wl_client *client,
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.destroy: client@%p resource@%p app id:%p - invalid id param!",
+                " firebolt_wm@.destroy: client@%p resource@%p app id@%p - invalid id param!",
                 client, resource, id);
     }
     return;
@@ -627,7 +652,7 @@ static void firebolt_wm_set_client_bounds(struct wl_client *client,
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                 " firebolt_wm@.set_client_bounds: client@%p resource@%p" \
-                " id:%p surface{x:%d y:%d width:%u height:%u} - invalid id param!",
+                " id@%p surface{x:%d y:%d width:%u height:%u} - invalid id param!",
                 client, resource, id, x, y, width, height);
     }
 
@@ -650,11 +675,6 @@ static void firebolt_wm_set_client_display_bounds(struct wl_client *client,
                                  uint32_t width,
                                  uint32_t height)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-            " firebolt_wm@.set_client_display_bounds: client@%p resource@%p" \
-            " id:%s surface{width:%u height:%u}",
-            client, resource, (id == NULL ? "NULL" :id), width, height);
-
     if (id != NULL)
     {
         bool isVirtualDispEnabled = false;
@@ -695,7 +715,7 @@ static void firebolt_wm_set_client_display_bounds(struct wl_client *client,
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                 " firebolt_wm@.set_client_display_bounds: client@%p resource@%p" \
-                " id:%s client display{width:%u height:%u} - invalid id param!",
+                " id@%p client display{width:%u height:%u} - invalid id param!",
                 client, resource, id, width, height);
     }
 
@@ -731,7 +751,7 @@ static void firebolt_wm_set_client_focus (struct wl_client *client,
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.set_client_focus: client@%p resource@%p app id:%p - invalid id param!",
+                " firebolt_wm@.set_client_focus: client@%p resource@%p app id@%p - invalid id param!",
                 client, resource, id);
     }
     return;
@@ -787,6 +807,12 @@ static void firebolt_wm_get_properties(struct wl_client *client,
                     wl_fixed_from_int(clientInfo.cropY), wl_fixed_from_int(clientInfo.cropWidth),
                     wl_fixed_from_int(clientInfo.cropHeight), 0);
     }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                " firebolt_wm@.get_properties: client@%p resource@%p app id@%p - invalid id param!",
+                client, resource, id);
+    }
 
 ret_fail:
     return;
@@ -799,7 +825,7 @@ ret_fail:
  */
 static void firebolt_wm_get_focused_client (struct wl_client *client, struct wl_resource *resource)
 {
-    std::string clientId;
+    std::string clientId = "";
 
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.get_focused_client: client@%p resource@%p", client, resource);
@@ -846,7 +872,7 @@ static void firebolt_wm_get_clients (struct wl_client *client, struct wl_resourc
 
     /* Notifying event using hardcorded value for testing purpose */
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-            " firebolt_wm@.event: post clients resource@%p clients %s",
+            " firebolt_wm@.event: post clients resource@%p clients:%s",
             resource, (char *)clientIdList.str().c_str());
 
     firebolt_wm_send_clients(resource, (const char *)clientIdList.str().c_str());
@@ -866,23 +892,47 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
     FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(wl_resource_get_user_data(resource));
     if (NULL != fbWmCtx)
     {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                " firebolt_wm@.resource_destory: instance@%p resource:%p mWlResource:%p",
-                fbWmCtx->mInstance, resource, fbWmCtx->mWlResource);
-
-        /* To clear resource user data */
-        wl_resource_set_user_data(resource, NULL);
-
-        /* resource destroy */
-        wl_resource_destroy(resource);
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        fbWmCtx->mWlResource = NULL;
+        /* Erase map of resource and client name */
+        FireboltWindowManager::ClientListMap::iterator it = fbWmCtx->mClientListMap.find(resource);
+        if (it != fbWmCtx->mClientListMap.end()) 
+        {
+            FireboltWmClientInfo *clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
+            if ((NULL != clientInfo) && (resource == clientInfo->resource))
+            {
+                /* To clear resource user data */
+                wl_resource_set_user_data(clientInfo->resource, NULL);
+
+                /* resource destroy */
+                wl_resource_destroy(clientInfo->resource);
+
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_wm@.resource_destory: instance@%p clientInfo->resource@%p",
+                        fbWmCtx->mInstance, clientInfo->resource);
+
+                /* delete client info */
+                delete clientInfo;
+                it->second = NULL;
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                        " firebolt_wm@.resource_destory: resource@%p - incorrect"
+                        " clientInfo@%p! resource@%p clientInfo->resource@%p",
+                        clientInfo, resource, (clientInfo ? clientInfo->resource : NULL));
+            }
+            fbWmCtx->mClientListMap.erase(it);
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_wm@.resource_destory: resource@%p - client not found!", resource);
+        }
     }
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
                 " firebolt_wm@.resource_destory: resource@%p - instance not vaild!", resource);
-
     }
     return;
 }
@@ -898,32 +948,37 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
  */
 static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(data);
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-            " firebolt_wm@.bind: client@%p data:%p version:%u, id:%u",
+            " firebolt_wm@.bind: client@%p data@%p version:%u, id:%u",
             client, data, version, id);
+
+    FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(data);
     if (NULL == fbWmCtx)
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_wm@.bind: interface context object not valid");
+                " firebolt_wm@.bind: interface instance not valid");
         goto ret_fail;
     }
     else
     {
+        std::string clientName = "";
+        struct wl_resource *resource = NULL;
+
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
+
         /* To get westeros compositor object */
         fbWmCtx->mWstDisplayName = WstCompositorGetDisplayName(fbWmCtx->mWstCompositor);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                 " firebolt_wm@.bind: WstCompositor display name:%s", fbWmCtx->mWstDisplayName.c_str());
 
         /* To create resource object for firebolt window manager extension  */
-        fbWmCtx->mWlResource = wl_resource_create(client,
-                                                &firebolt_wm_interface,
-                                                std::min<int>(version, 1), id);
-        if (!fbWmCtx->mWlResource)
+        resource = wl_resource_create(client,
+                                    &firebolt_wm_interface,
+                                    std::min<int>(version, 1), id);
+        if (!resource)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                    " firebolt_wm@.bind: id:%d wl_resource_create - no memory", id);
+                    " firebolt_wm@.bind: id:%u wl_resource_create - no memory", id);
             wl_client_post_no_memory(client);
 
             goto ret_fail;
@@ -931,18 +986,50 @@ static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t vers
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                    " firebolt_wm@.bind: id:%d wl_resource_create resource:%p",
-                    id, fbWmCtx->mWlResource);
-        }
+                    " firebolt_wm@.bind: id:%u wl_resource_create resource@%p", id, resource);
 
-        /* Set the implementation of firebolt window manager extension */
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                " firebolt_wm@.bind: id:%d wl_resource_set_implementation", id);
-        wl_resource_set_implementation(fbWmCtx->mWlResource,
-                                        &fireboltWindowManagerImpl,
-                                        fbWmCtx,
-                                        firebolt_wm_resource_destory);
+            /* Map of wl_resource against client Info */
+            FireboltWmClientInfo *clientInfo = new FireboltWmClientInfo;
+            if (NULL == clientInfo)
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                        " firebolt_wm@.bind: id:%u FireboltWmClientInfo - no memory", id);
+                wl_client_post_no_memory(client);
+
+                goto ret_fail;
+            }
+            else
+            {
+                if (RdkWindowManager::CompositorController::getClientName(fbWmCtx->mWstCompositor, clientName))
+                {
+                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                            " firebolt_wm@.bind: mWstCompositor@%p id:%u getClientName:%s",
+                            fbWmCtx->mWstCompositor, id, clientName.c_str());
+                }
+                else
+                {
+                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                            " firebolt_wm@.bind: mWstCompositor@%p id:%u getClientName failed",
+                            fbWmCtx->mWstCompositor, id);
+                }
+
+                /* Set client info detail */
+                clientInfo->resource    = resource;
+                clientInfo->clientId    = id;
+                clientInfo->display     = wl_client_get_display(client);
+                clientInfo->clientName.assign(clientName);
+                fbWmCtx->mClientListMap[resource] = clientInfo;
+
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                " firebolt_wm id:%d wl_resource_set_implementation", id);
+                wl_resource_set_implementation(resource,
+                                            &fireboltWindowManagerImpl,
+                                            fbWmCtx,
+                                            firebolt_wm_resource_destory);
+            }
+        }
     }
+
 ret_fail:
     return;
 }
@@ -963,8 +1050,7 @@ extern "C"
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.fireboltWmCreateContext instance:%p created", FireboltWindowManager::mInstance);
-
+                        " firebolt_wm@.fireboltWmCreateContext: instance@%p created", FireboltWindowManager::mInstance);
             }
         }
         return FireboltWindowManager::mInstance;
@@ -976,7 +1062,7 @@ extern "C"
         if (NULL != FireboltWindowManager::mInstance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                    " firebolt_wm@.fireboltWmDeleteContext instance:%p wlGlobal@%p destory",
+                    " firebolt_wm@.fireboltWmDeleteContext: instance@%p wlGlobal@%p destory",
                     FireboltWindowManager::mInstance, FireboltWindowManager::mInstance->mWlGlobal);
 
             /* Remove extension global object and destroy it */
@@ -986,6 +1072,26 @@ extern "C"
                 FireboltWindowManager::mInstance->mWlGlobal = NULL;
             }
 
+            /* Clear map of resource and client Info */
+            for (auto it = FireboltWindowManager::mInstance->mClientListMap.begin(); it != FireboltWindowManager::mInstance->mClientListMap.end(); it++)
+            {
+                FireboltWmClientInfo *clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
+                if (NULL != clientInfo)
+                {
+                    /* To clear resource user data */
+                    wl_resource_set_user_data(clientInfo->resource, NULL);
+
+                    /* resource destroy */
+                    wl_resource_destroy(clientInfo->resource);
+
+                    /* delete client info */
+                    delete clientInfo;
+                    it->second = NULL;
+                }
+            }
+            FireboltWindowManager::mInstance->mClientListMap.clear();
+
+            /* Delete context */
             delete(FireboltWindowManager::mInstance);
             FireboltWindowManager::mInstance = NULL;
         }
@@ -1008,8 +1114,9 @@ extern "C"
     {
         bool ret = true;
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                " firebolt_wm@.moduleInit: wstCompositor@%p wlDisplay@%p initializing",
+                " firebolt_wm@.moduleInit: firebolt_wm extension wstCompositor@%p display@%p initializing",
                 wstCompositor, display);
+
         if (!fireboltWmHasContext())
         {
             FireboltWindowManager* fbWmCtx = NULL;
@@ -1017,8 +1124,8 @@ extern "C"
             fbWmCtx = fireboltWmCreateContext();
             if (NULL != fbWmCtx)
             {
-                fbWmCtx->mWstCompositor = wstCompositor;
-                fbWmCtx->mWlDisplay = display;
+                fbWmCtx->mWstCompositor  = wstCompositor;
+                fbWmCtx->mWlDisplay      = display;
 
                 /* Create extension global object */
                 fbWmCtx->mWlGlobal = wl_global_create(display,
@@ -1035,7 +1142,7 @@ extern "C"
                 else
                 {
                     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                            " firebolt_wm@.moduleInit: wstCompositor@%p wlDisplay@%p wlGlobal@%p initialized",
+                            " firebolt_wm@.moduleInit: wstCompositor@%p display@%p wlGlobal@%p initialized",
                             fbWmCtx->mWstCompositor,
                             fbWmCtx->mWlDisplay,
                             fbWmCtx->mWlGlobal);

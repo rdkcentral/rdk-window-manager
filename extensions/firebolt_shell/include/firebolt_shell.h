@@ -36,7 +36,7 @@ class FireboltShell
     public:
         FireboltShell();
         ~FireboltShell();
-        bool getFireboltShellClientInfo(wl_resource *resource, FireboltShellClientInfo *clientInfo);
+        FireboltShellClientInfo* getFireboltShellClientInfo(wl_resource *resource);
 
         typedef std::map<wl_resource*, FireboltShellClientInfo*> ClientListMap;
         ClientListMap           mClientListMap;

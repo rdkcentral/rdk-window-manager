@@ -19,21 +19,34 @@
 
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
+#include <map>
 #include "westeros-compositor.h"
 #include "firebolt_wm_protocol_server.h"
+
+typedef struct
+{
+    uint32_t            clientId;
+    std::string         clientName;
+    struct wl_display*  display;
+    wl_resource*        resource;
+} FireboltWmClientInfo;
 
 class FireboltWindowManager
 {
     public:
         FireboltWindowManager();
         ~FireboltWindowManager();
-        static FireboltWindowManager *mInstance;
-        static std::mutex mContextLock;
+        FireboltWmClientInfo* getFireboltWmClientInfo(wl_resource *resource);
 
-        WstCompositor     *mWstCompositor;
-        struct wl_display *mWlDisplay;
-        wl_resource       *mWlResource;
-        wl_global         *mWlGlobal;
-        std::string        mWstDisplayName;
+        typedef std::map<wl_resource*, FireboltWmClientInfo*> ClientListMap;
+        ClientListMap                 mClientListMap;
+
+        static FireboltWindowManager *mInstance;
+        static std::mutex             mContextLock;
+
+        wl_global                    *mWlGlobal;
+        WstCompositor                *mWstCompositor;
+        struct wl_display            *mWlDisplay;
+        std::string                   mWstDisplayName;
 };
 #endif

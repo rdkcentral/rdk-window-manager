@@ -204,11 +204,11 @@ namespace RdkWindowManager
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
             extensions.push_back("libwstplugin_rdkwmfireboltsurface.so");
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
             extensions.push_back("libwstplugin_rdkwmfireboltshell.so");
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
-#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
             extensions.push_back("libwstplugin_rdkwmfireboltwm.so");

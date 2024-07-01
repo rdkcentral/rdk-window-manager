@@ -42,11 +42,11 @@
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
 #include "firebolt_surface_protocol_client.h"
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
 #include "firebolt_shell_protocol_client.h"
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
-#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
 #include "firebolt_wm_protocol_client.h"
@@ -79,11 +79,11 @@ typedef struct rdkwmTestAppCtx
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
    struct firebolt_surface  *fbSurface;
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
    struct firebolt_shell    *fbShell;
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
-#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
    struct firebolt_wm       *fbWm;
@@ -198,6 +198,7 @@ static void registryHandleGlobal(void *data,
             RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->fbSurface));
         }
     }
+#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
     if((len == strlen(firebolt_shell_interface.name)) && !strncmp(interface, firebolt_shell_interface.name, len))
@@ -214,7 +215,6 @@ static void registryHandleGlobal(void *data,
         }
     }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
-#endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
     if((len == strlen(firebolt_wm_interface.name)) && !strncmp(interface, firebolt_wm_interface.name, len))
@@ -260,7 +260,8 @@ static void wmClientProperties(void *data, struct firebolt_wm *firebolt_wm, cons
                                wl_fixed_t crop_height, int32_t textured)
 {
    rdkwmTestAppCtx *ctx = (rdkwmTestAppCtx*)data;
-   RDKWM_TEST_INFO(("wm: id = %s, x = %d ,y = %d ,W = %d , H = %d , op = %f , zorder = %d , v = %d , cropx = %f , crop_y = %f , crop_w = %f , crop_h = %f , texture = %d \n",id,x,y,width,height,opacity,zorder,visible,crop_x,crop_y,crop_width,crop_height,textured));
+   RDKWM_TEST_INFO(("wm: id = %s, x = %d ,y = %d ,W = %d , H = %d , op = %f , zorder = %d , v = %d , cropx = %f , crop_y = %f , crop_w = %f , crop_h = %f , texture = %d \n",
+                  id,x,y,width,height,wl_fixed_to_double(opacity),zorder,visible,wl_fixed_to_double(crop_x),wl_fixed_to_double(crop_y),wl_fixed_to_double(crop_width),wl_fixed_to_double(crop_height),textured));
 }
 
 static void wmFocusedClient(void *data, struct firebolt_wm *firebolt_wm, const char *id)
@@ -281,7 +282,6 @@ void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
     RDKWM_TEST_INFO(("rdkwmTestAppCtx:%p", ctx));
     if (NULL != ctx)
     {
-#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
         int videoSurfaceId =1;
         int popupSurfaceId =2;
         int notificationSurfaceId =3;
@@ -300,6 +300,7 @@ void firebolt_extensions_test(rdkwmTestAppCtx *ctx)
             RDKWM_TEST_WARN(("firebolt_shell extension interface not yet registered"));
         }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
+#ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION
         if (ctx->fbSurface != NULL)
         {
             RDKWM_TEST_INFO(("firebolt_surface interface tests"));
