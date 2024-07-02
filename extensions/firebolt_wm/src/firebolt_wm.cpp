@@ -904,9 +904,6 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
                 /* To clear resource user data */
                 wl_resource_set_user_data(clientInfo->resource, NULL);
 
-                /* resource destroy */
-                wl_resource_destroy(clientInfo->resource);
-
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_wm@.resource_destory: instance@%p clientInfo->resource@%p",
                         fbWmCtx->mInstance, clientInfo->resource);
@@ -1075,18 +1072,18 @@ extern "C"
             /* Clear map of resource and client Info */
             for (auto it = fireboltWmContext->mInstance->mClientListMap.begin(); it != fireboltWmContext->mInstance->mClientListMap.end(); it++)
             {
-                FireboltWmClientInfo *clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
-                if (NULL != clientInfo)
+                if (it != fireboltWmContext->mInstance->mClientListMap.end())
                 {
-                    /* To clear resource user data */
-                    wl_resource_set_user_data(clientInfo->resource, NULL);
+                    FireboltWmClientInfo *clientInfo = reinterpret_cast<FireboltWmClientInfo*>(it->second);
+                    if (NULL != clientInfo)
+                    {
+                        /* To clear resource user data */
+                        wl_resource_set_user_data(clientInfo->resource, NULL);
 
-                    /* resource destroy */
-                    wl_resource_destroy(clientInfo->resource);
-
-                    /* delete client info */
-                    delete clientInfo;
-                    it->second = NULL;
+                        /* delete client info */
+                        delete clientInfo;
+                        it->second = NULL;
+                    }
                 }
             }
             fireboltWmContext->mInstance->mClientListMap.clear();
