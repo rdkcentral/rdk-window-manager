@@ -629,9 +629,6 @@ static void firebolt_surface_resource_destory(struct wl_resource *resource)
                 /* To clear resource user data */
                 wl_resource_set_user_data(clientInfo->resource, NULL);
 
-                /* resource destroy */
-                wl_resource_destroy(clientInfo->resource);
-
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_surface@.resource_destory: instance@%p clientInfo->resource:%p",
                         fbSurfaceCtx->mInstance, clientInfo->resource);
@@ -799,18 +796,18 @@ extern "C"
             /* Clear map of resource and client Info */
             for (auto it = fireboltSurfaceContext->mInstance->mClientListMap.begin(); it != fireboltSurfaceContext->mInstance->mClientListMap.end(); it++)
             {
-                FireboltSurfaceClientInfo *clientInfo = reinterpret_cast<FireboltSurfaceClientInfo*>(it->second);
-                if (NULL != clientInfo)
+                if (it != fireboltSurfaceContext->mInstance->mClientListMap.end())
                 {
-                    /* To clear resource user data */
-                    wl_resource_set_user_data(clientInfo->resource, NULL);
+                    FireboltSurfaceClientInfo *clientInfo = reinterpret_cast<FireboltSurfaceClientInfo*>(it->second);
+                    if (NULL != clientInfo)
+                    {
+                        /* To clear resource user data */
+                        wl_resource_set_user_data(clientInfo->resource, NULL);
 
-                    /* resource destroy */
-                    wl_resource_destroy(clientInfo->resource);
-
-                    /* delete client info */
-                    delete clientInfo;
-                    it->second = NULL;
+                        /* delete client info */
+                        delete clientInfo;
+                        it->second = NULL;
+                    }
                 }
             }
             fireboltSurfaceContext->mInstance->mClientListMap.clear();

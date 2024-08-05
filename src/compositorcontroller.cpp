@@ -2666,7 +2666,6 @@ namespace RdkWindowManager
         c->visible(ci.visible);
         ci.zorder = it->zorder;
         c->opacity(ci.opacity);
-        c->scale(ci.sx, ci.sy);
         c->position(ci.x, ci.y);
         c->size(ci.width, ci.height);
         c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
@@ -2682,12 +2681,11 @@ namespace RdkWindowManager
         auto c = it->compositor;
 
         c->setVisible(ci.visible);
-        setZorder(client, ci.zorder);
         c->setOpacity(ci.opacity);
-        c->setScale(ci.sx, ci.sy);
         c->setPosition(ci.x, ci.y);
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
+        setZorder(client, ci.zorder);
 
         return true;
     }
