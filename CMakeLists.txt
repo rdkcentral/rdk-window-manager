@@ -52,7 +52,6 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/linuxinput.cpp
   src/logger.cpp
   src/rdkwindowmanagerimage.cpp
-  src/permissions.cpp
   src/framebuffer.cpp
   src/framebufferrenderer.cpp
   src/cursor.cpp
