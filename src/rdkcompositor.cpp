@@ -898,23 +898,6 @@ namespace RdkWindowManager
         return mVirtualDisplayEnabled;
     }
 
-    void RdkCompositor::updateSurfaceCount (bool status)
-    {
-        if (status == true)
-        {
-            mSurfaceCount++;
-        }
-        else if ((status == false) && (mSurfaceCount > 0))
-        {
-            mSurfaceCount--;
-        } 
-    }
-
-    uint32_t RdkCompositor::getSurfaceCount (void)
-    {
-        return mSurfaceCount;
-    }
-
     void RdkCompositor::enableInputEvents(bool enable)
     {
         Logger::log(LogLevel::Information, "enableInputEvents display: %s, oldVal: %d, newVal: %d",

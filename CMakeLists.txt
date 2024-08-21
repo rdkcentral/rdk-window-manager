@@ -41,12 +41,9 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/compositorcontroller.cpp
   src/essosinstance.cpp
   src/rdkcompositor.cpp
-  src/rdkcompositorsurface.cpp
   src/rdkcompositornested.cpp
   src/linuxkeys.cpp
   src/eastereggs.cpp
-  src/animation.cpp
-  src/animationutilities.cpp
   src/rdkwindowmanagerdata.cpp
   src/rdkwindowmanagerjson.cpp
   src/linuxinput.cpp

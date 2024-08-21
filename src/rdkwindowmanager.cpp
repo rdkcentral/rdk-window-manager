@@ -19,9 +19,6 @@
 
 #include <iostream>
 #include <GLES2/gl2.h>
-#ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-#include "servermessagehandler.h"
-#endif
 
 #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
 #include "messageHandler.h"
@@ -31,7 +28,6 @@
 #include "linuxkeys.h"
 #include "eastereggs.h"
 #include "linuxinput.h"
-#include "animation.h"
 #include "logger.h"
 #include "rdkwindowmanager.h"
 #include "rdkwindowmanagerimage.h"
@@ -63,11 +59,6 @@ double gSwapMemoryIncreaseThresoldInMb =  RDK_WINDOW_MANAGER_DEFAULT_SWAP_INCREA
 bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
-
-#ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-std::shared_ptr<RdkWindowManager::ServerMessageHandler> gServerMessageHandler;
-bool gIpcEnabled = false;
-#endif
 
 #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
 std::shared_ptr<RdkWindowManager::MessageHandler> gMessageHandler;
@@ -383,19 +374,6 @@ namespace RdkWindowManager
 
         RdkWindowManager::EssosInstance::instance()->configureKeyInput(initialKeyDelay, repeatKeyInterval);
 
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-        char const* ipcSetting = getenv("RDK_WINDOW_MANAGER_ENABLE_IPC");
-        if (ipcSetting && (strcmp(ipcSetting,"1") == 0))
-        {
-            gIpcEnabled = true;
-        }
-        if (gIpcEnabled)
-        {
-            gServerMessageHandler = std::make_shared<RdkWindowManager::ServerMessageHandler>();
-            gServerMessageHandler->start();
-        }
-        #endif
-
         #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
         char const* websocketIpcSetting = getenv("RDK_WINDOW_MANAGER_ENABLE_WS_IPC");
         if (websocketIpcSetting && (strcmp(websocketIpcSetting,"1") == 0))
@@ -539,12 +517,6 @@ namespace RdkWindowManager
 
     void update()
     {
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-        if (gIpcEnabled)
-        {
-            gServerMessageHandler->process();
-        }
-        #endif
         RdkWindowManager::CompositorController::update();
     }
 }

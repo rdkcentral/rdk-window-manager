@@ -98,8 +98,6 @@ namespace RdkWindowManager
             static void onPointerButtonRelease(uint32_t keyCode, uint32_t x, uint32_t y);
             static bool createDisplay(const std::string& client, const std::string& displayName, uint32_t displayWidth=0, uint32_t displayHeight=0,
                 bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , bool autodestroy = true);
-            static bool addAnimation(const std::string& client, double duration, std::map<std::string, RdkWindowManagerData> &animationProperties);
-            static bool removeAnimation(const std::string& client);
             static bool addListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool removeListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool onEvent(RdkCompositor* eventCompositor, const std::string& eventName);
