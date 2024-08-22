@@ -20,9 +20,6 @@
 #include <iostream>
 #include <GLES2/gl2.h>
 
-#ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-#include "messageHandler.h"
-#endif
 #include "essosinstance.h"
 #include "compositorcontroller.h"
 #include "linuxkeys.h"
@@ -60,10 +57,6 @@ bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
 
-#ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-std::shared_ptr<RdkWindowManager::MessageHandler> gMessageHandler;
-bool gWebsocketIpcEnabled = false;
-#endif
 std::thread gMemoryMonitorThread;
 bool gRunMemoryMonitor = true;
 std::mutex gMemoryMonitorMutex;
@@ -294,7 +287,6 @@ namespace RdkWindowManager
         mapVirtualKeyCodes();
         populateEasterEggDetails();
         readInputDevicesConfiguration();
-        readPermissionsConfiguration();
 
         char const *loglevel = getenv("RDK_WINDOW_MANAGER_LOG_LEVEL");
         if (loglevel)
@@ -373,19 +365,6 @@ namespace RdkWindowManager
         }
 
         RdkWindowManager::EssosInstance::instance()->configureKeyInput(initialKeyDelay, repeatKeyInterval);
-
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-        char const* websocketIpcSetting = getenv("RDK_WINDOW_MANAGER_ENABLE_WS_IPC");
-        if (websocketIpcSetting && (strcmp(websocketIpcSetting,"1") == 0))
-        {
-            gWebsocketIpcEnabled = true;
-        }
-        if (gWebsocketIpcEnabled)
-        {
-            gMessageHandler = std::make_shared<RdkWindowManager::MessageHandler>(3000);
-            gMessageHandler->start();
-        }
-        #endif
 
         #ifdef RDK_WINDOW_MANAGER_ENABLE_FORCE_1080
         char const* graphicsResolution720 = getenv("RDK_WINDOW_MANAGER_SET_GRAPHICS_720");
@@ -486,12 +465,6 @@ namespace RdkWindowManager
             RdkWindowManager::CompositorController::draw();
             RdkWindowManager::EssosInstance::instance()->update();
 
-            #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-            if (gWebsocketIpcEnabled)
-            {
-                gMessageHandler->poll();
-            }
-            #endif
             double frameTime = (int)microseconds() - (int)startFrameTime;
             int32_t sleepTimeInMs = gCurrentFramerate - frameTime;
             if (frameTime < maxSleepTime)

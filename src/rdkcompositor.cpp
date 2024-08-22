@@ -240,8 +240,6 @@ namespace RdkWindowManager
         if (compositor)
         {
             std::vector<std::string> extensions;
-            getAllowedExtensions(clientName, extensions);
-            Logger::log(LogLevel::Information,  "loadExtensions getAllowedExtensions found: %d extensions for client %s ", extensions.size(), clientName.c_str());
 
             const char* enableRdkWindowManagerExtendedInput = getenv("RDK_WINDOW_MANAGER_EXTENDED_INPUT_ENABLED");
             if (enableRdkWindowManagerExtendedInput)
@@ -259,14 +257,6 @@ namespace RdkWindowManager
                     Logger::log(LogLevel::Error,  "Failed to load plugin:: %s, westeros error: %s", extensionInputPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
                     success = false;
                 }
-            }
-
-            std::string renderer = getRenderer();
-            if (!renderer.empty())
-            {
-                std::string rendererPath = std::string(RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY) + renderer;
-                Logger::log(LogLevel::Information,  "attempting to load renderer: %s", rendererPath.c_str());
-                WstCompositorSetRendererModule(compositor, rendererPath.c_str());
             }
         }
         else
