@@ -23,9 +23,6 @@
 #include "servermessagehandler.h"
 #endif
 
-#ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-#include "messageHandler.h"
-#endif
 #include "essosinstance.h"
 #include "compositorcontroller.h"
 #include "linuxkeys.h"
@@ -69,10 +66,6 @@ std::shared_ptr<RdkWindowManager::ServerMessageHandler> gServerMessageHandler;
 bool gIpcEnabled = false;
 #endif
 
-#ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-std::shared_ptr<RdkWindowManager::MessageHandler> gMessageHandler;
-bool gWebsocketIpcEnabled = false;
-#endif
 std::thread gMemoryMonitorThread;
 bool gRunMemoryMonitor = true;
 std::mutex gMemoryMonitorMutex;
@@ -395,19 +388,6 @@ namespace RdkWindowManager
         }
         #endif
 
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-        char const* websocketIpcSetting = getenv("RDK_WINDOW_MANAGER_ENABLE_WS_IPC");
-        if (websocketIpcSetting && (strcmp(websocketIpcSetting,"1") == 0))
-        {
-            gWebsocketIpcEnabled = true;
-        }
-        if (gWebsocketIpcEnabled)
-        {
-            gMessageHandler = std::make_shared<RdkWindowManager::MessageHandler>(3000);
-            gMessageHandler->start();
-        }
-        #endif
-
         #ifdef RDK_WINDOW_MANAGER_ENABLE_FORCE_1080
         char const* graphicsResolution720 = getenv("RDK_WINDOW_MANAGER_SET_GRAPHICS_720");
         if (graphicsResolution720 && (strcmp(graphicsResolution720,"1") == 0))
@@ -507,12 +487,6 @@ namespace RdkWindowManager
             RdkWindowManager::CompositorController::draw();
             RdkWindowManager::EssosInstance::instance()->update();
 
-            #ifdef RDK_WINDOW_MANAGER_ENABLE_WEBSOCKET_IPC
-            if (gWebsocketIpcEnabled)
-            {
-                gMessageHandler->poll();
-            }
-            #endif
             double frameTime = (int)microseconds() - (int)startFrameTime;
             int32_t sleepTimeInMs = gCurrentFramerate - frameTime;
             if (frameTime < maxSleepTime)
