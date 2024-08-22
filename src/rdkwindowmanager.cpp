@@ -19,16 +19,12 @@
 
 #include <iostream>
 #include <GLES2/gl2.h>
-#ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-#include "servermessagehandler.h"
-#endif
 
 #include "essosinstance.h"
 #include "compositorcontroller.h"
 #include "linuxkeys.h"
 #include "eastereggs.h"
 #include "linuxinput.h"
-#include "animation.h"
 #include "logger.h"
 #include "rdkwindowmanager.h"
 #include "rdkwindowmanagerimage.h"
@@ -60,11 +56,6 @@ double gSwapMemoryIncreaseThresoldInMb =  RDK_WINDOW_MANAGER_DEFAULT_SWAP_INCREA
 bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
-
-#ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-std::shared_ptr<RdkWindowManager::ServerMessageHandler> gServerMessageHandler;
-bool gIpcEnabled = false;
-#endif
 
 std::thread gMemoryMonitorThread;
 bool gRunMemoryMonitor = true;
@@ -375,19 +366,6 @@ namespace RdkWindowManager
 
         RdkWindowManager::EssosInstance::instance()->configureKeyInput(initialKeyDelay, repeatKeyInterval);
 
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-        char const* ipcSetting = getenv("RDK_WINDOW_MANAGER_ENABLE_IPC");
-        if (ipcSetting && (strcmp(ipcSetting,"1") == 0))
-        {
-            gIpcEnabled = true;
-        }
-        if (gIpcEnabled)
-        {
-            gServerMessageHandler = std::make_shared<RdkWindowManager::ServerMessageHandler>();
-            gServerMessageHandler->start();
-        }
-        #endif
-
         #ifdef RDK_WINDOW_MANAGER_ENABLE_FORCE_1080
         char const* graphicsResolution720 = getenv("RDK_WINDOW_MANAGER_SET_GRAPHICS_720");
         if (graphicsResolution720 && (strcmp(graphicsResolution720,"1") == 0))
@@ -512,12 +490,6 @@ namespace RdkWindowManager
 
     void update()
     {
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_IPC
-        if (gIpcEnabled)
-        {
-            gServerMessageHandler->process();
-        }
-        #endif
         RdkWindowManager::CompositorController::update();
     }
 }

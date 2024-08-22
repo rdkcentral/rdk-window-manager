@@ -20,14 +20,12 @@
 #include "compositorcontroller.h"
 
 #include "essosinstance.h"
-#include "animation.h"
 #include "rdkwindowmanager.h"
 #include "application.h"
 #include "logger.h"
 #include "linuxkeys.h"
 #include "eastereggs.h"
 #include "rdkcompositornested.h"
-#include "rdkcompositorsurface.h"
 #include "string.h"
 #include "rdkwindowmanagerimage.h"
 #include "rdkwindowmanagerrect.h"
@@ -235,12 +233,8 @@ namespace RdkWindowManager
     }
 
     void sendApplicationEvent(std::shared_ptr<RdkWindowManagerEventListener>& listener, const std::string& eventName, const std::string& client)
-    {
-         if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_LAUNCHED) == 0)
-         {
-                 listener->onApplicationLaunched(client);
-         }
-         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED) == 0)
+    { 
+         if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED) == 0)
          {
                  listener->onApplicationTerminated(client);
          }
@@ -255,18 +249,6 @@ namespace RdkWindowManager
          else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME) == 0)
          {
                  listener->onApplicationFirstFrame(client);
-         }
-         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_SUSPENDED) == 0)
-         {
-                 listener->onApplicationSuspended(client);
-         }
-         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_RESUMED) == 0)
-         {
-                 listener->onApplicationResumed(client);
-         }
-         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_SIZE_CHANGE_COMPLETE) == 0)
-         {
-                 listener->onSizeChangeComplete(client);
          }
     }
     
@@ -588,20 +570,9 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Information,  "compositor type is empty, setting to nested by default");
         }
-        else
+        else if (strcmp(rdkwindowmanagerCompositorType, "nested") != 0)
         {
-            if (strcmp(rdkwindowmanagerCompositorType, "surface") == 0)
-            {
-                gRdkWindowManagerCompositorType = SURFACE;
-                uint32_t width = 0;
-                uint32_t height = 0;
-                RdkWindowManager::EssosInstance::instance()->resolution(width, height);
-                RdkCompositorSurface::createMainCompositor("rdkwindowmanager_display", width, height);
-            }
-            else if (strcmp(rdkwindowmanagerCompositorType, "nested") != 0)
-            {
-                Logger::log(LogLevel::Information,  "invalid compositor type, setting to nested by default ");
-            }
+            Logger::log(LogLevel::Information,  "invalid compositor type, setting to nested by default ");
         }
 
         const char* cursorImageName = getenv("RDK_WINDOW_MANAGER_CURSOR_IMAGE");
@@ -734,7 +705,6 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it, &compositorInfoList))
         {
             std::string clientDisplayName = standardizeName(client);
-            RdkWindowManager::Animator::instance()->stopAnimation(clientDisplayName);
 
             // cleanup key intercepts
             std::vector<std::map<uint32_t, std::vector<KeyInterceptInfo>>::iterator> emptyKeyCodeEntries;
@@ -1572,14 +1542,8 @@ namespace RdkWindowManager
         CompositorInfo compositorInfo;
         compositorInfo.name = clientDisplayName;
         compositorInfo.autoDestroy = autodestroy;
-        if (gRdkWindowManagerCompositorType == SURFACE)
-        {
-            compositorInfo.compositor = std::make_shared<RdkCompositorSurface>();
-        }
-        else
-        {
-            compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
-        }
+        compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
+
         uint32_t width = 0;
         uint32_t height = 0;
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
@@ -1740,102 +1704,11 @@ namespace RdkWindowManager
 	return true;
     }
 
-    bool CompositorController::addAnimation(const std::string& client, double duration, std::map<std::string, RdkWindowManagerData> &animationProperties)
-    {
-        bool ret = false;
-        RdkWindowManager::Animation animation;
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            int32_t x = 0;
-            int32_t y = 0;
-            uint32_t width = 0;
-            uint32_t height = 0;
-            double scaleX = 1.0;
-            double scaleY = 1.0;
-            double opacity = 1.0;
-            double delay = 0.0;
-            std::string tween = "linear";
-            if (it->compositor != nullptr)
-            {
-                //retrieve the initial values in case they are not specified in the property set
-                it->compositor->position(x, y);
-                it->compositor->size(width, height);
-                it->compositor->scale(scaleX, scaleY);
-                it->compositor->opacity(opacity);
-            }
-
-            for (const auto &property : animationProperties)
-            {
-                if (property.first == "x")
-                {
-                    x = property.second.toInteger32();
-                }
-                else if (property.first == "y")
-                {
-                    y = property.second.toInteger32();
-                }
-                else if (property.first == "w")
-                {
-                    width = property.second.toUnsignedInteger32();
-                }
-                else if (property.first == "h")
-                {
-                    height = property.second.toUnsignedInteger32();
-                }
-                else if (property.first == "sx")
-                {
-                    scaleX = property.second.toDouble();
-                }
-                else if (property.first == "sy")
-                {
-                    scaleY = property.second.toDouble();
-                }
-                else if (property.first == "a")
-                {
-                    double opacityPercent = property.second.toDouble();
-                    opacity = opacityPercent / 100.0;
-                }
-                else if (property.first == "tween")
-                {
-                    tween = property.second.toString();
-                }
-                else if (property.first == "delay")
-                {
-                    delay = property.second.toDouble();
-                }
-            }
-
-            animation.compositor = it->compositor;
-            animation.endX = x;
-            animation.endY = y;
-            animation.endWidth = width;
-            animation.endHeight = height;
-            animation.endScaleX = scaleX;
-            animation.endScaleY = scaleY;
-            animation.endOpacity = opacity;
-            animation.duration = duration;
-            animation.name = client;
-            animation.tween = tween;
-            animation.delay = delay;
-            RdkWindowManager::Animator::instance()->addAnimation(animation);
-            ret = true;
-        }
-        return ret;
-    }
-
-    bool CompositorController::removeAnimation(const std::string& client)
-    {
-        RdkWindowManager::Animator::instance()->fastForwardAnimation(client);
-        return true;
-    }
-
     bool CompositorController::update()
     {
         resolveWaitingEasterEggs();
-        RdkWindowManager::Animator::instance()->animate();
         updateKeyRepeat();
-	updateGenerateKeyEvents();
+	    updateGenerateKeyEvents();
 
         if (gEnableInactivityReporting)
         {
@@ -1896,20 +1769,10 @@ namespace RdkWindowManager
             {
                 sendApplicationEvent(it->eventListeners[i], eventName, it->name);
             }
-	    if((gRdkWindowManagerCompositorType == SURFACE) && (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED) == 0))
+            if (it->autoDestroy == true )
             {
-		    it->compositor->updateSurfaceCount(true);
-            }
-	    else if ((gRdkWindowManagerCompositorType == SURFACE) && (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0))
-            {
-		it->compositor->updateSurfaceCount(false);
-		bool SurfaceCount = it->compositor->getSurfaceCount();
-
-		if((SurfaceCount == 0) && (it->autoDestroy == true ))
-                {
-                  clientToKill = it->name;
-                  killClient = true;
-	        }
+                clientToKill = it->name;
+                killClient = true;
             }
         }
         if (true == killClient)
@@ -1961,14 +1824,7 @@ namespace RdkWindowManager
             std::string clientDisplayName = standardizeName(client);
             CompositorInfo compositorInfo;
             compositorInfo.name = clientDisplayName;
-            if (gRdkWindowManagerCompositorType == SURFACE)
-            {
-                compositorInfo.compositor = std::make_shared<RdkCompositorSurface>();
-            }
-            else
-            {
-                compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
-            }
+            compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
             compositorInfo.mimeType = RDK_WINDOW_MANAGER_APPLICATION_MIME_TYPE_NATIVE;
             uint32_t width = 0;
             uint32_t height = 0;
@@ -2202,16 +2058,6 @@ namespace RdkWindowManager
         return true;
     }
 
-    bool CompositorController::isSurfaceModeEnabled()
-    {
-        bool surfaceModeEnabled = false;
-        if (gRdkWindowManagerCompositorType == SURFACE)
-        {
-            surfaceModeEnabled = true;
-        }
-        return surfaceModeEnabled;
-    }
-
     bool CompositorController::sendEvent(const std::string& eventName, std::vector<std::map<std::string, RdkWindowManagerData>>& data)
     {
         if (!gRdkWindowManagerEventListener)
@@ -2263,13 +2109,6 @@ namespace RdkWindowManager
                 usedSwapKb = data[0]["usedSwapKb"].toInteger32();
             }
             gRdkWindowManagerEventListener->onDeviceCriticallyLowRamWarningCleared(freeKb, availableKb, usedSwapKb);
-        }
-        else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_ANIMATION) == 0)
-        {
-            if (!data.empty())
-            {
-              gRdkWindowManagerEventListener->onAnimation(data);
-            }
         }
         else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_EASTER_EGG) == 0)
         {
