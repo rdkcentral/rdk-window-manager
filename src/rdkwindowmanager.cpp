@@ -303,7 +303,6 @@ namespace RdkWindowManager
         mapVirtualKeyCodes();
         populateEasterEggDetails();
         readInputDevicesConfiguration();
-        readPermissionsConfiguration();
 
         char const *loglevel = getenv("RDK_WINDOW_MANAGER_LOG_LEVEL");
         if (loglevel)
