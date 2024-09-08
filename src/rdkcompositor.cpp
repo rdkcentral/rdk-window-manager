@@ -26,7 +26,6 @@
 #include <unistd.h>
 #include "linuxkeys.h"
 #include "rdkwindowmanager.h"
-#include "permissions.h"
 #include "framebuffer.h"
 #include "framebufferrenderer.h"
 #include "logger.h"
