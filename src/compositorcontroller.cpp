@@ -373,11 +373,6 @@ namespace RdkWindowManager
                       gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
                   }
                   gFocusedCompositor = *compositorIterator;
-
-                  if (gRdkWindowManagerEventListener)
-                  {
-                      gRdkWindowManagerEventListener->onApplicationActivated(gFocusedCompositor.name);
-                  }
               }
           }
 
@@ -1460,16 +1455,6 @@ namespace RdkWindowManager
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "sending the keyevent for key release");
             gRdkWindowManagerEventListener->onKeyEvent(keycode, flags, false);
         }
-
-        if (keycode != 0 && gPowerKeyEnabled && keycode == gPowerKeyCode)
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "power key pressed");
-            if (gRdkWindowManagerEventListener)
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "sending the power key event");
-                gRdkWindowManagerEventListener->onPowerKey();
-            }
-        }
     }
 
     void CompositorController::onPointerMotion(uint32_t x, uint32_t y)
@@ -1861,66 +1846,6 @@ namespace RdkWindowManager
         return false;
     }
 
-    bool CompositorController::suspendApplication(const std::string& client)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            if (it->compositor != nullptr)
-            {
-                bool result = it->compositor->suspendApplication();
-                if (result)
-                {
-                    Logger::log(LogLevel::Information,  "%s client has been suspended", client.c_str());
-                    it->compositor->setVisible(false);
-                }
-                return result;
-            }
-            Logger::log(LogLevel::Information,  "display with name %s did not have a valid compositor", client.c_str());
-            return false;
-        }
-        Logger::log(LogLevel::Information,  "display with name %s was not found", client.c_str());
-        return false;
-    }
-
-    bool CompositorController::resumeApplication(const std::string& client)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            if (it->compositor != nullptr)
-            {
-                bool result = it->compositor->resumeApplication();
-                if (result)
-                {
-                    Logger::log(LogLevel::Information,  "%s client has been resumed", client.c_str());
-                    it->compositor->setVisible(true);
-                }
-            }
-            Logger::log(LogLevel::Information,  "display with name %s did not have a valid compositor", client.c_str());
-            return false;
-        }
-        Logger::log(LogLevel::Information,  "display with name %s was not found", client);
-        return false;
-    }
-
-    bool CompositorController::closeApplication(const std::string& client)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            if (it->compositor != nullptr)
-            {
-                it->compositor->closeApplication();
-                return true;
-            }
-            Logger::log(LogLevel::Information,  "display with name %s did not have a valid compositor", client);
-            return false;
-        }
-        Logger::log(LogLevel::Information,  "display with name %s was not found", client);
-        return false;
-    }
-
     bool CompositorController::getMimeType(const std::string& client, std::string& mimeType)
     {
         mimeType = "";
@@ -2064,61 +1989,6 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Information,  "event listener is not present and unable to send event ", eventName.c_str());
             return false;
-        }
-
-        if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_DEVICE_LOW_RAM_WARNING) == 0)
-        {
-            int32_t freeKb = -1, availableKb = -1, usedSwapKb = -1;
-            if (!data.empty())
-            {
-                freeKb = data[0]["freeKb"].toInteger32();
-                availableKb = data[0]["availableKb"].toInteger32();
-                usedSwapKb = data[0]["usedSwapKb"].toInteger32();
-            }
-            gRdkWindowManagerEventListener->onDeviceLowRamWarning(freeKb, availableKb, usedSwapKb);
-        }
-        else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_DEVICE_CRITICALLY_LOW_RAM_WARNING) == 0)
-        {
-            int32_t freeKb = -1, availableKb = -1, usedSwapKb = -1;
-            if (!data.empty())
-            {
-                freeKb = data[0]["freeKb"].toInteger32();
-                availableKb = data[0]["availableKb"].toInteger32();
-                usedSwapKb = data[0]["usedSwapKb"].toInteger32();
-            }
-            gRdkWindowManagerEventListener->onDeviceCriticallyLowRamWarning(freeKb, availableKb, usedSwapKb);
-        }
-        else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_DEVICE_LOW_RAM_WARNING_CLEARED) == 0)
-        {
-            int32_t freeKb = -1, availableKb = -1, usedSwapKb = -1;
-            if (!data.empty())
-            {
-                freeKb = data[0]["freeKb"].toInteger32();
-                availableKb = data[0]["availableKb"].toInteger32();
-                usedSwapKb = data[0]["usedSwapKb"].toInteger32();
-            }
-            gRdkWindowManagerEventListener->onDeviceLowRamWarningCleared(freeKb, availableKb, usedSwapKb);
-        }
-        else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_DEVICE_CRITICALLY_LOW_RAM_WARNING_CLEARED) == 0)
-        {
-            int32_t freeKb = -1, availableKb = -1, usedSwapKb = -1;
-            if (!data.empty())
-            {
-                freeKb = data[0]["freeKb"].toInteger32();
-                availableKb = data[0]["availableKb"].toInteger32();
-                usedSwapKb = data[0]["usedSwapKb"].toInteger32();
-            }
-            gRdkWindowManagerEventListener->onDeviceCriticallyLowRamWarningCleared(freeKb, availableKb, usedSwapKb);
-        }
-        else if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_EASTER_EGG) == 0)
-        {
-            std::string name(""), actionJson("");
-            if (!data.empty())
-            {
-                name = data[0]["name"].toString();
-                actionJson = data[0]["action"].toString();
-            }
-            gRdkWindowManagerEventListener->onEasterEgg(name, actionJson);
         }
         return true;
     }

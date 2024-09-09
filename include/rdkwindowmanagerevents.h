@@ -35,6 +35,8 @@ namespace RdkWindowManager
           virtual void onApplicationTerminated(const std::string& client) {}
           virtual void onApplicationFirstFrame(const std::string& client) {}
           virtual void onUserInactive(const double minutes) {}
+          virtual void onKeyEvent(const uint32_t keyCode, const uint32_t flags, const bool keyDown) {}
+          virtual void onSizeChangeComplete(const std::string& client) {}
     };
 
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED = "onApplicationConnected";
@@ -42,4 +44,6 @@ namespace RdkWindowManager
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED = "onApplicationTerminated";
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME = "onApplicationFirstFrame";
     const std::string RDK_WINDOW_MANAGER_EVENT_USER_INACTIVE = "onUserInactive";
+    const std::string RDK_WINDOW_MANAGER_EVENT_KEY = "onKeyEvent";
+    const std::string RDK_WINDOW_MANAGER_EVENT_SIZE_CHANGE_COMPLETE = "onSizeChangeComplete";
 }
