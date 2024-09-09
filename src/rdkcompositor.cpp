@@ -51,7 +51,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), mSurfaceCount(0),
+        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
     {
         if (gForce720)
@@ -146,10 +146,6 @@ namespace RdkWindowManager
 
         switch ( status )
         {
-             case WstClient_started:
-                 RdkWindowManager::Logger::log(LogLevel::Information,  "client started");
-                 eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_LAUNCHED;
-                 break;
              case WstClient_stoppedNormal:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client stopped normal");
                  eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED;
@@ -721,7 +717,7 @@ namespace RdkWindowManager
     {
         if (true == mSuspendedBeforeStart)
         {
-            suspendApplication();
+           // suspendApplication();
         }
         std::lock_guard<std::mutex> locker(mStateChangeLock);
         const int tag = mStateChangeListenerTags++;
@@ -810,37 +806,6 @@ namespace RdkWindowManager
         {
             mApplicationThread.join();
         }
-    }
-
-    bool RdkCompositor::resumeApplication()
-    {
-        std::lock_guard<std::recursive_mutex> lock{mApplicationMutex};
-        if (mApplicationState == RdkWindowManager::ApplicationState::Suspended)
-        {
-            mApplicationState = RdkWindowManager::ApplicationState::Running;
-            CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_RESUMED);
-            updateWaylandState();
-            return true;
-        }
-        return false;
-    }
-
-    bool RdkCompositor::suspendApplication()
-    {
-        std::lock_guard<std::recursive_mutex> lock{mApplicationMutex};
-        if (mApplicationState == RdkWindowManager::ApplicationState::Running)
-        {
-            mApplicationState = RdkWindowManager::ApplicationState::Suspended;
-            CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_SUSPENDED);
-            updateWaylandState();
-            return true;
-        }
-        if (mApplicationState == RdkWindowManager::ApplicationState::Unknown)
-        {
-            mSuspendedBeforeStart = true;
-            return true;
-        }
-        return false;
     }
 
     void RdkCompositor::shutdownApplication()

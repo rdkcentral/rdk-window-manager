@@ -96,8 +96,6 @@ namespace RdkWindowManager
             void displayName(std::string& name) const;
             void closeApplication();
             void launchApplication();
-            bool resumeApplication();
-            bool suspendApplication();
             void setApplication(const std::string& application);
             bool isKeyPressed();
             void getVirtualResolution(uint32_t &virtualWidth, uint32_t &virtualHeight);

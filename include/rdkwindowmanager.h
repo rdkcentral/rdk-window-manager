@@ -34,10 +34,6 @@ namespace RdkWindowManager
     double seconds();
     double milliseconds();
     double microseconds();
-    bool systemRam(uint32_t& freeKb, uint32_t& totalKb, uint32_t& availableKb, uint32_t& usedSwapKb);
-    bool systemRam(uint32_t& freeKb, uint32_t& totalKb, uint32_t& usedSwapKb);
-    void setMemoryMonitor(const bool enable, const double interval);
-    void setMemoryMonitor(std::map<std::string, RdkWindowManagerData> &configuration);
 }
 
 #endif //RDK_WINDOW_MANAGER_H

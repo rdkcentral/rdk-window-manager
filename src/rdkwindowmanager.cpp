@@ -56,10 +56,6 @@ bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
 
-std::thread gMemoryMonitorThread;
-bool gRunMemoryMonitor = true;
-std::mutex gMemoryMonitorMutex;
-
 namespace RdkWindowManager
 {
 
@@ -82,200 +78,6 @@ namespace RdkWindowManager
         timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
         return ((double)(ts.tv_sec * 1000000) + ((double)ts.tv_nsec/1000));
-    }
-
-    bool systemRam(uint32_t& freeKb, uint32_t& totalKb, uint32_t& usedSwapKb)
-    {
-        uint32_t availableKb = 0;
-	bool ret = systemRam(freeKb, totalKb, availableKb, usedSwapKb);
-        return ret;
-    }
-
-    bool systemRam(uint32_t& freeKb, uint32_t& totalKb, uint32_t& availableKb, uint32_t& usedSwapKb)
-    {
-        struct sysinfo systemInformation;
-        int ret = sysinfo(&systemInformation);
-        uint64_t freeMemKb=0, usedSwapMemKb=0, totalMemKb=0;
-
-        if (0 != ret)
-        {
-            Logger::log(Debug, "failed to get memory details");
-            return false;
-        }
-	totalMemKb = (systemInformation.totalram * systemInformation.mem_unit)/1024;
-        freeMemKb = (systemInformation.freeram * systemInformation.mem_unit)/1024;
-        usedSwapMemKb = ((systemInformation.totalswap - systemInformation.freeswap) * systemInformation.mem_unit)/1024;
-        totalKb = (uint32_t) totalMemKb;
-        freeKb = (uint32_t) freeMemKb;
-        usedSwapKb = (uint32_t) usedSwapMemKb;
-        FILE* file = fopen("/proc/meminfo", "r");
-        if (!file)
-        {
-            Logger::log(Debug, "failed to get memory details");
-            return false;
-        }
-        char buffer[128];
-        bool readMemory = false;
-        int32_t availableMemory = -1;
-        while (char* line = fgets(buffer, 128, file))
-        {
-            char* token = strtok(line, " ");
-            if (!token)
-            {
-                break;
-            }
-            if (!strcmp(token, "MemAvailable:"))
-            {
-                if ((token = strtok(nullptr, " ")))
-                {
-                    readMemory = true;	
-                    availableKb = atoll(token);
-                }
-                else
-		{
-                    Logger::log(Debug, "failed to get memory details");
-                }
-		break;
-            }
-        }
-        if (!readMemory)
-        {
-            fclose(file);
-            return false;
-        }
-        fclose(file);
-        return true;
-    }
-
-    void setMemoryMonitor(const bool enable, const double interval)
-    {
-        gMemoryMonitorMutex.lock();
-        gEnableRamMonitor = enable;
-        gRamMonitorIntervalInSeconds = interval;
-        gMemoryMonitorMutex.unlock();
-    }
-
-    void setMemoryMonitor(std::map<std::string, RdkWindowManagerData> &configuration)
-    {
-        gMemoryMonitorMutex.lock();
-        for ( const auto &monitorConfiguration : configuration )
-        {
-            if (monitorConfiguration.first == "enable")
-            {
-                gEnableRamMonitor = monitorConfiguration.second.toBoolean();
-            }
-            else if (monitorConfiguration.first == "interval")
-            {
-                gRamMonitorIntervalInSeconds = monitorConfiguration.second.toDouble();
-            }
-            else if (monitorConfiguration.first == "lowRam")
-            {
-                gLowRamMemoryThresholdInMb = monitorConfiguration.second.toDouble();
-            }
-            else if (monitorConfiguration.first == "criticallyLowRam")
-            {
-                gCriticallyLowRamMemoryThresholdInMb = monitorConfiguration.second.toDouble();
-            }
-            else if (monitorConfiguration.first == "swapIncreaseLimit")
-            {
-                gSwapMemoryIncreaseThresoldInMb = monitorConfiguration.second.toDouble();
-            }
-        }
-        if (gCriticallyLowRamMemoryThresholdInMb  > gLowRamMemoryThresholdInMb)
-        {
-            Logger::log(Warn, "criticial low ram threshold configuration is lower than low ram threshold");
-            gCriticallyLowRamMemoryThresholdInMb = gLowRamMemoryThresholdInMb;
-        }
-        gMemoryMonitorMutex.unlock();
-    }
-
-    static void evaluateMemoryUsage(uint32_t& availableKb, uint32_t& usedSwapKb, float swapIncreaseMb, uint32_t freeKb)
-    {
-        float availableMb = availableKb/1024;
-        std::vector<std::map<std::string, RdkWindowManagerData>> eventData(1);
-        eventData[0] = std::map<std::string, RdkWindowManagerData>();
-        eventData[0]["freeKb"] = freeKb;
-        eventData[0]["availableKb"] = availableKb;
-        eventData[0]["usedSwapKb"] = usedSwapKb;
-        if ((availableMb < gLowRamMemoryThresholdInMb) || (swapIncreaseMb > gSwapMemoryIncreaseThresoldInMb))
-        {
-            if (!gLowRamMemoryNotificationSent)
-            {
-                CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_DEVICE_LOW_RAM_WARNING, eventData);
-                gLowRamMemoryNotificationSent = true;
-            }
-            if ((!gCriticallyLowRamMemoryNotificationSent) && (availableMb < gCriticallyLowRamMemoryThresholdInMb))
-            {
-                  CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_DEVICE_CRITICALLY_LOW_RAM_WARNING, eventData);
-                  gCriticallyLowRamMemoryNotificationSent = true;
-            }
-            else if ((gCriticallyLowRamMemoryNotificationSent) && (availableMb >= gCriticallyLowRamMemoryThresholdInMb))
-            {
-                CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_DEVICE_CRITICALLY_LOW_RAM_WARNING_CLEARED, eventData);
-                gCriticallyLowRamMemoryNotificationSent = false;
-            }
-        }
-        else
-        {
-            if (gCriticallyLowRamMemoryNotificationSent)
-            {
-                CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_DEVICE_CRITICALLY_LOW_RAM_WARNING_CLEARED, eventData);
-                gCriticallyLowRamMemoryNotificationSent = false;
-            }
-            if (gLowRamMemoryNotificationSent)
-            {
-                CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_DEVICE_LOW_RAM_WARNING_CLEARED, eventData);
-                gLowRamMemoryNotificationSent = false;
-            }
-        }
-    }
-
-    static void launchMemoryMonitorThread()
-    {
-        gMemoryMonitorThread = std::thread([=]()
-        {
-            bool runMemoryMonitor = gRunMemoryMonitor;
-            float swap1=0, swap2=0, swap3=0, swap4=0, swap5=0;
-            uint32_t usedSwapKb=0, availableKb=0, freeKb=0, totalKb=0;
-            bool ret = systemRam(freeKb, totalKb, availableKb, usedSwapKb);
-            float usedSwapMb = 0;
-            if (ret)
-            {
-                usedSwapMb = usedSwapKb/1024;
-                swap1=usedSwapMb;
-                swap2=usedSwapMb;
-                swap3=usedSwapMb;
-                swap4=usedSwapMb;
-                swap5=usedSwapMb;
-	    }
-            while (runMemoryMonitor)
-            {
-                gMemoryMonitorMutex.lock();
-                int32_t ramMonitorIntervalInMs = gRamMonitorIntervalInSeconds;
-                bool enableRamMonitor = gEnableRamMonitor;
-                gMemoryMonitorMutex.unlock();
-                ramMonitorIntervalInMs = ramMonitorIntervalInMs*1000*1000;
-                if (enableRamMonitor)
-                {
-                    ret = systemRam(freeKb, totalKb, availableKb, usedSwapKb);
-                    if (ret)
-                    {
-                        usedSwapMb = usedSwapKb/1024;
-                        swap1=swap2;
-                        swap2=swap3;
-                        swap3=swap4;
-                        swap4=swap5;
-                        swap5=usedSwapMb;
-                        evaluateMemoryUsage(availableKb, usedSwapKb, (swap5-swap1), freeKb);
-                    }
-                }
-                usleep(ramMonitorIntervalInMs);
-                gMemoryMonitorMutex.lock();
-                runMemoryMonitor = gRunMemoryMonitor;
-                gMemoryMonitorMutex.unlock();
-	    }
-        });
-        gMemoryMonitorThread.detach();
     }
 
     void initialize()
@@ -436,14 +238,12 @@ namespace RdkWindowManager
         }
 
         CompositorController::initialize();
-        launchMemoryMonitorThread();
+       //launchMemoryMonitorThread();
     }
 
     void deinitialize()
     {
-        gMemoryMonitorMutex.lock();
-        gRunMemoryMonitor = false;
-        gMemoryMonitorMutex.unlock();
+
     }
 
     void run()
