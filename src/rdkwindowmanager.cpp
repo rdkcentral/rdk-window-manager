@@ -28,7 +28,6 @@
 #include "logger.h"
 #include "rdkwindowmanager.h"
 #include "rdkwindowmanagerimage.h"
-#include "permissions.h"
 #include <unistd.h>
 #include <time.h>
 #include <sys/sysinfo.h>
