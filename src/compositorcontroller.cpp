@@ -1754,7 +1754,7 @@ namespace RdkWindowManager
             {
                 sendApplicationEvent(it->eventListeners[i], eventName, it->name);
             }
-            if (it->autoDestroy == true )
+            if ((eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0) && (it->autoDestroy == true))
             {
                 clientToKill = it->name;
                 killClient = true;
