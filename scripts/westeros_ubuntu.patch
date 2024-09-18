@@ -1,0 +1,113 @@
+diff --git a/Makefile.ubuntu b/Makefile.ubuntu
+index 2e5f3cb..0ae2153 100644
+--- a/Makefile.ubuntu
++++ b/Makefile.ubuntu
+@@ -20,7 +20,7 @@
+ WID=$(shell pwd)/external/install
+ XDGOPT ?= xdgv5
+ 
+-all:  externals westeros-protocols westeros-simpleshell westeros-core
++all:  externals westeros-protocols westeros-simpleshell westeros-drm westeros-essos westeros-core
+ 
+ clean: init
+ 
+@@ -39,8 +39,10 @@ init:
+ 	cd protocol/version4 && rm -f *.h && rm -f *.c
+ 	cd protocol/version5 && rm -f *.h && rm -f *.c
+ 	cd simpleshell/protocol && rm -f *.h && rm -f *.c
+-	cd simpleshell && rm -f *.o && rm -f *.lo && rm -rf .libs/*
+-	rm -f *.o && rm -f *.lo && rm -f .libs/*
++	cd simpleshell && rm -f *.o && rm -f *.lo && rm -rf .libs/*
++	cd essos && rm -rf *.o *.lo *.la .libs/*
++	cd drm && rm -rf *.o *.lo *.la
++	rm -f *.o && rm -f *.lo && rm -f .libs/*
+ 	rm -f external/install/include/vpc*.h
+ 	
+ externals: external \
+@@ -57,7 +59,7 @@ external:
+ external/.proto:	
+ 	$(call setenv) && \
+ 	cd external && \
+-	git clone git://anongit.freedesktop.org/xcb/proto && \
++	git clone https://gitlab.freedesktop.org/xorg/proto/xcbproto.git proto && \
+ 	cd proto && \
+ 	./autogen.sh --prefix $(WID) && \
+ 	make && make install && \
+@@ -67,7 +69,7 @@ external/.proto:
+ external/.macros:
+ 	$(call setenv) && \
+ 	cd external && \
+-	git clone git://anongit.freedesktop.org/xorg/util/macros && \
++	git clone https://gitlab.freedesktop.org/xorg/util/macros.git && \
+ 	cd macros && \
+ 	./autogen.sh --prefix $(WID) && \
+ 	make && make install && \
+@@ -77,7 +79,7 @@ external/.macros:
+ external/.libxcd:
+ 	$(call setenv) && \
+ 	cd external && \
+-	git clone git://anongit.freedesktop.org/xcb/libxcb && \
++	git clone https://gitlab.freedesktop.org/xorg/lib/libxcb.git && \
+ 	cd libxcb && \
+ 	./autogen.sh --prefix $(WID) && \
+ 	make && make install && \
+@@ -87,7 +89,7 @@ external/.libxcd:
+ external/.libxkbcommon:
+ 	$(call setenv) && \
+ 	cd external && \
+-	git clone git://github.com/xkbcommon/libxkbcommon && \
++        git clone https://github.com/xkbcommon/libxkbcommon.git -b xkbcommon-0.8.3 && \
+ 	cd libxkbcommon && \
+ 	./autogen.sh --prefix $(WID) && \
+ 	make && make install && \
+@@ -99,11 +101,11 @@ external/.wayland:
+ 	cd external && \
+ 	mkdir wayland && \
+ 	cd wayland && \
+-	wget http://wayland.freedesktop.org/releases/wayland-1.6.0.tar.xz && \
+-	tar xf wayland-1.6.0.tar.xz && \
+-	cd wayland-1.6.0 && \
+-	./configure --prefix $(WID) && \
+-	make && make install && \
++	wget https://gitlab.freedesktop.org/wayland/wayland/-/releases/1.23.0/downloads/wayland-1.23.0.tar.xz && \
++	tar xf wayland-1.23.0.tar.xz && \
++	cd wayland-1.23.0 && \
++	meson build --prefix $(WID) --libdir $(WID)/lib/ --includedir $(WID)/include/
++	ninja -C $(WID)/../wayland/wayland-1.23.0/build/ install && \
+ 	cd ../.. && \
+ 	touch .wayland
+ 	
+@@ -149,7 +151,7 @@ simpleshell/protocol/simpleshell-protocol.c:
+ 
+ westeros-simpleshell:
+ 	$(call setenv) && \
+-	cd simpleshell && \
++        cd simpleshell && mkdir -p m4 cfg && \
+ 	aclocal -I cfg && \
+ 	libtoolize --automake && \
+ 	autoheader && \
+@@ -159,8 +161,23 @@ westeros-simpleshell:
+ 	./configure --prefix $(WID) && \
+ 	make && make install
+ 
+-westeros-core:
++westeros-drm:
+ 	$(call setenv) && \
++	cd drm &&  mkdir -p m4 cfg && \
++	autoreconf --install && \
++	./configure && \
++	make && sudo make install
++
++westeros-essos:
++	$(call setenv) && \
++        cd essos &&  mkdir -p m4 cfg && \
++        autoreconf --install && \
++        ./configure && \
++        make CXXFLAGS="-I$(WID)/include -I$(WID)/../../simpleshell/protocol" LDFLAGS="-L$(WID)/lib" && \
++        sudo make install
++
++westeros-core:
++	$(call setenv) &&  mkdir -p m4 cfg && \
+ 	aclocal -I cfg && \
+ 	libtoolize --automake && \
+ 	autoheader && \
