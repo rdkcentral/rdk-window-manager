@@ -68,8 +68,6 @@ namespace RdkWindowManager
             static bool removeAllKeyListeners();
             static bool removeAllKeyIntercepts();
             static bool removeNativeKeyListener(const std::string& client, const uint32_t& keyCode, const uint32_t& flags);
-            static bool addKeyMetadataListener(const std::string& client);
-            static bool removeKeyMetadataListener(const std::string& client);
             static bool injectKey(const uint32_t& keyCode, const uint32_t& flags);
             static bool generateKey(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::string virtualKey="");
 	        static bool generateKey(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::string virtualKey, double duration);
@@ -107,18 +105,6 @@ namespace RdkWindowManager
             static double getInactivityTimeInMinutes();
             static void setEventListener(std::shared_ptr<RdkWindowManagerEventListener> listener);
             static std::shared_ptr<RdkCompositor> getCompositor(const std::string& displayName);
-            static bool launchApplication(const std::string& client, const std::string& uri, const std::string& mimeType, bool topmost = false, bool focus = false);
-            static bool suspendApplication(const std::string& client);
-            static bool resumeApplication(const std::string& client);
-            static bool closeApplication(const std::string& client);
-            static bool getMimeType(const std::string& client, std::string& mimeType);
-            static bool setMimeType(const std::string& client, const std::string& mimeType);
-            static bool hideSplashScreen();
-            static bool showSplashScreen(uint32_t displayTimeInSeconds);
-            static bool hideWatermark();
-            static bool showWatermark();
-            static bool hideFullScreenImage();
-            static bool showFullScreenImage(std::string file);
             static bool draw();
             static bool update();
             static bool setLogLevel(const std::string level);
@@ -126,7 +112,6 @@ namespace RdkWindowManager
             static bool setTopmost(const std::string& client, bool topmost, bool focus = false);
             static bool getTopmost(std::string& client);
             static bool sendEvent(const std::string& eventName, std::vector<std::map<std::string, RdkWindowManagerData>>& data);
-            static bool isSurfaceModeEnabled();
             static bool enableKeyRepeats(bool enable);
             static bool getKeyRepeatsEnabled(bool& enable);
             static bool getVirtualResolution(const std::string& client, uint32_t &virtualWidth, uint32_t &virtualHeight);
@@ -135,11 +120,6 @@ namespace RdkWindowManager
             static bool getVirtualDisplayEnabled(const std::string& client, bool &enabled);
             static bool getLastKeyPress(uint32_t &keyCode, uint32_t &modifiers, uint64_t &timestampInSeconds);
             static bool ignoreKeyInputs(bool ignore);
-            static bool updateWatermarkImage(uint32_t imageId, int32_t key, int32_t imageSize);
-            static bool createWatermarkImage(uint32_t imageId, uint32_t zorder=0);
-            static bool deleteWatermarkImage(uint32_t imageId);
-            static bool adjustWatermarkImage(uint32_t imageId, uint32_t zorder);
-            static bool alwaysShowWatermarkImageOnTop(bool show=false);
             static bool screenShot(uint8_t* &data, uint32_t &size);
             static bool enableInputEvents(const std::string& client, bool enable);
             static bool showCursor();

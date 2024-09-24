@@ -23,7 +23,6 @@
 #include "essosinstance.h"
 #include "compositorcontroller.h"
 #include "linuxkeys.h"
-#include "eastereggs.h"
 #include "linuxinput.h"
 #include "logger.h"
 #include "rdkwindowmanager.h"
@@ -86,7 +85,6 @@ namespace RdkWindowManager
 
         mapNativeKeyCodes();
         mapVirtualKeyCodes();
-        populateEasterEggDetails();
         readInputDevicesConfiguration();
 
         char const *loglevel = getenv("RDK_WINDOW_MANAGER_LOG_LEVEL");
@@ -192,50 +190,6 @@ namespace RdkWindowManager
         #endif //RDK_WINDOW_MANAGER_ENABLE_FORCE_1080
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-        char const *splashScreen = getenv("RDK_WINDOW_MANAGER_SHOW_SPLASH_SCREEN");
-        if (splashScreen)
-        {
-            std::ifstream splashScreenFile(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
-            bool showSplashScreen =  !splashScreenFile.good();
-
-            char const *splashScreenDisableFile = getenv("RDK_WINDOW_MANAGER_DISABLE_SPLASH_SCREEN_FILE");
-            if (splashScreenDisableFile)
-            {
-                std::ifstream splashScreenDisableFileHandle(splashScreenDisableFile);
-                if (splashScreenDisableFileHandle.good())
-                {
-                    Logger::log(Warn, "not showing splash screen as disable splash screen file is present");
-                    showSplashScreen = false;
-                    std::ofstream output(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
-                    splashScreenDisableFileHandle.close();
-                    int32_t ret = std::remove(splashScreenDisableFile);
-                    if (0 != ret)
-                    {
-                        Logger::log(Warn, "splash screen disable file remove failed");
-                    }
-                }
-            }
-            if (showSplashScreen)
-            {
-                uint32_t splashTime = 0;
-                char const *splashTimeValue = getenv("RDK_WINDOW_MANAGER_SHOW_SPLASH_TIME_IN_SECONDS");
-                if (splashTimeValue)
-                {
-                    int value = atoi(splashTimeValue);
-                    if (value > 0)
-                    {
-                        splashTime = (uint32_t)(value);
-                    }
-                }
-                CompositorController::showSplashScreen(splashTime);
-                std::ofstream output(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
-            }
-            else
-            {
-                Logger::log(Warn, "splash screen will not be displayed since this is not first run since boot");
-            }
-        }
 
         CompositorController::initialize();
        //launchMemoryMonitorThread();

@@ -153,7 +153,6 @@ namespace RdkWindowManager
             int32_t mCropY;
             int32_t mCropWidth;
             int32_t mCropHeight;
-            bool mEnableKeyMetadata;
             int mInputListenerTags;
             std::mutex mInputLock;
             std::unordered_map<int, std::function<void(const RdkWindowManager::InputEvent&)>> mInputListeners;
