@@ -24,7 +24,6 @@
 #include "application.h"
 #include "logger.h"
 #include "linuxkeys.h"
-#include "eastereggs.h"
 #include "rdkcompositornested.h"
 #include "string.h"
 #include "rdkwindowmanagerimage.h"
@@ -129,23 +128,8 @@ namespace RdkWindowManager
     double gLastKeyPressStartTime = 0.0;
     double gLastKeyRepeatTime = 0.0;
     RdkWindowManagerCompositorType gRdkWindowManagerCompositorType = NESTED;
-    std::shared_ptr<RdkWindowManager::Image> gSplashImage = nullptr;
-    bool gShowSplashImage = false;
-    uint32_t gSplashDisplayTimeInSeconds = 0;
-    double gSplashStartTime = 0;
-    std::shared_ptr<RdkWindowManager::Image> gRdkWindowManagerWatermarkImage = nullptr;
-    std::vector<WatermarkImage> gWatermarkImages;
-    bool gShowWatermarkImage = false;
-    bool gAlwaysShowWatermarkImageOnTop = false;
-    std::shared_ptr<RdkWindowManager::Image> gFullScreenImage = nullptr;
-    bool gShowFullScreenImage = false;
-    std::string gCurrentFullScreenImage = "";
-    uint32_t gPowerKeyCode = 0;
-    uint32_t gFrontPanelButtonCode = 0;
-    bool gPowerKeyEnabled = false;
-    bool gPowerKeyReleaseReceived = false;
-    bool gRdkWindowManagerPowerKeyReleaseOnlyEnabled = false;
     bool gIgnoreKeyInputEnabled = false;
+
     std::shared_ptr<Cursor> gCursor = nullptr;
     KeyRepeatConfig gKeyRepeatConfig;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
@@ -499,53 +483,6 @@ namespace RdkWindowManager
         if (sCompositorInitialized)
             return;
 
-        char const *rdkwindowmanagerPowerKey = getenv("RDK_WINDOW_MANAGER_POWER_KEY_CODE");
-
-        if (rdkwindowmanagerPowerKey)
-        {
-            int keyCode = atoi(rdkwindowmanagerPowerKey);
-            if (keyCode > 0)
-            {
-                gPowerKeyCode = (uint32_t)keyCode;
-            }
-        }
-        Logger::log(LogLevel::Information,  "the power key is set to %d", gPowerKeyCode);
-
-        char const *rdkwindowmanagerPowerKeyEnable = getenv("RDK_WINDOW_MANAGER_ENABLE_POWER_KEY");
-
-        if (rdkwindowmanagerPowerKeyEnable)
-        {
-            int powerValue = atoi(rdkwindowmanagerPowerKeyEnable);
-            if (powerValue > 0)
-            {
-                gPowerKeyEnabled = true;
-            }
-        }
-
-        Logger::log(LogLevel::Information,  "power key support enabled: %d", gPowerKeyEnabled);
- 
-        char const *rdkwindowmanagerFrontPanelButton = getenv("RDK_WINDOW_MANAGER_FRONT_PANEL_BUTTON_CODE");
-
-        if (rdkwindowmanagerFrontPanelButton)
-        {
-            int keyCode = atoi(rdkwindowmanagerFrontPanelButton);
-            if (keyCode > 0)
-            {
-                gFrontPanelButtonCode = (uint32_t)keyCode;
-            }
-        }
-
-        Logger::log(LogLevel::Information,  "the front panel code is set to %d", gFrontPanelButtonCode);
-
-        char const *rdkwindowmanagerPowerKeyReleaseOnlyEnabled = getenv("RDK_WINDOW_MANAGER_POWER_RELEASE_ONLY");
-
-        if (rdkwindowmanagerPowerKeyReleaseOnlyEnabled && (strcmp(rdkwindowmanagerPowerKeyReleaseOnlyEnabled,"1") == 0))
-        {
-           gRdkWindowManagerPowerKeyReleaseOnlyEnabled  = true;
-        }
-
-        Logger::log(LogLevel::Information,  "rdkwindowmanager power key release only enabled %d", gRdkWindowManagerPowerKeyReleaseOnlyEnabled);
-
         char const *rdkwindowmanagerKeyIgnore = getenv("RDK_WINDOW_MANAGER_ENABLE_KEY_IGNORE");
         Logger::log(LogLevel::Information,  "key ignore feature enabled status [%d]", (NULL==rdkwindowmanagerKeyIgnore));
         if (NULL != rdkwindowmanagerKeyIgnore)
@@ -581,82 +518,6 @@ namespace RdkWindowManager
         }
 
         sCompositorInitialized = true;
-    }
-
-    bool CompositorController::moveToFront(const std::string& client)
-    {
-        CompositorListIterator it;
-        CompositorList* compositorInfoList = nullptr;
-        if (!getCompositorInfo(client, it, &compositorInfoList))
-        {
-            Logger::log(LogLevel::Information,  "%s not found and cannot move to front ", client.c_str());
-            return false;
-        }
-
-        if (it == compositorInfoList->begin())
-        {
-            Logger::log(LogLevel::Information,  "%s is already in front and cannot move to front ", client.c_str());
-            return false;
-        }
-
-        auto compositorInfo = *it;
-        compositorInfoList->erase(it);
-        compositorInfoList->insert(compositorInfoList->begin(), compositorInfo);
-
-        return true;
-    }
-
-    bool CompositorController::moveToBack(const std::string& client)
-    {
-        CompositorListIterator it;
-        CompositorList* compositorInfoList = nullptr;
-        if (!getCompositorInfo(client, it, &compositorInfoList))
-        {
-            Logger::log(LogLevel::Information,  "%s not found and cannot be moved behind ", client.c_str());
-            return false;
-        }
-
-        auto compositorInfo = *it;
-        compositorInfoList->erase(it);
-        compositorInfoList->push_back(compositorInfo);
-
-        return true;
-    }
-
-    bool CompositorController::moveBehind(const std::string& client, const std::string& target)
-    {
-        CompositorListIterator clientIt;
-        CompositorList* clientCompositorList = nullptr;
-        if (!getCompositorInfo(client, clientIt, &clientCompositorList))
-        {
-            Logger::log(LogLevel::Information,  "%s not found and cannot be moved behind ", client.c_str());
-            return false;
-        }
-
-        CompositorListIterator targetIt;
-        CompositorList* targetCompositorList = nullptr;
-        if (!getCompositorInfo(target, targetIt, &targetCompositorList))
-        {
-            Logger::log(LogLevel::Information,  "%s not found and cannot be moved behind ", target.c_str());
-            return false;
-        }
-
-        if (clientCompositorList != targetCompositorList)
-        {
-            Logger::log(LogLevel::Information,  "%s and %s not on the same compositor stack ", client.c_str(), target.c_str());
-            return false;
-        }
-
-        auto compositorInfo = *clientIt;
-        targetCompositorList->erase(clientIt);
-
-        if (getCompositorInfo(target, targetIt))
-        {
-            targetCompositorList->insert(++targetIt, compositorInfo);
-            return true;
-        }
-
-        return false;
     }
 
     bool CompositorController::getFocused(std::string& client)
@@ -1012,34 +873,6 @@ namespace RdkWindowManager
         return true;
     }
 
-    bool CompositorController::addKeyMetadataListener(const std::string& client)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            if (it->compositor != nullptr)
-            {
-                it->compositor->setKeyMetadataEnabled(true);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool CompositorController::removeKeyMetadataListener(const std::string& client)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            if (it->compositor != nullptr)
-            {
-                it->compositor->setKeyMetadataEnabled(false);
-                return true;
-            }
-        }
-        return false;
-    }
-
     bool CompositorController::injectKey(const uint32_t& keyCode, const uint32_t& flags)
     {
         CompositorController::onKeyPress(keyCode, flags, 0, false);
@@ -1384,13 +1217,6 @@ namespace RdkWindowManager
         gLastKeyEventTime = currentTime;
         gNextInactiveEventTime = gLastKeyEventTime + gInactivityIntervalInSeconds;
         gLastKeyRepeatTime = 0.0;
-
-        if ((keycode != 0) && ((keycode == gPowerKeyCode) || ((gFrontPanelButtonCode != 0) && (keycode == gFrontPanelButtonCode))) && (gPowerKeyReleaseReceived == false))
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "skip power key press");
-            return;
-        }
-
         bool isInterceptAvailable = false;
 
         isInterceptAvailable = interceptKey(keycode, flags, metadata, true);
@@ -1415,17 +1241,10 @@ namespace RdkWindowManager
     void CompositorController::onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
         //Logger::log(LogLevel::Information,  "key release code " << keycode << " flags " << flags << std::endl;
-        if ((false == gRdkWindowManagerPowerKeyReleaseOnlyEnabled) && (keycode != 0) && ((keycode == gPowerKeyCode) || ((gFrontPanelButtonCode != 0) && (keycode == gFrontPanelButtonCode))))
-        {
-            gPowerKeyReleaseReceived = true;
-            CompositorController::onKeyPress(keycode, flags, metadata, physicalKeyPress);
-            gPowerKeyReleaseReceived = false;
-        }
 
         if (true == physicalKeyPress)
         {
             double keyPressTime = RdkWindowManager::seconds() - gLastKeyPressStartTime;
-            checkEasterEggs(keycode, flags, keyPressTime);
             gLastKeyPressStartTime = 0.0;
         }
         gLastKeyCode = keycode;
@@ -1583,29 +1402,6 @@ namespace RdkWindowManager
         return ret;
     }
 
-    static void drawWatermarkImages(RdkWindowManagerRect rect, bool drawWithRect=true)
-    {
-        if (!gShowWatermarkImage)
-        {
-            return;
-        }
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->image != nullptr)
-            {		    
-                if (drawWithRect)
-                {
-                    iter->image->draw(rect);
-                }
-                else
-                {
-                    iter->image->draw();
-                }
-	    }
-        }
-    }
-
     bool CompositorController::draw()
     {
         //first render deleted compositors to ensure there is no memory leak
@@ -1629,10 +1425,6 @@ namespace RdkWindowManager
             bool needsHolePunch = false;
             RdkWindowManagerRect rect;
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
-            if (needsHolePunch && !gAlwaysShowWatermarkImageOnTop)
-            {
-                drawWatermarkImages(rect, true);
-            }
         }
 
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
@@ -1645,53 +1437,15 @@ namespace RdkWindowManager
             }
         }
 
-        if (gAlwaysShowWatermarkImageOnTop)
-        {
-            RdkWindowManagerRect rect;
-            drawWatermarkImages(rect, false);
-        }
-
-        if (gShowWatermarkImage && gRdkWindowManagerWatermarkImage != nullptr)
-        {
-            gRdkWindowManagerWatermarkImage->draw();
-        }
-
-        if (gShowFullScreenImage && gFullScreenImage != nullptr)
-        {
-            gFullScreenImage->draw();
-        }
-
         if (gCursor)
         {
             gCursor->draw();
         }
-
-        if (gShowSplashImage && gSplashImage != nullptr)
-        {
-            if (gSplashDisplayTimeInSeconds > 0)
-            {
-                uint32_t splashShownTime = (uint32_t)(RdkWindowManager::seconds() - gSplashStartTime);
-                if (splashShownTime > gSplashDisplayTimeInSeconds)
-                {
-                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "hiding the splash screen after a timeout: %u", gSplashDisplayTimeInSeconds );
-                    hideSplashScreen();
-                }
-                else
-                {
-                    gSplashImage->draw();
-                }
-            }
-            else
-            {
-                gSplashImage->draw();
-            }
-        }
-	return true;
+	    return true;
     }
 
     bool CompositorController::update()
     {
-        resolveWaitingEasterEggs();
         updateKeyRepeat();
 	    updateGenerateKeyEvents();
 
@@ -1793,182 +1547,6 @@ namespace RdkWindowManager
     {
         double inactiveTimeInSeconds = RdkWindowManager::seconds() - gLastKeyEventTime;
         return (inactiveTimeInSeconds / 60.0);
-    }
-
-    bool CompositorController::launchApplication(const std::string& client, const std::string& uri, const std::string& mimeType,
-        bool topmost, bool focus)
-    {
-        if (mimeType == RDK_WINDOW_MANAGER_APPLICATION_MIME_TYPE_NATIVE)
-        {
-            CompositorListIterator it;
-            if (getCompositorInfo(client, it))
-            {
-                Logger::log(LogLevel::Information,  "application with name %s is already launched", client.c_str());
-                return false;
-            }
-            std::string clientDisplayName = standardizeName(client);
-            CompositorInfo compositorInfo;
-            compositorInfo.name = clientDisplayName;
-            compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
-            compositorInfo.mimeType = RDK_WINDOW_MANAGER_APPLICATION_MIME_TYPE_NATIVE;
-            uint32_t width = 0;
-            uint32_t height = 0;
-            RdkWindowManager::EssosInstance::instance()->resolution(width, height);
-            compositorInfo.compositor->setApplication(uri);
-            bool ret = compositorInfo.compositor->createDisplay(clientDisplayName, "", width, height, false, 0, 0);
-            if (ret)
-            {
-                if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
-                {
-                    gFocusedCompositor = compositorInfo;
-                    Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
-                }
-
-                /* Updating compositor list based on topmost+1 zorder */
-                if (topmost)
-                {
-                    compositorInfo.zorder = (gTopmostCompositorList.empty() == true) ? 0 : (gTopmostCompositorList.begin()->zorder + 1);
-                    addCompositor(&gTopmostCompositorList, compositorInfo);
-                }
-                else
-                {
-                    compositorInfo.zorder = (gCompositorList.empty() == true) ? 0 : (gCompositorList.begin()->zorder + 1);
-                    addCompositor(&gCompositorList, compositorInfo);
-                }
-            }
-            return true;
-        }
-        else
-        {
-            Logger::log(LogLevel::Information,  "unable to launch application.  mime type %d is not supported", mimeType);
-        }
-
-        return false;
-    }
-
-    bool CompositorController::getMimeType(const std::string& client, std::string& mimeType)
-    {
-        mimeType = "";
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            mimeType = it->mimeType;
-            return true;
-        }
-        return false;
-    }
-
-    bool CompositorController::setMimeType(const std::string& client, const std::string& mimeType)
-    {
-        CompositorListIterator it;
-        if (getCompositorInfo(client, it))
-        {
-            it->mimeType = mimeType;
-            return true;
-        }
-        return false;
-    }
-
-    bool CompositorController::hideWatermark()
-    {
-        gShowWatermarkImage = false;
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            iter->image = nullptr;
-        }
-        gRdkWindowManagerWatermarkImage = nullptr;
-        return true;
-    }
-
-    bool CompositorController::showWatermark()
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "attempting to display watermark");
-        if (nullptr == gRdkWindowManagerWatermarkImage)
-        {
-            const char* waterMarkFile = getenv("RDK_WINDOW_MANAGER_WATERMARK_IMAGE_PNG");
-            if (waterMarkFile)
-            {
-                gRdkWindowManagerWatermarkImage = std::make_shared<RdkWindowManager::Image>();
-                bool imageLoaded = gRdkWindowManagerWatermarkImage->loadLocalFile(waterMarkFile);
-                if (!imageLoaded)
-                {
-                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "error loading watermark image: %s", waterMarkFile);
-                    gRdkWindowManagerWatermarkImage = nullptr;
-                }
-            }
-            else
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn, "no watermark image specified");
-            }
-        }
-        gShowWatermarkImage = true;
-        return true;
-    }
-
-    bool CompositorController::hideFullScreenImage()
-    {
-        gShowFullScreenImage = false;
-        gFullScreenImage = nullptr;
-        return true;
-    }
-
-    bool CompositorController::showFullScreenImage(std::string file)
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "attempting to display full screen image");
-        if ((nullptr != gFullScreenImage) && (file.compare(gCurrentFullScreenImage) == 0))
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn, "image %s is already loaded", file.c_str());
-        }
-        else
-        {
-            gFullScreenImage = std::make_shared<RdkWindowManager::Image>();
-            bool imageLoaded = gFullScreenImage->loadLocalFile(file);
-            if (!imageLoaded)
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "error loading fullscreen image: %s", file);
-                gFullScreenImage = nullptr;
-                return false;
-            }
-        }
-        gShowFullScreenImage = true;
-        gCurrentFullScreenImage = file;
-        return true;
-    }
-
-    bool CompositorController::hideSplashScreen()
-    {
-        gShowSplashImage = false;
-        gSplashImage = nullptr;
-        return true;
-    }
-
-    bool CompositorController::showSplashScreen(uint32_t displayTimeInSeconds)
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "attempting to display splash image with time: %u", displayTimeInSeconds);
-        if (!gShowSplashImage)
-        {
-            const char* splashFile = getenv("RDK_WINDOW_MANAGER_SPLASH_IMAGE_JPEG");
-            if (splashFile)
-            {
-                gSplashImage = std::make_shared<RdkWindowManager::Image>();
-                gShowSplashImage = gSplashImage->loadLocalFile(splashFile);
-                if (!gShowSplashImage)
-                {
-                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "error loading splash image: %s", splashFile);
-                    gSplashImage = nullptr;
-                    return false;
-                }
-            }
-            else
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn, "no splash image specified");
-                return false;
-            }
-            gSplashDisplayTimeInSeconds = displayTimeInSeconds;
-            gSplashStartTime = RdkWindowManager::seconds();
-        }
-        return true;
     }
 
     bool CompositorController::setLogLevel(const std::string level)
@@ -2132,138 +1710,6 @@ namespace RdkWindowManager
             Logger::log(LogLevel::Information,  "key inputs ignore feature is not enabled");
         }
         return ret;
-    }
-
-    bool CompositorController::updateWatermarkImage(uint32_t imageId, int32_t key, int32_t imageSize)
-    {
-        bool ret = true;
-        key_t sharedMemoryKey = key;
-        int shmid;
-        char *imageData;
-        if ((shmid = shmget(sharedMemoryKey, imageSize, 0644 | IPC_CREAT)) == -1)
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "error accessing image data segment");
-            return false;
-        }
-        imageData = (char*) shmat(shmid, NULL, 0);
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->id == imageId)
-            {
-                if (iter->image == nullptr)
-                {
-                    iter->image = std::make_shared<RdkWindowManager::Image>();
-                }
-                iter->image->loadImageData(imageData, imageSize);
-                break;
-            }
-        }
-        if (iter == gWatermarkImages.end())
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "watermark with image id %d not created already", imageId);
-            ret = false;
-        }
-        if (shmdt(imageData) == -1)
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "error detaching image data segment");
-            return false;
-        }
-        return ret;
-    }
-
-    static bool insertWatermarkImage(WatermarkImage& image)
-    {
-        if (gWatermarkImages.size() == 0)
-	{
-            gWatermarkImages.insert(gWatermarkImages.begin(), image); 
-            return true;
-	}	
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->zorder > image.zorder)
-            {
-                break;
-            }
-        }
-        if (iter == gWatermarkImages.end()) 
-        {
-            gWatermarkImages.push_back(image);
-        }
-        else
-	{	
-            gWatermarkImages.insert(iter, image);
-        }
-        return true;
-    }
-
-    bool CompositorController::createWatermarkImage(uint32_t imageId, uint32_t zorder)
-    {
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->id == imageId)
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "watermark with image id %d created already", imageId);
-                return false;
-            }
-        }
-        WatermarkImage image(imageId, zorder);
-        bool ret = insertWatermarkImage(image);
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "watermark with image id %d created", imageId);
-        return ret;
-    }
-
-    bool CompositorController::deleteWatermarkImage(uint32_t imageId)
-    {
-        bool ret =false;
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->id == imageId)
-            {
-                break;
-            }
-        }
-        if (iter != gWatermarkImages.end())
-        {
-            iter->image == nullptr;
-            gWatermarkImages.erase(iter);
-            ret = true;
-        }
-        else
-        {
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error, "watermark with image id %d is not present", imageId);
-        }
-        return ret;
-    }
-
-    bool CompositorController::adjustWatermarkImage(uint32_t imageId, uint32_t zorder)
-    {
-        std::vector<WatermarkImage>::iterator iter = gWatermarkImages.end();
-        for (iter=gWatermarkImages.begin(); iter != gWatermarkImages.end(); iter++)
-        {
-            if (iter->id == imageId)
-            {
-                break;
-            }
-        }
-        if (iter == gWatermarkImages.end())
-        {
-            return false;
-        }
-        WatermarkImage image(imageId, zorder);
-        image.image = iter->image;
-        gWatermarkImages.erase(iter);
-        insertWatermarkImage(image);
-        return true;
-    }
-
-    bool CompositorController::alwaysShowWatermarkImageOnTop(bool show)
-    {
-        gAlwaysShowWatermarkImageOnTop = show;
-        return true;
     }
 
     bool CompositorController::screenShot(uint8_t* &data, uint32_t &size)

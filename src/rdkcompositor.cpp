@@ -47,7 +47,7 @@ namespace RdkWindowManager
 
     RdkCompositor::RdkCompositor() : mDisplayName(), mWstContext(NULL), 
         mWidth(1920), mHeight(1080), mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
-        mVisible(true), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mEnableKeyMetadata(false), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
+        mVisible(true), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
@@ -521,15 +521,7 @@ namespace RdkWindowManager
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-
         WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
-        if (mEnableKeyMetadata)
-        {
-            RdkWindowManager::InputEvent inputEvent(metadata, RdkWindowManager::milliseconds(), RdkWindowManager::InputEvent::KeyEvent);
-            inputEvent.details.key.code = waylandKeyCode;
-            inputEvent.details.key.state = keyPressed ? RdkWindowManager::InputEvent::Details::Key::Pressed : RdkWindowManager::InputEvent::Details::Key::Released;
-            broadcastInputEvent(inputEvent);
-        }
     }
 
 
@@ -676,16 +668,6 @@ namespace RdkWindowManager
         cropY = mCropY;
         cropWidth = mCropWidth;
         cropHeight = mCropHeight;
-    }
-
-    void RdkCompositor::keyMetadataEnabled(bool &enabled)
-    {
-        enabled = mEnableKeyMetadata;
-    }
-
-    void RdkCompositor::setKeyMetadataEnabled(bool enable)
-    {
-        mEnableKeyMetadata = enable;
     }
 
     int RdkCompositor::registerInputEventListener(std::function<void(const RdkWindowManager::InputEvent&)> listener)

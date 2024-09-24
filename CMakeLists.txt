@@ -42,7 +42,6 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkcompositor.cpp
   src/rdkcompositornested.cpp
   src/linuxkeys.cpp
-  src/eastereggs.cpp
   src/rdkwindowmanagerdata.cpp
   src/rdkwindowmanagerjson.cpp
   src/linuxinput.cpp
