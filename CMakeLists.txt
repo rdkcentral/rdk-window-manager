@@ -51,7 +51,12 @@ set(RDK_WINDOW_MANAGER_SOURCES
   src/framebufferrenderer.cpp
   src/cursor.cpp
 )
+
+set(LIB_PATH "$ENV{LIB_PATH}")
+link_directories(${LIB_PATH})
+
 set(RDK_WINDOW_MANAGER_LINK_LIBRARIES -lz -lessos -lEGL -lGLESv2 -lwayland-client -lwesteros_compositor -lpthread -ljpeg -lpng16)
+include_directories(${INCLUDE_HEADER_DIR})
 
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
