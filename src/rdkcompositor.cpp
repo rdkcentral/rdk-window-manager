@@ -330,6 +330,12 @@ namespace RdkWindowManager
         glViewport(0, 0, mVirtualWidth, mVirtualHeight);
 
         int hints = WstHints_none;//WstHints_fboTarget;
+        #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+        if (!mVisible)
+        {
+            hints |= WstHints_hidden;
+        }
+        #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
         std::vector<WstRect> rects;
         float opacity = 1.f;
         float matrix[16] = {
@@ -358,6 +364,14 @@ namespace RdkWindowManager
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+                    if (!fireboltSurface->visible)
+                    {
+                    #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+                        hints |= WstHints_hidden;
+                    #else
+                        continue;
+                    #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
+                    }
                     if (fireboltSurface->surfaceType == SurfaceType::Standard || fireboltSurface->surfaceType == SurfaceType::Video)
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
@@ -383,6 +397,14 @@ namespace RdkWindowManager
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+                    if (!fireboltSurface->visible)
+                    {
+                        #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+                        hints |= WstHints_hidden;
+                        #else
+                            continue;
+                        #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
+                    }
                     if (fireboltSurface->surfaceType == SurfaceType::Popup || fireboltSurface->surfaceType == SurfaceType::Notification)
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
@@ -460,6 +482,14 @@ namespace RdkWindowManager
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+                    if (!fireboltSurface->visible)
+                    {
+                    #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+                        hints |= WstHints_hidden;
+                    #else
+                        continue;
+                    #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
+                    }
                     if (fireboltSurface->surfaceType == SurfaceType::Standard || fireboltSurface->surfaceType == SurfaceType::Video)
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
@@ -478,6 +508,14 @@ namespace RdkWindowManager
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+                    if (!fireboltSurface->visible)
+                    {
+                    #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+                        hints |= WstHints_hidden;
+                    #else
+                        continue;
+                    #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
+                    }
                     if (fireboltSurface->surfaceType == SurfaceType::Popup || fireboltSurface->surfaceType == SurfaceType::Notification )
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
