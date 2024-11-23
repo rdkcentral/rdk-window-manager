@@ -22,6 +22,8 @@
 #include <memory>
 #include <GLES2/gl2.h>
 
+#define CONVERT_GL_FLOAT_SCALE(_a_, _b_, _default_)     ((float)((_a_ && _b_ && (_b_ <= _a_)) ? ((float)_b_ / (float)(_a_)) : _default_))
+
 namespace RdkWindowManager
 {
     class FrameBuffer;
@@ -32,7 +34,8 @@ namespace RdkWindowManager
         static FrameBufferRenderer *instance();
         
         void draw(std::shared_ptr<FrameBuffer> fbo, uint32_t screenWidth, uint32_t screenHeight,
-            float *matrix, int32_t x, int32_t y, uint32_t width, uint32_t height);
+            float *matrix, int32_t x, int32_t y, uint32_t width, uint32_t height,
+            int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
     
     private:
         FrameBufferRenderer();

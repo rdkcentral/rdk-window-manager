@@ -43,7 +43,8 @@ namespace RdkWindowManager
     }
 
     void FrameBufferRenderer::draw(std::shared_ptr<FrameBuffer> fbo, uint32_t screenWidth, uint32_t screenHeight, 
-        float *matrix, int32_t boundsX, int32_t boundsY, uint32_t boundsWidth, uint32_t boundsHeight)
+        float *matrix, int32_t boundsX, int32_t boundsY, uint32_t boundsWidth, uint32_t boundsHeight,
+        int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
     {
         // Logger::log(LogLevel::Error, "FrameBufferRenderer::blit 1 fbo: %x, screen res: %d x %d, dst rect: %d, %d, %d, %d, fbo res: %d x %d",
         //     fbo, screenWidth, screenHeight, boundsX, boundsY, boundsWidth, boundsHeight, fbo->width(), fbo->height());
@@ -56,7 +57,7 @@ namespace RdkWindowManager
         glUniformMatrix4fv(mMatrixLocation, 1, GL_FALSE, matrix);
 
         // vertices in screen coordinates, origin of the blit is translated using the matrix
-        const float vertices[4][2] =
+        float vertices[4][2] =
         {
             {0, 0},
             {boundsWidth, 0},
@@ -64,13 +65,31 @@ namespace RdkWindowManager
             {boundsWidth, boundsHeight}
         };
 
-        const float uvCoordinates[4][2] =
+        float uvCoordinates[4][2] =
         {
             {0.f, 1.f},
             {1.f, 1.f},
             {0.f, 0.f},
             {1.f, 0.f}
         };
+
+        if ((0 < cropWidth) || (0 < cropHeight))
+        {
+            /* Convert crop cordinates to scale of 0 to 1 and map to UV cordinates */
+            float scaleX = CONVERT_GL_FLOAT_SCALE(boundsX, cropX, 0.f);
+            float scaleY = CONVERT_GL_FLOAT_SCALE(boundsY, cropY, 0.f);
+            float scaleWidth = CONVERT_GL_FLOAT_SCALE(boundsWidth, (cropX + cropWidth), 1.f);
+            float scaleheight = CONVERT_GL_FLOAT_SCALE(boundsHeight, (cropY + cropHeight), 1.f);
+
+            uvCoordinates[0][0]= scaleX;
+            uvCoordinates[0][1]= scaleY;
+            uvCoordinates[1][0]= scaleWidth;
+            uvCoordinates[1][1]= scaleY;
+            uvCoordinates[2][0]= scaleX;
+            uvCoordinates[2][1]= scaleheight;
+            uvCoordinates[3][0]= scaleWidth;
+            uvCoordinates[3][1]= scaleheight;
+        }
 
         glVertexAttribPointer(mPositionLocation, 2, GL_FLOAT, GL_FALSE, 0, vertices);
         glVertexAttribPointer(mUvLocation, 2, GL_FLOAT, GL_FALSE, 0, uvCoordinates);
