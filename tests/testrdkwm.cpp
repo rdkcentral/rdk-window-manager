@@ -132,6 +132,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx, 
 RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltSurfaceExtensionSetName(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
+RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
+
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 static bool rdkWmGetProperties(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, RdkWmTestMessageTypeEnum message, uint32_t surfaceId, uint32_t timeoutInMilliSecs);
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
@@ -288,10 +290,18 @@ static RdkWmTestcase gRdkWmTests[] = {
            { "testFireboltSurfaceExtensionOpacity",
              "Test firebolt_surface extension the user input surface opacity and ensure the surface opacity is set correctly values are between 0.0 to 1.0",
              testFireboltSurfaceExtensionSetOpacity,
-           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_OPACITY,
+            {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_OPACITY,
               .u={.surface={ .opacity= 0.50}},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
                                    .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_STANDARD, .surfaceId = 1}}}
+           },
+           { "testFireboltSurfaceExtensionVideoPinHole",
+             "Test firebolt_surface extension the video surface undergoes the hole punch",
+            testFireboltSurfaceExtensionVideoPinHole,
+           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
+              .u={.surface={ .opacity= 1, .x = 512, .y = 256, .width = 256 , .height = 256 }},
+              .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
+                                   .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO, .surfaceId = 1}}}
            },
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
@@ -2111,6 +2121,147 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
 test_fail:
     return ret;
 }
+
+/*
+ * This function tests the hole punch setting functionality of the Firebolt Surface extension.
+ *
+ * Input:
+ * - RdkWmTestAppCtx *ctx: A pointer to the application context containing the Firebolt Surface and Shell instances.
+ * - RdkWmTestcase *testCase Test case details
+ *
+ * Output:
+ * - Returns
+ * - RDKWM_TEST_RESULT_PASS on success ,
+ * - RDKWM_TEST_RESULT_FAIL on failure.,
+ * - RDKWM_TEST_RESULT_FORCE_STOP on signal interrupt/sem failure
+ */
+RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase)
+{
+    RdkWmTestReturnStatus ret = RDKWM_TEST_RESULT_FAIL;
+
+    if ((NULL != ctx) && (ctx->fbSurface != NULL) && (testCase != NULL))
+    {
+        ctx->logMessage[0] = '\0';
+
+        if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH)
+        {
+            RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole :Unexpected Input param error@%d", __LINE__));
+            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole :Unexpected Input param error@%d", __LINE__);
+            goto test_fail;
+        }
+        else
+        {
+            RdkWmTestMessage getMsg;
+            RdkTestFbSurfaceInfo surfaceInfo;
+            RdkTestFbSurfaceInfo storeDefaultSurfaceInfo;
+
+            if( rdkWmTestVerifyDisplayOutput(6) == false )
+            {
+                RDKWM_TEST_ERROR(("Signal recieved"));
+                ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                goto test_fail;
+            }
+            if (testCase->testInputs.prerequisite.condition != RDKWM_TEST_CONDITIONS_NONE)
+            {
+                if(RDKWM_TEST_RESULT_FAIL == rdkWmTestPerformPreCondition(ctx, testCase, RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES))
+                {
+                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole : Error in perform precondition operation error@%d", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole : Error in performing precondition operation error@%d", __LINE__);
+                    goto test_fail;
+                }
+            }
+            if (testCase->testInputs.inputParamType == RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH)
+            {
+                /* Get current surface properties and store boundary values*/
+                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                {
+                    /* Callback message received */
+                    memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
+                    RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
+                            " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                            " crop{x:%f y:%f width:%f height:%f} name:%s",
+                            ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
+                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                            surfaceInfo.name));
+                    storeDefaultSurfaceInfo = surfaceInfo;
+                }
+                else
+                {
+                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionholepunch %d>:Got Unexpected Message", __LINE__);
+                    goto test_fail;
+                }
+
+            }
+            else
+            {
+                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Input Parameter", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionholepunch %d>:Got Unexpected Input Parameter", __LINE__);
+                    goto test_fail;
+            }
+	    /* Disable crop */
+            firebolt_surface_set_crop(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId, 0,0,0,0);
+
+	    /* set the new boundary values */
+            firebolt_surface_set_bounds(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,
+                testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
+
+            /* Get current surface properties and store boundary values*/
+            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            {
+                /* Callback message received */
+                memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
+                RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
+                        " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                        " crop{x:%f y:%f width:%f height:%f} name:%s",
+                        ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
+                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.name));
+            }
+            else
+            {
+                RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__);
+                goto test_fail;
+            }
+
+            /* Compare the received boundary values are not equal to the previous value */
+            if ((surfaceInfo.x ==testCase->testInputs.u.surface.x) && (surfaceInfo.y == testCase->testInputs.u.surface.y)\
+                && (surfaceInfo.width == testCase->testInputs.u.surface.width) && (surfaceInfo.height == testCase->testInputs.u.surface.height))
+             {
+                    RDKWM_TEST_INFO(("SurfaceExtensionVideoPinHole %d>:Got Expected Value", __LINE__));
+             }
+            else
+            {
+                RDKWM_TEST_ERROR(("id:%s failed to get the expected bounds:%d:%d:%d:%d",
+                    ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole: failed to get the expected bounds:%d:%d:%d:%d error@%d", surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height, __LINE__);
+                goto test_fail;
+            }
+
+            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            {
+                RDKWM_TEST_ERROR(("Signal recieved"));
+                ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                goto test_fail;
+            }
+
+test_pass:
+            ret = RDKWM_TEST_RESULT_PASS;
+        }
+    }
+    else
+    {
+        RDKWM_TEST_ERROR(("Invalid context!"));
+        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole :Invalid context! error@%d",__LINE__);
+    }
+
+test_fail:
+    return ret;
+}
+
 
 #endif /*RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
@@ -4823,9 +4974,14 @@ static bool rdkWmShellGetFireboltSurface(RdkWmTestAppCtx *ctx, firebolt_shell_fi
             else
             {
                 /*Yet To Implement*/
+                RDKWM_TEST_INFO(("rdkWmShellGetFireboltSurface : Received HW Video ID: %s",getMsg.u.videoSufaceID));
+                ret = false;
             }
         }
-        ret = false;
+        else
+        {
+            ret = false;
+        }
     }
     return ret;
 }
