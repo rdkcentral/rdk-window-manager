@@ -96,6 +96,29 @@
          <arg name="opacity" type="fixed"/>
      </request>
 
+        <request name="get_properties">
+         <description summary="get surface properties">
+            get the entire firebolt surface properties based on surface id.
+         </description>
+            <arg name="surfaceId" type="int"/>
+        </request>
+
+        <event name="surface_properties">
+            <arg name="surfaceId" type="int" summary="Id of the surface"/>
+            <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
+            <arg name="y" type="int" summary="the top position of the surface in pixel screen coordinates"/>
+            <arg name="width" type="uint" summary="the width of the graphics surface in pixel screen coordinates"/>
+            <arg name="height" type="uint" summary="the height of the graphics surface in pixel screen coordinates"/>
+            <arg name="opacity" type="fixed" summary="opacticty factor"/>
+            <arg name="zorder" type="int" summary="location in the z-order"/>
+            <arg name="visible" type="int" summary="the visibility of the surface"/>
+            <arg name="crop_x" type="fixed" summary="the cropping left insert"/>
+            <arg name="crop_y" type="fixed" summary="the cropping top insert"/>
+            <arg name="crop_width" type="fixed" summary="the cropping width"/>
+           <arg name="crop_height" type="fixed" summary="the cropping height"/>
+           <arg name="name" type="string" summary="the surface name"/>
+        </event>
+
    </interface>
 
 </protocol>

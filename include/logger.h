@@ -37,12 +37,18 @@ namespace RdkWindowManager
             static void log(LogLevel level, const char* format, ...);
             static void setLogLevel(const char* loglevel);
             static void logLevel(std::string& level);
+            #ifdef RDK_WINDOW_MANAGER_LOGGER
+            static void setLogFile(const std::string& filename);
+            #endif
             static void enableFlushing(bool enable);
             static bool isFlushingEnabled();
 
         private:
             static LogLevel sLogLevel;
             static bool sFlushingEnabled;
+            #ifdef RDK_WINDOW_MANAGER_LOGGER
+            static FILE* logFile;
+            #endif
     };
 }
 

@@ -28,6 +28,14 @@ static const struct wl_interface *firebolt_surface_types[] = {
 	NULL,
 	NULL,
 	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 };
 
 static const struct wl_message firebolt_surface_requests[] = {
@@ -38,11 +46,16 @@ static const struct wl_message firebolt_surface_requests[] = {
 	{ "set_crop", "iffff", firebolt_surface_types + 0 },
 	{ "set_zorder", "if", firebolt_surface_types + 0 },
 	{ "set_opacity", "if", firebolt_surface_types + 0 },
+	{ "get_properties", "i", firebolt_surface_types + 0 },
+};
+
+static const struct wl_message firebolt_surface_events[] = {
+	{ "surface_properties", "iiiuufiiffffs", firebolt_surface_types + 0 },
 };
 
 WL_EXPORT const struct wl_interface firebolt_surface_interface = {
 	"firebolt_surface", 1,
-	7, firebolt_surface_requests,
-	0, NULL,
+	8, firebolt_surface_requests,
+	1, firebolt_surface_events,
 };
 

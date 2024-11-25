@@ -165,8 +165,20 @@ struct firebolt_surface_interface {
 			    struct wl_resource *resource,
 			    int32_t surfaceId,
 			    wl_fixed_t opacity);
+       /**
+         * get the entire firebolt surface properties based on surface id.
+         */
+        void (*get_properties)(struct wl_client *client,
+                               struct wl_resource *resource,
+                               int32_t surfaceId);
 };
 
+#define FIREBOLT_SURFACE_SURFACE_PROPERTIES 0
+
+/**
+ * @ingroup iface_firebolt_surface
+ */
+#define FIREBOLT_SURFACE_SURFACE_PROPERTIES_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_surface
@@ -196,6 +208,35 @@ struct firebolt_surface_interface {
  * @ingroup iface_firebolt_surface
  */
 #define FIREBOLT_SURFACE_SET_OPACITY_SINCE_VERSION 1
+
+/**
+ * @ingroup iface_firebolt_surface
+ */
+#define FIREBOLT_SURFACE_GET_PROPERTIES_SINCE_VERSION 1
+
+/**
+ * @ingroup iface_firebolt_surface
+ * Sends an surface_properties event to the client owning the resource.
+ * @param resource_ The client's resource
+ * @param surfaceId Id of the surface
+ * @param x the left position of the surface in pixel screen coordinates
+ * @param y the top position of the surface in pixel screen coordinates
+ * @param width the width of the graphics surface in pixel screen coordinates
+ * @param height the height of the graphics surface in pixel screen coordinates
+ * @param opacity opacticty factor
+ * @param zorder location in the z-order
+ * @param visible the visibility of the surface
+ * @param crop_x the cropping left insert
+ * @param crop_y the cropping top insert
+ * @param crop_width the cropping width
+ * @param crop_height the cropping height
+ * @param name the surface name
+ */
+static inline void
+firebolt_surface_send_surface_properties(struct wl_resource *resource_, int32_t surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height, wl_fixed_t opacity, int32_t zorder, int32_t visible, wl_fixed_t crop_x, wl_fixed_t crop_y, wl_fixed_t crop_width, wl_fixed_t crop_height, const char *name)
+{
+        wl_resource_post_event(resource_, FIREBOLT_SURFACE_SURFACE_PROPERTIES, surfaceId, x, y, width, height, opacity, zorder, visible, crop_x, crop_y, crop_width, crop_height, name);
+}
 
 #ifdef  __cplusplus
 }
