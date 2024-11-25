@@ -530,7 +530,7 @@ TEST_F(FireboltWmTest, setProperties_withValidDimensions)
 
     EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), true))
         .WillOnce(testing::Return(true));
-    EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_width))
+    EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_height))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::StrEq(id), testing::_))
