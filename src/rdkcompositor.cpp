@@ -375,25 +375,49 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                            if (fireboltSurface->surfaceType == SurfaceType::Video)
                             {
-                                float lMatrix[16];
-
-                                memcpy(lMatrix, matrix, sizeof(matrix));
-
-                                /* copy of default matrix*/
-                                lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
-                                lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
-                                lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
-                                lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
-
-                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                GLenum error;
+                                glEnable( GL_SCISSOR_TEST );
+                                glClearColor(0.0f,0.0f,0.0f,0.0f);
+                                if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                                {
+                                    glScissor(fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight);
+                                }
+                                else
+                                {
+                                    glScissor(fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
+                                }
+                                error = glGetError();
+                                if (error != GL_NO_ERROR)
+                                {
+                                    Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error,fireboltSurface->x,fireboltSurface->y,fireboltSurface->width,fireboltSurface->height );
+                                }
+                                glClear(GL_COLOR_BUFFER_BIT);
+                                glDisable(GL_SCISSOR_TEST);
                             }
                             else
                             {
-                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                                {
+                                    float lMatrix[16];
+
+                                    memcpy(lMatrix, matrix, sizeof(matrix));
+
+                                    /* copy of default matrix*/
+                                    lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
+                                    lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
+                                    lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
+                                    lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
+
+                                    WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                    lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                }
+                                else
+                                {
+                                    WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
+                                    matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                }
                             }
                         }
                     }
@@ -540,8 +564,25 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                            mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            {
+                                    GLenum error;
+                                    glEnable( GL_SCISSOR_TEST );
+                                    glClearColor(0.0f,0.0f,0.0f,0.0f);
+                                    glScissor(fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
+                                    error = glGetError();
+                                    if (error != GL_NO_ERROR)
+                                    {
+                                        Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error,fireboltSurface->x,fireboltSurface->y,fireboltSurface->width,fireboltSurface->height );
+                                    }
+                                    glClear(GL_COLOR_BUFFER_BIT); // Clear with transparency
+                                    glDisable(GL_SCISSOR_TEST);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
+                                mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                            }
                         }
                     }
                 }

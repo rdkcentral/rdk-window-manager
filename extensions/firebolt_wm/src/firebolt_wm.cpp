@@ -194,7 +194,7 @@ static void firebolt_wm_set_properties(struct wl_client *client,
     if (id != NULL)
     {
         RdkWindowManager::ClientInfo clientInfo;
-
+        bool bVirtualDisplay = false;
         /* Set the properties of the client display */
         memset(&clientInfo, 0, sizeof(clientInfo));
         clientInfo.x          = x;
@@ -233,19 +233,26 @@ static void firebolt_wm_set_properties(struct wl_client *client,
             if ((render_width > 0) || (render_height > 0))
             {
                 /* Enable Virtual Display */
-                if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, true))
-                {
-                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                            " firebolt_wm@.set_properties: enableVirtualDisplay id:%s - Success", id);
-                }
+                bVirtualDisplay = true;
+            }
+            else
+            {
+                /* Disable Virtual Display */
+                bVirtualDisplay = false;
+            }
+            /* Set the client Virtual Display */
+            if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, bVirtualDisplay))
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_wm@.set_properties: enableVirtualDisplay id:%s  virtualFlag:%d - Success", id, bVirtualDisplay);
+            }
 
-                /* Set the client virtual display size */
-                if (RdkWindowManager::CompositorController::setVirtualResolution(id, render_width, render_width))
-                {
-                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                            " firebolt_wm@.set_properties: setVirtualResolution id:%s" \
-                            " client display{width:%u height:%u} - Success", id, width, height);
-                }
+            /* Set the client virtual display size */
+            if (RdkWindowManager::CompositorController::setVirtualResolution(id, render_width, render_height))
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_wm@.set_properties: setVirtualResolution id:%s" \
+                        " client display{width:%u height:%u} - Success", id, render_width, render_height);
             }
         }
     }
