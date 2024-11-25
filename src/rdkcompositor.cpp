@@ -389,12 +389,12 @@ namespace RdkWindowManager
                                 lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
 
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                lMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
                             {
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                         }
                     }
@@ -432,12 +432,12 @@ namespace RdkWindowManager
                                 lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
 
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                lMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
                             {
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                         }
                     }
