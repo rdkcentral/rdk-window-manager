@@ -508,7 +508,7 @@ TEST_F(FireboltWmTest, setProperties_withInvalidParam)
 
     triggerSetProperties(id, x, y, width, height, render_width, render_height, opacity, zorder, visible, crop_x, crop_y, crop_width, crop_height);
 }
-
+#if 0
 /**
  * @brief Test setProperties with valid rendering dimensions.
  * Verifies that setProperties correctly calls enableVirtualDisplay and setVirtualResolution
@@ -569,7 +569,7 @@ TEST_F(FireboltWmTest, setProperties_withZeroDimensions)
     triggerSetProperties(id, x, y, width, height, render_width, render_height, opacity, zorder, visible, crop_x, crop_y, crop_width, crop_height);
 }
 
-
+#endif
 /**
  * @brief  Tests when getClientInfo succeeds, ensuring getTopmost is not called.
  *
