@@ -508,7 +508,7 @@ TEST_F(FireboltWmTest, setProperties_withInvalidParam)
 
     triggerSetProperties(id, x, y, width, height, render_width, render_height, opacity, zorder, visible, crop_x, crop_y, crop_width, crop_height);
 }
-#if 0
+
 /**
  * @brief Test setProperties with valid rendering dimensions.
  * Verifies that setProperties correctly calls enableVirtualDisplay and setVirtualResolution
@@ -528,7 +528,7 @@ TEST_F(FireboltWmTest, setProperties_withValidDimensions)
     wl_fixed_t crop_x = wl_fixed_from_int(0), crop_y = wl_fixed_from_int(0);
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
 
-    EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), false))
+    EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), true))  
         .WillOnce(testing::Return(true));
     EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_height))
         .WillOnce(testing::Return(true));
@@ -558,8 +558,8 @@ TEST_F(FireboltWmTest, setProperties_withZeroDimensions)
     wl_fixed_t crop_x = wl_fixed_from_int(0), crop_y = wl_fixed_from_int(0);
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
 
-    EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), true))
-        .Times(1);
+   EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), testing::_))
+        .Times(0);
     EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_height))
         .Times(1);
 
@@ -569,7 +569,7 @@ TEST_F(FireboltWmTest, setProperties_withZeroDimensions)
     triggerSetProperties(id, x, y, width, height, render_width, render_height, opacity, zorder, visible, crop_x, crop_y, crop_width, crop_height);
 }
 
-#endif
+
 /**
  * @brief  Tests when getClientInfo succeeds, ensuring getTopmost is not called.
  *
