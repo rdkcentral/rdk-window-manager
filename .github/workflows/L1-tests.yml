@@ -1,0 +1,109 @@
+name: FireboltWM L1 Tests
+
+on:
+  push:
+    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+  pull_request:
+    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+
+env:
+  BUILD_TYPE: Debug
+  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
+
+jobs:
+  unit-tests:
+    name: Build and run unit tests
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        compiler: [ gcc ]
+        coverage: [ with-coverage ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -q -y automake libtool autotools-dev software-properties-common build-essential cmake libsystemd-dev libjsoncpp-dev libdbus-1-dev libnl-3-dev libnl-route-3-dev libyajl-dev libcap-dev libboost-dev lcov clang valgrind
+          sudo pip3 install xmltodict requests
+
+      - name: Install gmock
+        run: |
+          cd $GITHUB_WORKSPACE
+          git clone https://github.com/google/googletest.git -b release-1.11.0
+          cd googletest
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+          echo "GMock installed in $(pwd)"
+        
+      - name: Set gcc/with-coverage toolchain
+        if: ${{ matrix.compiler == 'gcc' && matrix.coverage == 'with-coverage' && !env.ACT }}
+        run: echo "TOOLCHAIN_FILE=$GITHUB_WORKSPACE/tests/gcc-with-coverage.cmake" >> $GITHUB_ENV
+
+      - name: Build firebolt-wm
+        run: |
+          cd $GITHUB_WORKSPACE/tests/L1_Tests
+          mkdir -p build
+          cd build
+          echo "Build type: ${{ env.BUILD_TYPE }}"
+          cmake -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" -DRDK_PLATFORM=DEV_VM -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_PREFIX_PATH=/usr/local ..
+          
+          cmake -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" \
+          -DRDK_PLATFORM=DEV_VM \
+          -DCMAKE_INSTALL_PREFIX:PATH=/usr \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DCMAKE_CXX_FLAGS="--coverage" \
+          -DCMAKE_C_FLAGS="--coverage" \
+          -DCMAKE_PREFIX_PATH=/usr/local ..
+           make -j $(nproc)
+        
+      - name: Run L1 tests
+        run: |
+          set -x
+          chmod +x $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_wm_tests/FireboltWML1Test
+          chmod +x $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_shell_tests/FireboltShellL1Test
+          chmod +x $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_surface_tests/FireboltSurfaceL1Test
+          
+          $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_wm_tests/FireboltWML1Test --gtest_output="json:$(pwd)/FireboltWML1TestResults.json"
+          $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_shell_tests/FireboltShellL1Test --gtest_output="json:$(pwd)/FireboltShellL1TestResults.json"
+          $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_surface_tests/FireboltSurfaceL1Test --gtest_output="json:$(pwd)/FireboltSurfaceL1TestResults.json"
+
+      - name: Generate coverage
+        if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
+        run: |
+          cp $GITHUB_WORKSPACE/tests/L1_Tests/.lcovrc_l1 ~/.lcovrc
+          lcov -c -o coverage.info \
+            -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_wm_tests \
+            -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_shell_tests \
+            -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_surface_tests
+               lcov -r coverage.info \
+                '/usr/include/*' \
+                '*/build/rdk-window-manager/_deps/*' \
+                '*/install/usr/include/*' \
+                '*/tests/L1_Tests/headers/*' \
+                '*/tests/L1_Tests/mocks/*' \
+                '*/tests/L1_Tests/firebolt_shell_tests/*' \
+                '*/tests/L1_Tests/firebolt_wm_tests/*' \
+                '*/tests/L1_Tests/firebolt_surface_tests/*' \
+                -o filtered_coverage.info
+             # Generate HTML report
+             genhtml -o coverage -t "rdk-window-manager coverage" filtered_coverage.info      
+             
+      - name: Upload artifacts
+        if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
+        run: |
+          uses: actions/upload-artifact@v3
+          with:
+          name: artifacts
+          path: |
+            coverage/
+            valgrind_log
+            FireboltWML1TestResults.json
+            FireboltShellL1TestResults.json
+            FireboltSurfaceL1TestResults.json
+          if-no-files-found: warn
