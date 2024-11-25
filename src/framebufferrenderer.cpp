@@ -44,12 +44,15 @@ namespace RdkWindowManager
 
     void FrameBufferRenderer::draw(std::shared_ptr<FrameBuffer> fbo, uint32_t screenWidth, uint32_t screenHeight, 
         float *matrix, int32_t boundsX, int32_t boundsY, uint32_t boundsWidth, uint32_t boundsHeight,
-        int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
+        int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight, float alpha)
     {
         // Logger::log(LogLevel::Error, "FrameBufferRenderer::blit 1 fbo: %x, screen res: %d x %d, dst rect: %d, %d, %d, %d, fbo res: %d x %d",
         //     fbo, screenWidth, screenHeight, boundsX, boundsY, boundsWidth, boundsHeight, fbo->width(), fbo->height());
 
         glUseProgram(mShaderProgram);
+        glEnable(GL_BLEND); //Enable Alpha Blending
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Set the blend function
+        glUniform1f(mAlphaLocation, alpha); // Set the alpha value
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo->texture());
         glUniform1i(mTextureLocation, 0);
@@ -123,9 +126,11 @@ namespace RdkWindowManager
             "precision lowp float; \n"
             "varying vec2 v_uv; \n"
             "uniform sampler2D s_texture; \n"
+            "uniform float u_alpha; \n"  // Added uAlpha uniform
             "void main() \n"
             "{ \n"
-            "  gl_FragColor = texture2D(s_texture, v_uv); \n"
+            "  vec4 texColor = texture2D(s_texture, v_uv); \n"
+            "  gl_FragColor = vec4(texColor.rgb, texColor.a * u_alpha); \n" // Multiply the alpha value
             "}\n";
         
         GLint status;
@@ -195,5 +200,6 @@ namespace RdkWindowManager
         mTextureLocation = glGetUniformLocation(mShaderProgram, "s_texture");
         mResolutionLocation = glGetUniformLocation(mShaderProgram, "u_resolution");
         mMatrixLocation = glGetUniformLocation(mShaderProgram, "u_matrix");
+        mAlphaLocation = glGetUniformLocation(mShaderProgram, "u_alpha");// Get the location of the alpha uniform
     }
 }

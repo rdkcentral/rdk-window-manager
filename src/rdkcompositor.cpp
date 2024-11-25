@@ -337,7 +337,6 @@ namespace RdkWindowManager
         }
         #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
         std::vector<WstRect> rects;
-        float opacity = 1.f;
         float matrix[16] = {
             1.f, 0.f, 0.f, 0.f,
             0.f, 1.f, 0.f, 0.f,
@@ -352,12 +351,12 @@ namespace RdkWindowManager
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
                     WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
-                    mMatrix, opacity, hints, &needsHolePunch, rects);
+                    mMatrix, mOpacity, hints, &needsHolePunch, rects);
                 }
                 else
                 {
                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-                    mMatrix, opacity, hints, &needsHolePunch, rects);
+                    mMatrix, mOpacity, hints, &needsHolePunch, rects);
                 }
             }
             else
@@ -457,8 +456,8 @@ namespace RdkWindowManager
         CompositorController::getScreenResolution(screenWidth, screenHeight);
 
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
-				                              mPositionX, mPositionY, mWidth, mHeight,
-				                              mCropX, mCropY, mCropWidth, mCropHeight);
+                                              mPositionX, mPositionY, mWidth, mHeight,
+                                              mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
     }
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)

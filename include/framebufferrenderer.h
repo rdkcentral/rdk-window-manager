@@ -35,7 +35,7 @@ namespace RdkWindowManager
         
         void draw(std::shared_ptr<FrameBuffer> fbo, uint32_t screenWidth, uint32_t screenHeight,
             float *matrix, int32_t x, int32_t y, uint32_t width, uint32_t height,
-            int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
+            int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight, float alpha);
     
     private:
         FrameBufferRenderer();
@@ -50,5 +50,6 @@ namespace RdkWindowManager
         GLint mTextureLocation;
         GLint mResolutionLocation;
         GLint mMatrixLocation;
+        GLint mAlphaLocation;
     };
 }
