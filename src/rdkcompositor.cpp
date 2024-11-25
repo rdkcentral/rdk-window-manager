@@ -352,12 +352,12 @@ namespace RdkWindowManager
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
                     WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
-                    matrix, opacity, hints, &needsHolePunch, rects);
+                    mMatrix, opacity, hints, &needsHolePunch, rects);
                 }
                 else
                 {
                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-                    matrix, opacity, hints, &needsHolePunch, rects);
+                    mMatrix, opacity, hints, &needsHolePunch, rects);
                 }
             }
             else
@@ -378,12 +378,22 @@ namespace RdkWindowManager
                         {
                             if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                             {
+                                float lMatrix[16];
+
+                                memcpy(lMatrix, matrix, sizeof(matrix));
+
+                                /* copy of default matrix*/
+                                lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
+                                lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
+                                lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
+                                lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
+
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                lMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
                             }
                             else
                             {
-                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                 matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
                             }
                         }
@@ -411,8 +421,18 @@ namespace RdkWindowManager
                         {
                             if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                             {
+                                float lMatrix[16];
+
+                                memcpy(lMatrix, matrix, sizeof(matrix));
+
+                                /* copy of default matrix*/
+                                lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
+                                lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
+                                lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
+                                lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
+
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                matrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
+                                lMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects);
                             }
                             else
                             {
@@ -437,7 +457,8 @@ namespace RdkWindowManager
         CompositorController::getScreenResolution(screenWidth, screenHeight);
 
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
-            mPositionX, mPositionY, mWidth, mHeight);
+				                              mPositionX, mPositionY, mWidth, mHeight,
+				                              mCropX, mCropY, mCropWidth, mCropHeight);
     }
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
@@ -494,7 +515,7 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                             mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
                         }
                     }
@@ -520,7 +541,7 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
+                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                             mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
                         }
                     }
@@ -597,8 +618,9 @@ namespace RdkWindowManager
     {
         mPositionX = x;
         mPositionY = y;
-        mMatrix[12] = x;
-        mMatrix[13] = y;
+
+        mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, x, 0.f);
+        mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, y, 0.f);
     }
 
     void RdkCompositor::position(int32_t &x, int32_t &y)
@@ -698,6 +720,25 @@ namespace RdkWindowManager
         mCropY = cropY;
         mCropWidth = cropWidth;
         mCropHeight = cropHeight;
+
+        if (cropWidth > 0 || cropHeight > 0)
+        {
+            Logger::log(LogLevel::Information,  "setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
+
+            mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
+            mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
+            mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
+            mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
+        }
+        else
+        {
+            Logger::log(LogLevel::Information,  "setCrop mWidth:%d mHeight:%d mPositionX:%d mPositionY:%d", mWidth, mHeight, mPositionX, mPositionY);
+
+            mMatrix[0] = 1.f;
+            mMatrix[5] = 1.f;
+            mMatrix[12] = 0.f;
+            mMatrix[13] = 0.f;
+        }
     }
 
     void RdkCompositor::crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
