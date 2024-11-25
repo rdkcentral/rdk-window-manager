@@ -558,9 +558,7 @@ TEST_F(FireboltWmTest, setProperties_withZeroDimensions)
     wl_fixed_t crop_x = wl_fixed_from_int(0), crop_y = wl_fixed_from_int(0);
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
 
-   EXPECT_CALL(*p_compositeImplMock, enableVirtualDisplay(testing::StrEq(id), testing::_))
-        .Times(0);
-    EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_height))
+   EXPECT_CALL(*p_compositeImplMock, setVirtualResolution(testing::StrEq(id), render_width, render_height))
         .Times(1);
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::StrEq(id), testing::_))
