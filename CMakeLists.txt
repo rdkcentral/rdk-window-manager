@@ -34,6 +34,10 @@ option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION "RDK_WINDOW_MANAGER_BUI
 option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION" ON)
 endif (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
 option(RDK_WINDOW_MANAGER_BUILD_TEST_APP "RDK_WINDOW_MANAGER_BUILD_TEST_APP" ON)
+if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
+option(RDK_WINDOW_MANAGER_LOGGER "RDK_WINDOW_MANAGER_LOGGER" ON)
+option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL" ON)
+endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -55,7 +59,7 @@ set(RDK_WINDOW_MANAGER_SOURCES
 set(LIB_PATH "$ENV{LIB_PATH}")
 link_directories(${LIB_PATH})
 
-set(RDK_WINDOW_MANAGER_LINK_LIBRARIES -lz -lessos -lEGL -lGLESv2 -lwayland-client -lwesteros_compositor -lpthread -ljpeg -lpng16)
+set(RDK_WINDOW_MANAGER_LINK_LIBRARIES -lz -lessos -lEGL -lGLESv2 -lwayland-client -lwesteros_compositor -lpthread -ljpeg -lpng16 -lwayland-egl)
 include_directories(${INCLUDE_HEADER_DIR})
 
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -99,11 +103,17 @@ if(BUILD_ENABLE_ERM)
     set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lessosrmgr)
 endif()
 
+if (RDK_WINDOW_MANAGER_LOGGER)
+  add_definitions("-DRDK_WINDOW_MANAGER_LOGGER")
+  add_definitions(-DRDK_WINDOW_MANAGER_LOGFILE=\"/opt/logs/rdkwindowmanager.log\")
+  set(RDK_WINDOW_MANAGER_LOGGER_SOURCE tests/testlogmonitor.cpp)
+endif (RDK_WINDOW_MANAGER_LOGGER)
+
 # Wayland Extensions files and extension server portion binded with RDK window manager.
 # Extension protocol interface as shared library to be linked with respective application
 if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
     add_definitions("-DRDK_WINDOW_MANAGER_BUILD_EXTENSIONS")
-    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES -lwayland-client)
+    set(RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES -lwayland-client -lrt)
 
     if (RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION)
         message("Building rdkwindowmanager firebolt_surface extension") 
@@ -144,8 +154,17 @@ endif (RDK_WINDOW_MANAGER_BUILD_APP)
 
 if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     add_definitions("-DRDK_WINDOW_MANAGER_BUILD_TEST_APP")
+    if (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL)
+	    add_definitions("-DRDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL")
+    endif(RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL)
     message("Building rdkwindowmanagertest executable")
     add_executable(rdkwindowmanagertest tests/testmain.cpp)
     add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
     target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
+
+    message("Building rdkwmtest executable")
+    add_executable(rdkwmtest tests/testrdkwm.cpp ${RDK_WINDOW_MANAGER_LOGGER_SOURCE})
+    add_dependencies(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    target_link_libraries(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} 
+    ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lcurl)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)

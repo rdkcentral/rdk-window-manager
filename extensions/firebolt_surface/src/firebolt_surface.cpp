@@ -30,6 +30,7 @@ static FireboltSurfaceCompositorListMap           f_fireboltSurfaceCompositorLis
 std::mutex FireboltSurface::mContextLock;
 
 static void firebolt_surface_destroy(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId);
+static void firebolt_surface_get_properties(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId);
 static void firebolt_surface_set_name(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId, const char *name);
 static void firebolt_surface_set_visible(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId, uint32_t visible);
 static void firebolt_surface_set_bounds(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId,
@@ -47,7 +48,8 @@ static const struct firebolt_surface_interface fireboltSurfaceInterfaceImpl = {
                         .set_bounds     = firebolt_surface_set_bounds,
                         .set_crop       = firebolt_surface_set_crop,
                         .set_zorder     = firebolt_surface_set_zorder,
-                        .set_opacity    = firebolt_surface_set_opacity
+                        .set_opacity    = firebolt_surface_set_opacity,
+                        .get_properties = firebolt_surface_get_properties
                     };
 
 
@@ -165,6 +167,78 @@ std::string FireboltSurface::getFireboltSurfaceClientName(wl_resource *resource)
 
 ret_fail:
     return clientName;
+}
+
+static void firebolt_surface_get_properties(struct wl_client *client, struct wl_resource *resource, int32_t surfaceId)
+{
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d entry",
+                client, resource, surfaceId);
+
+    if (NULL != resource)
+    {
+        FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
+        if (NULL == fbSurfaceCtx)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d - fbSurfaceCtx not found!",
+                    client, resource, surfaceId);
+            goto ret_fail;
+        }
+        std::string clientName = fbSurfaceCtx->getFireboltSurfaceClientName(resource);
+        if (!clientName.empty())
+        {
+            RdkWindowManager::FireboltSurfaceInfo surfaceInfo;
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d entry",
+                        client, resource, surfaceId);
+
+            if (!RdkWindowManager::CompositorController::getSurfaceInfo(clientName, surfaceId,surfaceInfo))
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                        " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d failed",
+                         client, resource, surfaceId);
+
+                goto ret_fail;
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d sucess",
+                        client, resource, surfaceId);
+
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_surface@.event: post surface_properties resource@%p name:%s" \
+                        " clientInfo{x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                        " crop{x:%d y:%d width:%d height:%d} surfaceType:%d",
+                        resource,  surfaceInfo.name.c_str(), surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
+                        surfaceInfo.opacity, surfaceInfo.zOrder, surfaceInfo.visible, surfaceInfo.sx,
+                        surfaceInfo.sy, surfaceInfo.swidth, surfaceInfo.sheight, surfaceInfo.surfaceType);
+
+                /* Notifying surface_properties event to the caller of the app id */
+                firebolt_surface_send_surface_properties(resource, surfaceId, surfaceInfo.x, surfaceInfo.y,
+                            surfaceInfo.width, surfaceInfo.height, wl_fixed_from_double(surfaceInfo.opacity),
+                            surfaceInfo.zOrder, surfaceInfo.visible, wl_fixed_from_int(surfaceInfo.sx),
+                            wl_fixed_from_int(surfaceInfo.sy), wl_fixed_from_int(surfaceInfo.swidth),
+                            wl_fixed_from_int(surfaceInfo.sheight), surfaceInfo.name.c_str());
+            }
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_surface@.get_properties: Client not found client@%p resource@%p surfaceId:%d",
+                    client, resource, surfaceId);
+        }
+    }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                " firebolt_surface@.get_properties: client@%p resource@%p surfaceId:%d - invalid param",
+                client, resource, surfaceId);
+    }
+
+ret_fail:
+    return;
 }
 
 /**

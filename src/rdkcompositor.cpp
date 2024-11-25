@@ -1248,4 +1248,32 @@ namespace RdkWindowManager
         }
         return false;
     }
+
+    bool RdkCompositor::getSurfaceInfo(int surfaceId, FireboltSurfaceInfo& surfaceInfo)
+    {
+        for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+        {
+            if (fireboltSurface->surfaceId == surfaceId)
+            {
+                surfaceInfo.opacity = fireboltSurface->opacity;
+                surfaceInfo.x = fireboltSurface->x;
+                surfaceInfo.y = fireboltSurface->y;
+                surfaceInfo.width = fireboltSurface->width;
+                surfaceInfo.height = fireboltSurface->height;
+                surfaceInfo.sx = fireboltSurface->sx;
+                surfaceInfo.sy = fireboltSurface->sy;
+                surfaceInfo.swidth = fireboltSurface->swidth;
+                surfaceInfo.sheight = fireboltSurface->sheight;
+                surfaceInfo.visible = fireboltSurface->visible;
+                surfaceInfo.zOrder = fireboltSurface->zOrder;
+                surfaceInfo.name = fireboltSurface->name;
+                surfaceInfo.surfaceType= fireboltSurface->surfaceType;
+                surfaceInfo.westerosCompositor = fireboltSurface->westerosCompositor;
+
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

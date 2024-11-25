@@ -698,18 +698,31 @@ static void firebolt_wm_set_client_display_bounds(struct wl_client *client,
         }
 
         /* Check whether the client virtual display enabled or not */
-        if (!isVirtualDispEnabled)
+        if ((width > 0) || (height > 0))
         {
-            /* Enable Virtual Display, if not enabled */
-            if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, true))
+            if (!isVirtualDispEnabled)
+            {
+                /* Enable Virtual Display, if not enabled */
+                if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, true))
+                {
+                    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                            " firebolt_wm@.set_client_display_bounds: client@%p resource@%p" \
+                            " id:%s client display{width:%u height:%u} - Success",
+                            client, resource, id, width, height);
+                }
+            }
+        }
+        else
+        {
+            /* Disable Virtual Display, if enabled */
+            if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, false))
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_wm@.set_client_display_bounds: client@%p resource@%p" \
-                        " id:%s client display{width:%u height:%u} - Success",
+                        " id:%s client display{width:%u height:%u}  - Success",
                         client, resource, id, width, height);
             }
         }
-
         /* Set the client virtual display size */
         if (RdkWindowManager::CompositorController::setVirtualResolution(id, width, height))
         {

@@ -141,6 +141,7 @@ namespace RdkWindowManager
             static bool setFireboltSurfaceCrop(const std::string& client, int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight);
             static bool setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible);
             static bool fireboltSurfaceDestroy(const std::string& client, int surfaceId);
+            static bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
     };
 }
 

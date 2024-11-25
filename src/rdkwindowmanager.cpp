@@ -81,6 +81,9 @@ namespace RdkWindowManager
 
     void initialize()
     {
+        #ifdef RDK_WINDOW_MANAGER_LOGGER
+        Logger::setLogFile(RDK_WINDOW_MANAGER_LOGFILE);
+        #endif
         Logger::log(LogLevel::Information, "initializing rdk window manager\n");
 
         mapNativeKeyCodes();

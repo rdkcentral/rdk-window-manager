@@ -1946,4 +1946,16 @@ namespace RdkWindowManager
         return false;
     }
 
+    bool CompositorController::getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            auto c = it->compositor;
+
+            c->getSurfaceInfo(surfaceId, si);
+            return true;
+        }
+        return false;
+    }
 }

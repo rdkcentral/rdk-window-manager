@@ -65,6 +65,54 @@ enum firebolt_surface_firebolt_surface_visibility {
 };
 #endif /* FIREBOLT_SURFACE_FIREBOLT_SURFACE_VISIBILITY_ENUM */
 
+/**
+ * @ingroup iface_firebolt_surface
+ * @struct firebolt_surface_listener
+ */
+struct firebolt_surface_listener {
+	/**
+	 * @param surfaceId Id of the surface
+	 * @param x the left position of the surface in pixel screen coordinates
+	 * @param y the top position of the surface in pixel screen coordinates
+	 * @param width the width of the graphics surface in pixel screen coordinates
+	 * @param height the height of the graphics surface in pixel screen coordinates
+	 * @param opacity opacticty factor
+	 * @param zorder location in the z-order
+	 * @param visible the visibility of the surface
+	 * @param crop_x the cropping left insert
+	 * @param crop_y the cropping top insert
+	 * @param crop_width the cropping width
+	 * @param crop_height the cropping height
+	 * @param name the surface name
+	 */
+	void (*surface_properties)(void *data,
+				   struct firebolt_surface *firebolt_surface,
+				   int32_t surfaceId,
+				   int32_t x,
+				   int32_t y,
+				   uint32_t width,
+				   uint32_t height,
+				   wl_fixed_t opacity,
+				   int32_t zorder,
+				   int32_t visible,
+				   wl_fixed_t crop_x,
+				   wl_fixed_t crop_y,
+				   wl_fixed_t crop_width,
+				   wl_fixed_t crop_height,
+				   const char *name);
+};
+
+/**
+ * @ingroup iface_firebolt_surface
+ */
+static inline int
+firebolt_surface_add_listener(struct firebolt_surface *firebolt_surface,
+			      const struct firebolt_surface_listener *listener, void *data)
+{
+	return wl_proxy_add_listener((struct wl_proxy *) firebolt_surface,
+				     (void (**)(void)) listener, data);
+}
+
 #define FIREBOLT_SURFACE_DESTROY 0
 #define FIREBOLT_SURFACE_SET_NAME 1
 #define FIREBOLT_SURFACE_SET_VISIBLE 2
@@ -72,7 +120,12 @@ enum firebolt_surface_firebolt_surface_visibility {
 #define FIREBOLT_SURFACE_SET_CROP 4
 #define FIREBOLT_SURFACE_SET_ZORDER 5
 #define FIREBOLT_SURFACE_SET_OPACITY 6
+#define FIREBOLT_SURFACE_GET_PROPERTIES 7
 
+/**
+ * @ingroup iface_firebolt_surface
+ */
+#define FIREBOLT_SURFACE_SURFACE_PROPERTIES_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_surface
@@ -102,6 +155,10 @@ enum firebolt_surface_firebolt_surface_visibility {
  * @ingroup iface_firebolt_surface
  */
 #define FIREBOLT_SURFACE_SET_OPACITY_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_surface
+ */
+#define FIREBOLT_SURFACE_GET_PROPERTIES_SINCE_VERSION 1
 
 /** @ingroup iface_firebolt_surface */
 static inline void
@@ -230,6 +287,18 @@ firebolt_surface_set_opacity(struct firebolt_surface *firebolt_surface, int32_t 
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
 			 FIREBOLT_SURFACE_SET_OPACITY, surfaceId, opacity);
+}
+
+/**
+ * @ingroup iface_firebolt_surface
+ *
+ * get the entire firebolt surface properties based on surface id.
+ */
+static inline void
+firebolt_surface_get_properties(struct firebolt_surface *firebolt_surface, int32_t surfaceId)
+{
+	wl_proxy_marshal((struct wl_proxy *) firebolt_surface,
+			 FIREBOLT_SURFACE_GET_PROPERTIES, surfaceId);
 }
 
 #ifdef  __cplusplus
