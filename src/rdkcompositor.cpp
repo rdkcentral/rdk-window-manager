@@ -538,8 +538,25 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                            mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            {
+                                    GLenum error;
+                                    glEnable( GL_SCISSOR_TEST );
+                                    glClearColor(0.0f,0.0f,0.0f,0.0f);
+                                    glScissor(fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
+                                    error = glGetError();
+                                    if (error != GL_NO_ERROR)
+                                    {
+                                        Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error,fireboltSurface->x,fireboltSurface->y,fireboltSurface->width,fireboltSurface->height );
+                                    }
+                                    glClear(GL_COLOR_BUFFER_BIT); // Clear with transparency
+                                    glDisable(GL_SCISSOR_TEST);
+                            }
+                            else
+                            {
+                                WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
+                                mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                            }
                         }
                     }
                 }
@@ -564,25 +581,8 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->surfaceType == SurfaceType::Video)
-                            {
-                                    GLenum error;
-                                    glEnable( GL_SCISSOR_TEST );
-                                    glClearColor(0.0f,0.0f,0.0f,0.0f);
-                                    glScissor(fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
-                                    error = glGetError();
-                                    if (error != GL_NO_ERROR)
-                                    {
-                                        Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error,fireboltSurface->x,fireboltSurface->y,fireboltSurface->width,fireboltSurface->height );
-                                    }
-                                    glClear(GL_COLOR_BUFFER_BIT); // Clear with transparency
-                                    glDisable(GL_SCISSOR_TEST);
-                            }
-                            else
-                            {
                                 WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                 mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
-                            }
                         }
                     }
                 }
