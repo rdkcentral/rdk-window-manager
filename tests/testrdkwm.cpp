@@ -118,6 +118,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx, Rdk
 RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
+RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx,RdkWmTestcase *testCase);
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
@@ -148,7 +149,7 @@ static RdkWmTestcase gRdkWmTests[] = {
              testFireboltWmExtensionToggleVisibility,
              {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_VISIBLITY_TOGGLE,
                .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_OPAQUE_MODE,
-                                   .property = {.opacity = { .numEntries = 1, .values = {0.75}}}}
+                                   .property = {.opacity = { .numEntries = 1, .values = {1.0}}}}
              }
            },
            { "testFireboltWmExtensionToggleBounds",
@@ -193,7 +194,7 @@ static RdkWmTestcase gRdkWmTests[] = {
              {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_BOUNDS,
              .u = {.wmProperties ={.x= 0,.y= 0,.width= 720,.height=576}},
              .prerequisite = {.condition = (RDKWM_TEST_RUNS_ON_OPAQUE_MODE|RDKWM_TEST_RUNS_ON_VISIBILITY_MODE),
-                                   .property = {.opacity = { .numEntries = 1, .values = {0.75}}, .visible = 1}}
+                                   .property = {.opacity = { .numEntries = 1, .values = {1.0}}, .visible = 1}}
             }
            },
            { "testFireboltWmExtensionSetOpacity",
@@ -208,17 +209,33 @@ static RdkWmTestcase gRdkWmTests[] = {
              "Test firebolt_wm extension set the user values for window Crop value",
              testFireboltWmExtensionSetCrop,
              {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_CROP,
-             .u = {.wmProperties ={.x = 0, .y = 0, .width =1024 , .height = 768 }},
+             .u = {.wmProperties ={.x = 0, .y = 0, .width =1024 , .height = 512}},
              .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_OPAQUE_MODE|RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
-                                   .property = {.opacity = { .numEntries = 1, .values = {0.50}}, .visible = 1}}}
+                                   .property = {.opacity = { .numEntries = 1, .values = {1.0}}, .visible = 1}}}
+           },
+           { "testFireboltWmExtensionSetCrop1",
+             "Test firebolt_wm extension set the user values for window Crop value",
+             testFireboltWmExtensionSetCrop,
+             {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_CROP,
+             .u = {.wmProperties ={.x = 0, .y = 0, .width =720 , .height = 512 }},
+             .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_OPAQUE_MODE|RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
+                                   .property = {.opacity = { .numEntries = 1, .values = {1.0}}, .visible = 1}}}
            },
            { "testFireboltWmExtensionSetClientDisplayBounds",
              "Test firebolt_wm extension set the user values for window DisplayBounds value",
              testFireboltWmExtensionSetClientDisplayBounds,
              {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_CLIENT_DISPLAY_BOUNDS,
-             .u = {.wmProperties ={.width = 1024, .height = 768 }},
+             .u = {.wmProperties ={.width =1400, .height =1020 }},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_OPAQUE_MODE|RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
                                      .property = {.opacity = { .numEntries = 1, .values = {1.0}}, .visible = 1}}}
+           },
+           { "testFireboltWmExtensionFullOpaqueMode",
+             "Test Opaque - run this test with opaque for 1min ",
+             testFireboltWmExtensionFullOpaqueMode,
+             {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_OPACITY,
+             .u = {.opacity = { .numEntries = 1, .values = {1.0}}},
+             .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
+                                   .property = {.visible = 1}}}
            },
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 
@@ -291,15 +308,23 @@ static RdkWmTestcase gRdkWmTests[] = {
              "Test firebolt_surface extension the user input surface opacity and ensure the surface opacity is set correctly values are between 0.0 to 1.0",
              testFireboltSurfaceExtensionSetOpacity,
             {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_OPACITY,
-              .u={.surface={ .opacity= 0.50}},
+              .u={.surface={ .opacity= 0.75}},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
                                    .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_STANDARD, .surfaceId = 1}}}
            },
-           { "testFireboltSurfaceExtensionVideoPinHole",
+           { "testFireboltSurfaceExtensionVideoPinHoleFixedSize",
              "Test firebolt_surface extension the video surface undergoes the hole punch",
             testFireboltSurfaceExtensionVideoPinHole,
            {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
-              .u={.surface={ .opacity= 1, .x = 512, .y = 256, .width = 256 , .height = 256 }},
+              .u={.surface={ .opacity= 1, .width = 512 , .height = 512 }},
+              .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
+                                   .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO, .surfaceId = 1}}}
+           },
+           { "testFireboltSurfaceExtensionVideoPinHoleAtResolution",
+             "Test firebolt_surface extension the video surface undergoes the hole punch for full screen resolution",
+            testFireboltSurfaceExtensionVideoPinHole,
+           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
+              .u={.surface={ .opacity= 1}},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
                                    .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO, .surfaceId = 1}}}
            },
@@ -326,6 +351,9 @@ static jmp_buf gTestEnv;
 sem_t sem;
 struct timespec ts;
 uint32_t semwait_counter;
+
+/*Flag to ignore the outputMode values*/
+static bool isVirtualModeEnabled = false;
 
 static void *rdkWmTestExecutorThreadRoutine(void* param);
 static bool rdkWmTestCreateExecutorThread(RdkWmTestAppCtx *ctx);
@@ -446,7 +474,7 @@ static void outputMode( void *data, struct wl_output *output, uint32_t flags,
     }
     if ( flags & WL_OUTPUT_MODE_CURRENT )
     {
-        if ( (width !=  ctx->display.outputDisplayWidth) || (height != ctx->display.outputDisplayHeight) )
+        if ((isVirtualModeEnabled != true) && ((width !=  ctx->display.outputDisplayWidth) || (height != ctx->display.outputDisplayHeight)))
         {
             ctx->display.outputDisplayWidth= width;
             ctx->display.outputDisplayHeight= height;
@@ -2203,42 +2231,45 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *
 	    /* Disable crop */
             firebolt_surface_set_crop(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId, 0,0,0,0);
 
-	    /* set the new boundary values */
-            firebolt_surface_set_bounds(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,
-                testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
+            if((testCase->testInputs.u.surface.width != 0) || (testCase->testInputs.u.surface.height != 0))
+            {
+                /* set the new boundary values */
+                firebolt_surface_set_bounds(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,
+                    testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
 
-            /* Get current surface properties and store boundary values*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
-            {
-                /* Callback message received */
-                memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
-                RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
-                        " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
-                        " crop{x:%f y:%f width:%f height:%f} name:%s",
-                        ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
-                        surfaceInfo.name));
-            }
-            else
-            {
-                RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
-                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__);
-                goto test_fail;
-            }
+                /* Get current surface properties and store boundary values*/
+                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                {
+                    /* Callback message received */
+                    memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
+                    RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
+                            " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                            " crop{x:%f y:%f width:%f height:%f} name:%s",
+                            ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
+                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                            surfaceInfo.name));
+                }
+                else
+                {
+                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__);
+                    goto test_fail;
+                }
 
-            /* Compare the received boundary values are not equal to the previous value */
-            if ((surfaceInfo.x ==testCase->testInputs.u.surface.x) && (surfaceInfo.y == testCase->testInputs.u.surface.y)\
-                && (surfaceInfo.width == testCase->testInputs.u.surface.width) && (surfaceInfo.height == testCase->testInputs.u.surface.height))
-             {
-                    RDKWM_TEST_INFO(("SurfaceExtensionVideoPinHole %d>:Got Expected Value", __LINE__));
-             }
-            else
-            {
-                RDKWM_TEST_ERROR(("id:%s failed to get the expected bounds:%d:%d:%d:%d",
-                    ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height));
-                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole: failed to get the expected bounds:%d:%d:%d:%d error@%d", surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height, __LINE__);
-                goto test_fail;
+                /* Compare the received boundary values are not equal to the previous value */
+                if ((surfaceInfo.x ==testCase->testInputs.u.surface.x) && (surfaceInfo.y == testCase->testInputs.u.surface.y)\
+                    && (surfaceInfo.width == testCase->testInputs.u.surface.width) && (surfaceInfo.height == testCase->testInputs.u.surface.height))
+                 {
+                        RDKWM_TEST_INFO(("SurfaceExtensionVideoPinHole %d>:Got Expected Value", __LINE__));
+                 }
+                else
+                {
+                    RDKWM_TEST_ERROR(("id:%s failed to get the expected bounds:%d:%d:%d:%d",
+                        ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole: failed to get the expected bounds:%d:%d:%d:%d error@%d", surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height, __LINE__);
+                    goto test_fail;
+                }
             }
 
             if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
@@ -3228,6 +3259,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
 
             if(testCase->testInputs.u.wmProperties.width > 0 || testCase->testInputs.u.wmProperties.height > 0)
             {
+                isVirtualModeEnabled = true;
                 firebolt_wm_set_client_display_bounds(ctx->fbWm, (const char*)ctx->display.clientName, testCase->testInputs.u.wmProperties.width, testCase->testInputs.u.wmProperties.height);
                 ret = RDKWM_TEST_RESULT_PASS;
             }
@@ -3239,8 +3271,9 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
                 goto test_fail;
             }
-	    // Disable virtual display to ensure it’s not active for other test cases
+            /* Disable virtual display to ensure it’s not active for other test cases */
             firebolt_wm_set_client_display_bounds(ctx->fbWm, (const char*)ctx->display.clientName, 0, 0);
+            isVirtualModeEnabled= false;
         }
     }
     else
@@ -3251,6 +3284,115 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
 test_fail:
     return ret;
 }
+
+RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx,RdkWmTestcase *testCase)
+{
+       RdkWmTestReturnStatus ret = RDKWM_TEST_RESULT_FAIL ;
+
+    if ((NULL != ctx) && (ctx->fbWm != NULL) && (testCase != NULL))
+    {
+        ctx->logMessage[0] = '\0';
+
+        if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_OPACITY)
+        {
+            RDKWM_TEST_ERROR(("WmExtensionFullOpaqueMode:Unexpected Input param error@%d", __LINE__));
+            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmExtensionFullOpaqueMode :Unexpected Input param error@%d", __LINE__);
+            goto test_fail;
+        }
+        else
+        {
+            RdkWmTestMessage getMsg;
+            RdkTestFbWmClientInfo clientInfo;
+
+            if (testCase->testInputs.prerequisite.condition != RDKWM_TEST_CONDITIONS_NONE)
+            {
+                if(RDKWM_TEST_RESULT_FAIL == rdkWmTestPerformPreCondition(ctx, testCase, RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES))
+                {
+                    RDKWM_TEST_ERROR(("WmExtensionFullOpaqueMode : Error in perform precondition operation error@%d", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmExtensionFullOpaqueMode : Error in performing precondition operation error@%d", __LINE__);
+                    goto test_fail;
+                }
+            }
+
+            /* Get client properties to get the current Opacity */
+            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            {
+                /* Callback message received */
+                memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
+
+                RDKWM_TEST_INFO(("ctx@%p firebolt_wm@.message: client_properties" \
+                    " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                    " crop{x:%f y:%f width:%f height:%f} texture:%d",
+                    ctx, ctx->display.clientName, clientInfo.x, clientInfo.y, clientInfo.width, clientInfo.height,
+                    clientInfo.opacity, clientInfo.zorder, clientInfo.visible,clientInfo.cropX,
+                    clientInfo.cropY, clientInfo.cropWidth,clientInfo.cropHeight,
+                    clientInfo.texture));
+            }
+            else
+            {
+                RDKWM_TEST_ERROR(("WmExtensionFullOpaqueMode %d>:Got Unexpected Message", __LINE__));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmExtensionFullOpaqueMode %d>:Got Unexpected Message", __LINE__);
+                goto test_fail;
+            }
+
+            for(int i=0; (i < testCase->testInputs.u.opacity.numEntries) && (i < RDK_TEST_NUM_ENTRIES_MAXSIZE); i++)
+            {
+                /* Set the new opacity value */
+                firebolt_wm_set_properties(ctx->fbWm, (const char*)ctx->display.clientName, clientInfo.x, clientInfo.y,
+                            clientInfo.width, clientInfo.height, ctx->display.virtualWidth, ctx->display.virtualHeight, wl_fixed_from_double(testCase->testInputs.u.opacity.values[i]),
+                            clientInfo.zorder, clientInfo.visible, wl_fixed_from_double(clientInfo.cropX), wl_fixed_from_double(clientInfo.cropY),
+                            wl_fixed_from_double(clientInfo.cropWidth), wl_fixed_from_double(clientInfo.cropHeight));
+
+                /* Get client properties to get the new zorder */
+                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                {
+                    /* Callback message received */
+                    memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
+
+                    RDKWM_TEST_INFO(("ctx@%p firebolt_wm@.message: client_properties" \
+                        " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                        " crop{x:%f y:%f width:%f height:%f} texture:%d",
+                        ctx, ctx->display.clientName, clientInfo.x, clientInfo.y, clientInfo.width, clientInfo.height,
+                        clientInfo.opacity, clientInfo.zorder, clientInfo.visible,clientInfo.cropX,
+                        clientInfo.cropY, clientInfo.cropWidth,clientInfo.cropHeight,
+                        clientInfo.texture));
+                }
+                else
+                {
+                    RDKWM_TEST_ERROR(("WmExtensionFullOpaqueMode %d>:Got Unexpected Message", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmExtensionFullOpaqueMode %d>:Got Unexpected Message", __LINE__);
+                    goto test_fail;
+                }
+
+                if (clientInfo.opacity != testCase->testInputs.u.opacity.values[i])
+                {
+                    RDKWM_TEST_ERROR(("id:%s failed to get the expected Opacity:%d",
+                        ctx->display.clientName, clientInfo.opacity));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmExtensionFullOpaqueMode: failed to get the expected Opacity:%d error@%d",
+                        clientInfo.opacity, __LINE__);
+                    goto test_fail;
+                }
+
+                if( rdkWmTestVerifyDisplayOutput(60) == false )
+                {
+                    /* Interrupt recieved while waiting */
+                    RDKWM_TEST_ERROR(("Signal recieved"));
+                    ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                    goto test_fail;
+                }
+            }
+            ret = RDKWM_TEST_RESULT_PASS;
+        }
+    }
+    else
+    {
+        RDKWM_TEST_ERROR(("Invalid context!"));
+        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmExtensionFullOpaqueMode :Invalid context! error@%d",__LINE__);
+    }
+test_fail:
+    return ret;
+}
+
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
 
@@ -3773,6 +3915,12 @@ int32_t main(int argc, char** argv)
 
     ctx->display.outputDisplayWidth = ctx->display.displayWidth;
     ctx->display.outputDisplayHeight = ctx->display.displayHeight;
+
+    if(ctx->display.virtualWidth > 0 || ctx->display.virtualHeight > 0)
+    {
+        isVirtualModeEnabled = true;
+    }
+
     /* cURL to activate RDKWindowManager plugin */
     if (!(curlRequestResult = rdkWmTestCurlRequest(
         RDKWM_TEST_ACTIVATE_METHOD,
