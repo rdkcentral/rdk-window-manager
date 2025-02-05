@@ -4248,26 +4248,6 @@ static int rdkWmTestExtractIdFromCurlResponse(const std::string& response, const
     return !idStr.empty() ? atoi(idStr.c_str()) : 0;
 }
 
-static std::string rdkWmTestGetClientsList(const std::string& result)
-{
-    const char* clientsStart = strstr(result.c_str(), "\"clients\":[");
-    const char* clientsEnd;
-    std::string clientList;
-
-    if (clientsStart)
-{
-        clientsStart += strlen("\"clients\":[");
-        clientsEnd = strchr(clientsStart, ']');
-        if (clientsEnd) {
-            clientList = std::string(clientsStart, clientsEnd - clientsStart);
-        } else {
-            RDKWM_TEST_ERROR(("Failed to find end of clients array"));
-        }
-    }
-curl_exit:
-    return clientList;
-}
-
 RdkWmTestCurlMethodEnum rdkWmTestGetMethodEnum(const std::string& method)
 {
     if (method == RDKWM_TEST_GETCLIENTS) {
@@ -4309,10 +4289,8 @@ static std::string rdkWmTestHandleCurlResponse(const std::string& method, CURL* 
         switch (methodEnum) {
             case RDKWM_TEST_GETCLIENTS_ENUM:
             {
-                std::string clientsStr = rdkWmTestGetClientsList(result);
-
-                if (!clientsStr.empty()) {
-                    resultBuffer = clientsStr;
+                if (!result.empty()) {
+                    resultBuffer = result.c_str();
                 } else {
                     RDKWM_TEST_INFO(("No clients found"));
                     resultBuffer = "[Curl response error] No clients found";
@@ -4431,47 +4409,63 @@ bool rdkWmTestCurlRequest(const std::string& method, const std::string& callsign
     writer.Key("params");
     writer.StartObject();
 
-    if (!callsign.empty()) {
-    writer.Key("callsign");
-    writer.String(callsign.c_str());
-    }
-
     /* Handle param_value based on param_type */
     switch (thunderPlugin) {
         case RDKWM_TEST_PARAM_TYPE_NONE: {
+            if (!callsign.empty()) {
+            writer.Key("callsign");
+            writer.String(callsign.c_str());
+            }
             RDKWM_TEST_ERROR(("No additional parameters to add"));
             break;
          }
+
         case RDKWM_TEST_PARAM_TYPE_CREATEDISPLAY: {
             RDKWM_TEST_ERROR(("Fill additional params createDisplay"));
+
+            /* Construct displayParams as a JSON string */
+            rapidjson::StringBuffer nestedBuffer;
+            rapidjson::Writer<rapidjson::StringBuffer> nestedWriter(nestedBuffer);
+
+            nestedWriter.StartObject();
             RdkWmTestWmDisplay* displayProperties = static_cast<RdkWmTestWmDisplay*>(thunderPluginParams);
 
-            writer.Key("client");
-            writer.String(displayProperties->clientName);
+            nestedWriter.Key("client");
+            nestedWriter.String(displayProperties->clientName);
 
-            writer.Key("displayName");
-            writer.String(displayProperties->displayName);
+            if (!callsign.empty()) {
+            nestedWriter.Key("callsign");
+            nestedWriter.String(callsign.c_str());
+            }
 
-            writer.Key("displayWidth");
-            writer.Uint(displayProperties->displayWidth);
+            nestedWriter.Key("displayName");
+            nestedWriter.String(displayProperties->displayName);
 
-            writer.Key("displayHeight");
-            writer.Uint(displayProperties->displayHeight);
+            nestedWriter.Key("displayWidth");
+            nestedWriter.Uint(displayProperties->displayWidth);
 
-            writer.Key("virtualDisplay");
-            writer.Bool(displayProperties->virtualDisplay);
+            nestedWriter.Key("displayHeight");
+            nestedWriter.Uint(displayProperties->displayHeight);
 
-            writer.Key("virtualWidth");
-            writer.Uint(displayProperties->virtualWidth);
+            nestedWriter.Key("virtualDisplay");
+            nestedWriter.Bool(displayProperties->virtualDisplay);
 
-            writer.Key("virtualHeight");
-            writer.Uint(displayProperties->virtualHeight);
+            nestedWriter.Key("virtualWidth");
+            nestedWriter.Uint(displayProperties->virtualWidth);
 
-            writer.Key("topmost");
-            writer.Bool(displayProperties->topmost);
+            nestedWriter.Key("virtualHeight");
+            nestedWriter.Uint(displayProperties->virtualHeight);
 
-            writer.Key("focus");
-            writer.Bool(displayProperties->focus);
+            nestedWriter.Key("topmost");
+            nestedWriter.Bool(displayProperties->topmost);
+
+            nestedWriter.Key("focus");
+            nestedWriter.Bool(displayProperties->focus);
+            nestedWriter.EndObject();
+
+            /* Add stringified displayParams */
+            writer.Key("displayParams");
+            writer.String(nestedBuffer.GetString());
             break;
         }
         default: {
