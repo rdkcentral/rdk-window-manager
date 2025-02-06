@@ -51,7 +51,6 @@ namespace RdkWindowManager
 
         glUseProgram(mShaderProgram);
         glEnable(GL_BLEND); //Enable Alpha Blending
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Set the blend function
         glUniform1f(mAlphaLocation, alpha); // Set the alpha value
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo->texture());
@@ -122,17 +121,17 @@ namespace RdkWindowManager
             "  v_uv = a_uv; \n"
             "} \n";
 
-        const char* fragmentShaderSource =
-            "precision lowp float; \n"
-            "varying vec2 v_uv; \n"
-            "uniform sampler2D s_texture; \n"
-            "uniform float u_alpha; \n"  // Added uAlpha uniform
-            "void main() \n"
-            "{ \n"
-            "  vec4 texColor = texture2D(s_texture, v_uv); \n"
-            "  gl_FragColor = vec4(texColor.rgb, texColor.a * u_alpha); \n" // Multiply the alpha value
+        const char *fragmentShaderSource =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "uniform sampler2D s_texture;\n"
+            "uniform float u_alpha;\n"
+            "varying vec2 v_uv;\n"
+            "void main()\n"
+            "{\n"
+            "  gl_FragColor = texture2D(s_texture, v_uv) * u_alpha;\n"
             "}\n";
-        
         GLint status;
 
         GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
