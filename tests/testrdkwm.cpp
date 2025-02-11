@@ -315,7 +315,7 @@ static RdkWmTestcase gRdkWmTests[] = {
            { "testFireboltSurfaceExtensionVideoPinHoleFixedSize",
              "Test firebolt_surface extension the video surface undergoes the hole punch",
             testFireboltSurfaceExtensionVideoPinHole,
-           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
+           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH,
               .u={.surface={ .opacity= 1, .width = 512 , .height = 512 }},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
                                    .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO, .surfaceId = 1}}}
@@ -323,7 +323,7 @@ static RdkWmTestcase gRdkWmTests[] = {
            { "testFireboltSurfaceExtensionVideoPinHoleAtResolution",
              "Test firebolt_surface extension the video surface undergoes the hole punch for full screen resolution",
             testFireboltSurfaceExtensionVideoPinHole,
-           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
+           {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH,
               .u={.surface={ .opacity= 1}},
               .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE|RDKWM_TEST_CONVERT_SURFACE_TYPE,
                                    .property = {.visible = 1, .surfaceType = FIREBOLT_SHELL_FIREBOLT_SURFACE_TYPE_VIDEO, .surfaceId = 1}}}
@@ -363,7 +363,6 @@ static bool rdkWmTestDestroyMessageQueue(RdkWmTestAppCtx *ctx, const char *msgQu
 static bool rdkWmTestSendMessage(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, uint32_t timeoutInMilliSecs);
 static bool rdkWmTestReceiveMessage(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, uint32_t timeoutInMilliSecs);
 static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileType);
-static struct timespec rdkWmgetTimeSpecValue(unsigned long millisec);
 
 static bool RDKWmtestSetupGraphics(RdkWmTestAppCtx *ctx);
 static int RDKWmtestTermGraphics(RdkWmTestAppCtx *ctx);
@@ -684,10 +683,10 @@ static RdkWmTestReturnStatus rdkWmTestUpdatePropertiesStates(RdkWmTestAppCtx *ct
         RdkTestFbWmClientInfo *clientInfo = (RdkTestFbWmClientInfo *)property;
 
         ctx->display.isHidden = (clientInfo->visible == 0);
-        ctx->display.isTransparent = (clientInfo->opacity == 0);
+        ctx->display.isTransparent = (clientInfo->opacity == 0.f);
 
-        if (clientInfo->cropX == 0 && clientInfo->cropY == 0 &&
-            clientInfo->cropWidth == 0 && clientInfo->cropHeight == 0)
+        if (clientInfo->cropX == 0.f && clientInfo->cropY == 0.f &&
+            clientInfo->cropWidth == 0.f && clientInfo->cropHeight == 0.f)
         {
             ctx->display.isCropMode = false;
         }
@@ -716,9 +715,11 @@ static RdkWmTestReturnStatus rdkWmTestUpdatePropertiesStates(RdkWmTestAppCtx *ct
         ctx->display.surface.isHidden = (surfaceInfo->visible == 0);
         ctx->display.surface.isTransparent = (surfaceInfo->opacity == 0);
 
-        if (surfaceInfo->cropX == 0 && surfaceInfo->cropY == 0 &&
-            (surfaceInfo->cropWidth == 0 && surfaceInfo->cropHeight == 0) && 
-            (surfaceInfo->cropWidth == RDKWM_TEST_RESOLUTION_DEFAULT_SURFACE_WIDTH&& surfaceInfo->cropHeight == RDKWM_TEST_RESOLUTION_DEFAULT_SURFACE_HEIGHT)) {
+        if (surfaceInfo->cropX == 0.f && surfaceInfo->cropY == 0.f &&
+            ((surfaceInfo->cropWidth == 0.f && surfaceInfo->cropHeight == 0.f) || 
+            (surfaceInfo->cropWidth == (float)RDKWM_TEST_RESOLUTION_DEFAULT_SURFACE_WIDTH && \
+            surfaceInfo->cropHeight == (float)RDKWM_TEST_RESOLUTION_DEFAULT_SURFACE_HEIGHT)))
+        {
             ctx->display.surface.isCropMode = false;
         }
         else
@@ -1411,7 +1412,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
             }
 
             /* Get current surface properties and by default the visiblity will be set as 1 */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1430,7 +1431,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1442,7 +1443,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
                     ctx->display.clientName, ctx, ctx->fbWm, surfaceInfo.visible));
 
             firebolt_surface_set_visible(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceType, surfaceInfo.visible);
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1450,8 +1451,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1471,7 +1472,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1483,7 +1484,6 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionToggleVisibility(RdkWmTestAppC
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf( ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetVisibility :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -1539,7 +1539,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
             if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_BOUNDS)
             {
                 /* Get current surface properties and store boundary values*/
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
                 {
                     /* Callback message received */
                     memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1547,8 +1547,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                             " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                             " crop{x:%f y:%f width:%f height:%f} name:%s",
                             ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                             surfaceInfo.name));
                     storeDefaultSurfaceInfo = surfaceInfo;
                 }
@@ -1560,7 +1560,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                 }
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1572,7 +1572,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                 testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
 
             /* Get current surface properties and store boundary values*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1580,8 +1580,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1607,7 +1607,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
             }
 
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1624,7 +1624,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                 storeDefaultSurfaceInfo.x, storeDefaultSurfaceInfo.y, storeDefaultSurfaceInfo.width, storeDefaultSurfaceInfo.height);
 
             /* Get current surface properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1632,8 +1632,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1649,7 +1649,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetBoundary(RdkWmTestAppCtx *c
              {
                     RDKWM_TEST_INFO(("SurfaceExtensionSetBounds %d>:Got Expected Value", __LINE__));
 
-                    if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                    if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                     {
                         RDKWM_TEST_ERROR(("Signal recieved"));
                         ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1671,7 +1671,6 @@ test_pass:
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetBounds :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -1726,7 +1725,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetName(RdkWmTestAppCtx *ctx,R
 
             firebolt_surface_set_name(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId, testCase->testInputs.u.surface.name);
             /* Get current surface properties to retrive the surface name*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1734,8 +1733,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetName(RdkWmTestAppCtx *ctx,R
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1748,9 +1747,9 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetName(RdkWmTestAppCtx *ctx,R
             /* Ensure the Available name matches with the input surface name */
             if (strcmp(surfaceInfo.name, testCase->testInputs.u.surface.name) != 0)
             {
-                RDKWM_TEST_ERROR(("id:%s failed to get the expected surface name:%X",
+                RDKWM_TEST_ERROR(("id:%s failed to get the expected surface name:%s",
                     ctx->display.clientName, surfaceInfo.name));
-                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetName: failed to get the expected surface name:%X error@%d", 
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetName: failed to get the expected surface name:%s error@%d", 
                     surfaceInfo.name, __LINE__);
                 goto test_fail;
             }
@@ -1760,7 +1759,6 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetName(RdkWmTestAppCtx *ctx,R
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetName :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -1816,7 +1814,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
             if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_CROP)
             {
                 /* Get current surface properties and store boundary values*/
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
                 {
                     /* Callback message received */
                     memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1824,8 +1822,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                             " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                             " crop{x:%f y:%f width:%f height:%f} name:%s",
                             ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                             surfaceInfo.name));
                     storeDefaultSurfaceInfo = surfaceInfo;
                 }
@@ -1837,7 +1835,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                 }
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1849,7 +1847,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                 wl_fixed_from_int(testCase->testInputs.u.surface.width), wl_fixed_from_int(testCase->testInputs.u.surface.height));
 
             /* Get current surface properties and store boundary values*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1857,8 +1855,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1881,7 +1879,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1897,7 +1895,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                 wl_fixed_from_double(storeDefaultSurfaceInfo.cropX),wl_fixed_from_double( storeDefaultSurfaceInfo.cropY),
                 wl_fixed_from_double(storeDefaultSurfaceInfo.cropWidth), wl_fixed_from_double(storeDefaultSurfaceInfo.cropHeight));
             /* Get current surface properties and store boundary values*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -1905,8 +1903,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -1919,7 +1917,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetCrop(RdkWmTestAppCtx *ctx,R
                 && (surfaceInfo.cropWidth == storeDefaultSurfaceInfo.cropWidth) && (surfaceInfo.cropHeight== storeDefaultSurfaceInfo.cropHeight))
             {
                     RDKWM_TEST_INFO(("SurfaceExtensionSetCrop %d>:Got Expected Value", __LINE__));
-                    if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                    if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                     {
                         RDKWM_TEST_ERROR(("Signal recieved"));
                         ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -1941,7 +1939,6 @@ test_pass:
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetCrop :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -1992,7 +1989,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx
                 }
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2001,7 +1998,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx
 
             firebolt_surface_set_zorder(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,wl_fixed_from_int(testCase->testInputs.u.surface.zOrder));
             /* Get current surface properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -2009,8 +2006,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -2030,7 +2027,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2042,7 +2039,6 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetZorder(RdkWmTestAppCtx *ctx
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetZorder :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -2093,7 +2089,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
                 }
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2102,7 +2098,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
 
             firebolt_surface_set_opacity(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,wl_fixed_from_double(testCase->testInputs.u.surface.opacity));
             /* Get current surface properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -2110,8 +2106,8 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
                         " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                         " crop{x:%f y:%f width:%f height:%f} name:%s",
                         ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                        surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                        surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                         surfaceInfo.name));
             }
             else
@@ -2131,7 +2127,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2143,7 +2139,6 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionSetOpacity(RdkWmTestAppCtx *ct
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionSetOpacity :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -2170,8 +2165,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *
     if ((NULL != ctx) && (ctx->fbSurface != NULL) && (testCase != NULL))
     {
         ctx->logMessage[0] = '\0';
-
-        if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH)
+        if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH)
         {
             RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole :Unexpected Input param error@%d", __LINE__));
             snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole :Unexpected Input param error@%d", __LINE__);
@@ -2198,10 +2192,10 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *
                     goto test_fail;
                 }
             }
-            if (testCase->testInputs.inputParamType == RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH)
+            if (testCase->testInputs.inputParamType == RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH)
             {
                 /* Get current surface properties and store boundary values*/
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                if (true == rdkWmGetProperties(ctx, &getMsg, RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES, testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
                 {
                     /* Callback message received */
                     memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
@@ -2209,84 +2203,81 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *
                             " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
                             " crop{x:%f y:%f width:%f height:%f} name:%s",
                             ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                            surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                            surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
                             surfaceInfo.name));
                     storeDefaultSurfaceInfo = surfaceInfo;
+                    /* Disable crop */
+                    firebolt_surface_set_crop(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId, 0,0,0,0);
+
+                    if((testCase->testInputs.u.surface.width != 0) || (testCase->testInputs.u.surface.height != 0))
+                    {
+                        /* set the new boundary values */
+                        firebolt_surface_set_bounds(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,
+                            testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
+
+                        /* Get current surface properties and store boundary values*/
+                        if (true == rdkWmGetProperties(ctx, &getMsg, RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES, testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                        {
+                            /* Callback message received */
+                            memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
+                            RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
+                                    " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
+                                    " crop{x:%f y:%f width:%f height:%f} name:%s",
+                                    ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
+                                    surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
+                                    surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
+                                    surfaceInfo.name));
+                        }
+                        else
+                        {
+                            RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>: Got unexpected event message", __LINE__));
+                            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>: Got unexpected event message", __LINE__);
+                            goto test_fail;
+                        }
+
+                        /* Compare the received boundary values are not equal to the previous value */
+                        if ((surfaceInfo.x ==testCase->testInputs.u.surface.x) && (surfaceInfo.y == testCase->testInputs.u.surface.y)\
+                            && (surfaceInfo.width == testCase->testInputs.u.surface.width) && (surfaceInfo.height == testCase->testInputs.u.surface.height))
+                        {
+                            RDKWM_TEST_INFO(("SurfaceExtensionVideoPinHole %d>:Got Expected Value", __LINE__));
+                        }
+                        else
+                        {
+                            RDKWM_TEST_ERROR(("id:%s failed to get the expected bounds:%d:%d:%d:%d",
+                                ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height));
+                            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole: failed to get the expected bounds:%d:%d:%d:%d error@%d", surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height, __LINE__);
+                            goto test_fail;
+                        }
+                    }
                 }
                 else
                 {
-                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionholepunch %d>:Got Unexpected Message", __LINE__);
+                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>: Got Unexpected Message", __LINE__));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>: Got Unexpected Message", __LINE__);
                     goto test_fail;
                 }
 
+                if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
+                {
+                    RDKWM_TEST_ERROR(("Signal recieved"));
+                    ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                    goto test_fail;
+                }
             }
             else
             {
-                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Input Parameter", __LINE__));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionholepunch %d>:Got Unexpected Input Parameter", __LINE__);
-                    goto test_fail;
-            }
-	    /* Disable crop */
-            firebolt_surface_set_crop(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId, 0,0,0,0);
-
-            if((testCase->testInputs.u.surface.width != 0) || (testCase->testInputs.u.surface.height != 0))
-            {
-                /* set the new boundary values */
-                firebolt_surface_set_bounds(ctx->fbSurface, testCase->testInputs.prerequisite.property.surfaceId,
-                    testCase->testInputs.u.surface.x, testCase->testInputs.u.surface.y, testCase->testInputs.u.surface.width, testCase->testInputs.u.surface.height);
-
-                /* Get current surface properties and store boundary values*/
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBSURFACE_CB_PROPERTIES,testCase->testInputs.prerequisite.property.surfaceId,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
-                {
-                    /* Callback message received */
-                    memcpy(&surfaceInfo, &getMsg.u.fbSurfaceInfo, sizeof(RdkTestFbSurfaceInfo));
-                    RDKWM_TEST_INFO(("ctx@%p firebolt_surface@.message: surface_properties" \
-                            " {id:%s x:%d y:%d width:%u height:%u opacity:%f zorder:%d visible:%u}" \
-                            " crop{x:%f y:%f width:%f height:%f} name:%s",
-                            ctx, ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height,
-                                surfaceInfo.opacity, surfaceInfo.zorder, surfaceInfo.visible, surfaceInfo.cropX,
-                                surfaceInfo.cropY, surfaceInfo.cropWidth, surfaceInfo.cropHeight,
-                            surfaceInfo.name));
-                }
-                else
-                {
-                    RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>:Got Unexpected Message", __LINE__);
-                    goto test_fail;
-                }
-
-                /* Compare the received boundary values are not equal to the previous value */
-                if ((surfaceInfo.x ==testCase->testInputs.u.surface.x) && (surfaceInfo.y == testCase->testInputs.u.surface.y)\
-                    && (surfaceInfo.width == testCase->testInputs.u.surface.width) && (surfaceInfo.height == testCase->testInputs.u.surface.height))
-                 {
-                        RDKWM_TEST_INFO(("SurfaceExtensionVideoPinHole %d>:Got Expected Value", __LINE__));
-                 }
-                else
-                {
-                    RDKWM_TEST_ERROR(("id:%s failed to get the expected bounds:%d:%d:%d:%d",
-                        ctx->display.clientName, surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole: failed to get the expected bounds:%d:%d:%d:%d error@%d", surfaceInfo.x, surfaceInfo.y, surfaceInfo.width, surfaceInfo.height, __LINE__);
-                    goto test_fail;
-                }
-            }
-
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
-            {
-                RDKWM_TEST_ERROR(("Signal recieved"));
-                ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                RDKWM_TEST_ERROR(("SurfaceExtensionVideoPinHole %d>: Got Unexpected Input Parameter", __LINE__));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "SurfaceExtensionVideoPinHole %d>: Got Unexpected Input Parameter", __LINE__);
                 goto test_fail;
             }
 
-test_pass:
             ret = RDKWM_TEST_RESULT_PASS;
         }
     }
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"SurfaceExtensionVideoPinHole :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -2343,7 +2334,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionToggleVisibility(RdkWmTestAppCtx *c
             }
 
             /* Get client properties  and by default the visiblity will be set as 1*/
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2380,7 +2371,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionToggleVisibility(RdkWmTestAppCtx *c
                         wl_fixed_from_double(clientInfo.cropWidth), wl_fixed_from_double(clientInfo.cropHeight));
 
             /* Get client properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2400,7 +2391,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionToggleVisibility(RdkWmTestAppCtx *c
                     goto test_fail;
                 }
                 
-                if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                 {
                     RDKWM_TEST_ERROR(("Signal recieved"));
                     ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2420,7 +2411,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionToggleVisibility(RdkWmTestAppCtx *c
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetVisibility :Invalid context! error@ ",__LINE__);
     }
 
 test_fail:
@@ -2475,9 +2465,9 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
                 }
             }
             if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_SET_BOUNDS)
-           {
+            {
                 /* Get client properties to toggle */
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
                 {
                     /* Callback message received */
                     memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2498,7 +2488,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
                     goto test_fail;
                 }
             }
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2535,7 +2525,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
             }
             ctx->display.bNotifyOutputModeEvent = false;
             /* Get client properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2563,7 +2553,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
                     storeDefaultclientInfo.x, storeDefaultclientInfo.y, storeDefaultclientInfo.width, storeDefaultclientInfo.height, clientInfo.x,clientInfo.y,clientInfo.width, clientInfo.height, __LINE__);
                     goto test_fail;
                 }
-                if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                 {
                     RDKWM_TEST_ERROR(("Signal recieved"));
                     ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2610,7 +2600,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
             ctx->display.bNotifyOutputModeEvent = false;
 
             /* Get client properties */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2633,7 +2623,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
                         storeDefaultclientInfo.x, storeDefaultclientInfo.y, storeDefaultclientInfo.width, storeDefaultclientInfo.height, clientInfo.x,clientInfo.y,clientInfo.width, clientInfo.height, __LINE__);
                         goto test_fail;
                     }
-                    if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                    if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                     {
                         RDKWM_TEST_ERROR(("Signal recieved"));
                         ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2649,16 +2639,16 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetBounds(RdkWmTestAppCtx *ctx, Rdk
 test_pass:
             ret = RDKWM_TEST_RESULT_PASS ;
         }
+
+test_fail:
+        if (ctx->display.bNotifyOutputModeEvent)
+        {
+            ctx->display.bNotifyOutputModeEvent = false;
+        }
     }
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionGetSetBounds :Invalid context! error@%d",__LINE__);
-    }
-test_fail:
-    if (ctx->display.bNotifyOutputModeEvent)
-    {
-        ctx->display.bNotifyOutputModeEvent = false;
     }
 
     return ret;
@@ -2691,7 +2681,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionGetClients(RdkWmTestAppCtx *ctx,Rdk
         ctx->logMessage[0] = '\0';
 
         /* Get clients */
-        if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_GET_CLIENTS,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+        if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_GET_CLIENTS,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
         {
             /* Callback message received */
             RDKWM_TEST_INFO(("ctx@%p firebolt_wm@.message: clients" \
@@ -2725,7 +2715,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionGetClients(RdkWmTestAppCtx *ctx,Rdk
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionGetClients :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -2783,14 +2772,14 @@ RdkWmTestReturnStatus testFireboltWmExtensionFocusedClient(RdkWmTestAppCtx *ctx,
                 firebolt_wm_set_client_focus(ctx->fbWm, ctx->display.clientName);
             }
             /* Get Focused Client */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_FOCUSED_CLIENT,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_FOCUSED_CLIENT,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 RDKWM_TEST_INFO(("ctx@%p firebolt_wm@.message: clients" \
                     " clients id:%s , clients %s ",
                     ctx, ctx->display.clientName,getMsg.u.fbWmClients));
 
-                if(getMsg.u.fbWmClients == NULL)
+                if(strlen(getMsg.u.fbWmClients) == 0)
                 {
                     RDKWM_TEST_ERROR(("id:%s Failed to get focused client:%s got client:%s ",
                        ctx->display.clientName,ctx->display.clientName ,getMsg.u.fbWmClients ));
@@ -2807,7 +2796,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionFocusedClient(RdkWmTestAppCtx *ctx,
                         goto test_fail;
                     }
                 }
-                if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                 {
                     RDKWM_TEST_ERROR(("Signal recieved"));
                     ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2826,7 +2815,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionFocusedClient(RdkWmTestAppCtx *ctx,
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionGetClients :Invalid context! error@%d",__LINE__);
     }
 test_fail:
     return ret;
@@ -2877,7 +2865,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx,RdkW
             }
 
             /* Get client properties to get the current zorder */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2897,7 +2885,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx,RdkW
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -2910,7 +2898,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx,RdkW
                         wl_fixed_from_double(clientInfo.cropWidth), wl_fixed_from_double(clientInfo.cropHeight));
 
             /* Get client properties to get the new zorder */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -2939,7 +2927,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx,RdkW
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 /* Interrupt recieved while waiting */
                 RDKWM_TEST_ERROR(("Signal recieved"));
@@ -2952,7 +2940,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetZorder(RdkWmTestAppCtx *ctx,RdkW
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetZOrder :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -3004,7 +2991,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx,Rdk
             }
 
             /* Get client properties to get the current Opacity */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -3024,7 +3011,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx,Rdk
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -3039,7 +3026,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx,Rdk
                             wl_fixed_from_double(clientInfo.cropWidth), wl_fixed_from_double(clientInfo.cropHeight));
 
                 /* Get client properties to get the new zorder */
-                if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+                if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
                 {
                     /* Callback message received */
                     memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -3061,14 +3048,14 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx,Rdk
 
                 if (clientInfo.opacity != testCase->testInputs.u.opacity.values[i])
                 {
-                    RDKWM_TEST_ERROR(("id:%s failed to get the expected Opacity:%d",
+                    RDKWM_TEST_ERROR(("id:%s failed to get the expected Opacity:%f",
                         ctx->display.clientName, clientInfo.opacity));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetOpacity: failed to get the expected Opacity:%d error@%d",
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetOpacity: failed to get the expected Opacity:%f error@%d",
                         clientInfo.opacity, __LINE__);
                     goto test_fail;
                 }
 
-                if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+                if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
                 {
                     /* Interrupt recieved while waiting */
                     RDKWM_TEST_ERROR(("Signal recieved"));
@@ -3082,7 +3069,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx,Rdk
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetOpacity :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -3134,7 +3120,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx,RdkWmT
             }
 
             /* Get client properties to get the current zorder */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -3154,7 +3140,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx,RdkWmT
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
@@ -3167,7 +3153,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx,RdkWmT
                         wl_fixed_from_double(testCase->testInputs.u.wmProperties.width), wl_fixed_from_double(testCase->testInputs.u.wmProperties.height));
 
             /* Get client properties to get the new crop values */
-            if ( true == rdkWmGetProperties (ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_PROPERTIES,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
             {
                 /* Callback message received */
                 memcpy(&clientInfo, &getMsg.u.fbWmClientInfo, sizeof(RdkTestFbWmClientInfo));
@@ -3197,7 +3183,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx,RdkWmT
                 goto test_fail;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 /* Interrupt recieved while waiting */
                 RDKWM_TEST_ERROR(("Signal recieved"));
@@ -3210,7 +3196,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx,RdkWmT
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetCrop :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
@@ -3249,7 +3234,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
         }
         else
         {
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                  /* Interrupt recieved while waiting */
                  RDKWM_TEST_ERROR(("Signal recieved"));
@@ -3264,14 +3249,14 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
                 ret = RDKWM_TEST_RESULT_PASS;
             }
 
-            if( rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false )
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
             {
                 /* Interrupt recieved while waiting */
                 RDKWM_TEST_ERROR(("Signal recieved"));
                 ret = RDKWM_TEST_RESULT_FORCE_STOP ;
                 goto test_fail;
             }
-            /* Disable virtual display to ensure it’s not active for other test cases */
+            /* Disable virtual display to ensure not active for other test cases */
             firebolt_wm_set_client_display_bounds(ctx->fbWm, (const char*)ctx->display.clientName, 0, 0);
             isVirtualModeEnabled= false;
         }
@@ -3279,7 +3264,6 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestApp
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetClientDisplayBounds :Invalid context! error@%d",__LINE__);
     }
 test_fail:
     return ret;
@@ -3366,9 +3350,9 @@ RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx
 
                 if (clientInfo.opacity != testCase->testInputs.u.opacity.values[i])
                 {
-                    RDKWM_TEST_ERROR(("id:%s failed to get the expected Opacity:%d",
+                    RDKWM_TEST_ERROR(("id:%s failed to get the expected Opacity:%f",
                         ctx->display.clientName, clientInfo.opacity));
-                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmExtensionFullOpaqueMode: failed to get the expected Opacity:%d error@%d",
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmExtensionFullOpaqueMode: failed to get the expected Opacity:%f error@%d",
                         clientInfo.opacity, __LINE__);
                     goto test_fail;
                 }
@@ -3387,12 +3371,10 @@ RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmExtensionFullOpaqueMode :Invalid context! error@%d",__LINE__);
     }
 test_fail:
     return ret;
 }
-
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
 
@@ -3461,19 +3443,10 @@ RdkWmTestReturnStatus testWmThunderPluginGetClients(RdkWmTestAppCtx *ctx,RdkWmTe
     else
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
-        snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmThunderPluginGetClients :Invalid context! error@%d",__LINE__);
     }
 
 test_fail:
     return ret;
-}
-
-struct timespec rdkWmgetTimeSpecValue(unsigned long millisec)
-{
-    struct timespec req;
-    req.tv_sec=  (time_t)(millisec/RDKWM_TEST_MILLISEC_PER_SECOND);
-    req.tv_nsec = (millisec % RDKWM_TEST_MILLISEC_PER_SECOND) * RDKWM_TEST_NSEC_PER_MILLISEC;
-    return req;
 }
 
 static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileType)
@@ -3482,19 +3455,19 @@ static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileTy
     bool ret = false;
     if (RDKWM_TEST_REPORT_FORMAT_PLAIN_TEXT == fileType)
     {
-         struct stat sb;
-
-         if (stat(RDKWM_TESTAPP_REPORT_PATH, &sb) != 0)
-         {
-            if (0 != mkdir(RDKWM_TESTAPP_REPORT_PATH, 0644))
+        struct stat sb;
+        int fd = -1;
+        if (mkdir(RDKWM_TESTAPP_REPORT_PATH, 0644) != 0)
+        {    
+            /* Check if the error is due to the directory already existing */
+            if (errno != EEXIST)
             {
-                RDKWM_TEST_ERROR(("failed to create report directory - %s", RDKWM_TESTAPP_REPORT_PATH ));
+                RDKWM_TEST_ERROR(("failed to create report directory - %s", RDKWM_TESTAPP_REPORT_PATH));
                 goto report_fail;
             }
-         }
+        }
         sprintf(path, "%s/%s_%s_%u.txt",RDKWM_TESTAPP_REPORT_PATH, RDKWM_TESTAPP_NAME,ctx->display.clientName, getpid());
         FILE* fp = fopen(path, "w");
-        int fd = -1;
 
         if (NULL == fp)
         {
@@ -3507,32 +3480,31 @@ static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileTy
 
             RDKWM_TEST_INFO(("-----------------------------------------------------------------------------"));
             RDKWM_TEST_INFO(("Total test Count: %d", ctx->testList.size()));
-            RDKWM_TEST_INFO(("Passed test Count: %d",ctx->passCount));
-            RDKWM_TEST_INFO(("Failure test Count: %d",ctx->failCount));
-            RDKWM_TEST_INFO(("skipped test Count: %d",(ctx->testList.size() - (ctx->failCount+ctx->passCount))));
+            RDKWM_TEST_INFO(("Passed test Count: %d", ctx->passCount));
+            RDKWM_TEST_INFO(("Failure test Count: %d", ctx->failCount));
+            RDKWM_TEST_INFO(("Skipped test Count: %d", (ctx->testList.size() - (ctx->failCount + ctx->passCount))));
 
-            for ( auto& testCase : ctx->testList )
+            for (auto& testCase : ctx->testList)
             {
-                if(testCase.second.runStatus.testResult != RDKWM_TEST_RESULT_UNKNOWN)
+                if (testCase.second.runStatus.testResult != RDKWM_TEST_RESULT_UNKNOWN)
                 {
                     char start[RDKWM_TEST_REPORT_STRING_MAXSIZE];
                     char end[RDKWM_TEST_REPORT_STRING_MAXSIZE];
                     char result[RDKWM_TEST_REPORT_STRING_MAXSIZE];
                     char time[RDKWM_TEST_REPORT_STRING_MAXSIZE];
-                    time_t timeTaken = (time_t )testCase.second.runStatus.testEnd.tv_sec - testCase.second.runStatus.testStart.tv_sec;
+                    long timeTakenSecs = (long)testCase.second.runStatus.testEnd.tv_sec - (long)testCase.second.runStatus.testStart.tv_sec;
 
-                    strftime(start, sizeof start, "%D %T", gmtime(&testCase.second.runStatus.testStart.tv_sec));
-                    strftime(end, sizeof end, "%D %T", gmtime(&testCase.second.runStatus.testEnd.tv_sec));
-                    strftime(time, sizeof time, "%T", gmtime(&timeTaken));
-
+                    strftime(start, sizeof(start), "%D %T", gmtime(&testCase.second.runStatus.testStart.tv_sec));
+                    strftime(end, sizeof(end), "%D %T", gmtime(&testCase.second.runStatus.testEnd.tv_sec));
+                    strftime(time, sizeof(time), "%T", gmtime((const time_t*)&timeTakenSecs));
                     fprintf(fp, "\tTestName case name:%s Result:%s Start:%s - End:%s - TimeTaken:%s\n", testCase.first,
-                                                                            gRdkWmTestResult[testCase.second.runStatus.testResult], start, end, time);
+                                 gRdkWmTestResult[testCase.second.runStatus.testResult], start, end, time);
                     if (!testCase.second.runStatus.message.empty())
                     {
-                        RDKWM_TEST_ERROR(("Failure test Name %s",  testCase.first));
+                        RDKWM_TEST_ERROR(("Failure test Name %s", testCase.first));
 
                         fprintf(fp, "\tLog Message:\n");
-                        for (auto message : testCase.second.runStatus.message)
+                        for (const auto &message : testCase.second.runStatus.message)
                         {
                             fprintf(fp, "\t\t%s \n", message.c_str());
                             RDKWM_TEST_ERROR(("Failure Message %s", message.c_str()));
@@ -3542,12 +3514,12 @@ static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileTy
                     #ifdef RDK_WINDOW_MANAGER_LOGGER
                     if (!testCase.second.runStatus.wmLogMessage.empty())
                     {
-                        RDKWM_TEST_ERROR(("Failure test Name %s",  testCase.first));
+                        RDKWM_TEST_ERROR(("Failure test Name %s", testCase.first));
 
-                        for (auto message : testCase.second.runStatus.wmLogMessage)
+                        for (const auto &message : testCase.second.runStatus.wmLogMessage)
                         {
-                                fprintf(fp, "\t\t%s \n", message.c_str());
-                                RDKWM_TEST_ERROR(("Failure Message %s", message.c_str()));
+                            fprintf(fp, "\t\t%s \n", message.c_str());
+                            RDKWM_TEST_ERROR(("Failure Message %s", message.c_str()));
                         }
                         testCase.second.runStatus.wmLogMessage.clear();
                     }
@@ -3599,7 +3571,7 @@ static long long currentTimeMillis()
     long long timeMillis;
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    timeMillis = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    timeMillis = (long long)tv.tv_sec * 1000LL + ((long long)tv.tv_usec / 1000LL);
     return timeMillis;
 }
 
@@ -3608,10 +3580,10 @@ static void listAllTests()
     uint32_t loop=0;
     RDKWM_TEST_INFO(("List of the test cases"));
     RDKWM_TEST_INFO(("----------------------"));
-    for( loop = 0 ;loop < ((sizeof(gRdkWmTests)/sizeof(RdkWmTestcase))-1) ; loop++ )
+    for(loop = 0; loop < ((sizeof(gRdkWmTests)/sizeof(RdkWmTestcase))-1); loop++)
     {
-        RDKWM_TEST_INFO(("TestCase #%d:%s",loop+1,(char *)gRdkWmTests[loop].name));
-        RDKWM_TEST_INFO(("%s",(char *)gRdkWmTests[loop].desc));
+        RDKWM_TEST_INFO(("TestCase #%d:%s", loop+1, (char *)gRdkWmTests[loop].name));
+        RDKWM_TEST_INFO(("%s", (char *)gRdkWmTests[loop].desc));
     }
 }
 
@@ -3651,7 +3623,7 @@ static void drawFrame(RdkWmTestAppCtx *ctx)
     RdkWmtestRenderGraphics(ctx);
     ctx->frameCallback = wl_surface_frame(ctx->wlSurface);
     wl_callback_add_listener(ctx->frameCallback, &frameListener, ctx);
-    if(ctx->isOpengl)
+    if (ctx->isOpengl)
     {
         eglSwapBuffers(ctx->eglDisplay, ctx->eglSurfaceWindow);
     }
@@ -3666,11 +3638,11 @@ static void drawFrame(RdkWmTestAppCtx *ctx)
 static void fillAllTestDetails(RdkWmTestAppCtx *ctx,bool oneArgFlag)
 {
     uint32_t    loop = 0;
-    for( loop = 0 ; loop < (sizeof(gRdkWmTests)/sizeof(RdkWmTestcase)) ; loop++ )
+    for (loop = 0; loop < (sizeof(gRdkWmTests)/sizeof(RdkWmTestcase)); loop++)
     {
-        if ( gRdkWmTests[loop].name)
+        if (gRdkWmTests[loop].name)
         {
-            if( gRdkWmTests[loop].func )
+            if (gRdkWmTests[loop].func)
             {
                 ctx->testList[(char *)gRdkWmTests[loop].name] = gRdkWmTests[loop];
 #ifdef RDKWM_TEST_DEBUG_TEST_SELECTION
@@ -3691,7 +3663,7 @@ static void fillAllTestDetails(RdkWmTestAppCtx *ctx,bool oneArgFlag)
 #endif
         }
     }
-    if((ctx->testList.empty()) && !oneArgFlag )
+    if((ctx->testList.empty()) && !oneArgFlag)
     {
         RDKWM_TEST_INFO(("Testcases are invalid"));
         showUsage();
@@ -3715,7 +3687,7 @@ static bool rdkWmTestVerifyDisplayOutput(uint32_t waitTimeInSecs)
         continue;
     }
 
-    if ( semReturnValue == -1 )
+    if (semReturnValue == -1)
     {
         if (errno == ETIMEDOUT)
         {
@@ -3899,7 +3871,7 @@ int32_t main(int argc, char** argv)
         }
     }
 
-    if( ctx->testList.empty() )
+    if (ctx->testList.empty())
     {
         /* By default insert all the tests*/
         RDKWM_TEST_INFO(("Selecting all the tests by default"));
@@ -3941,18 +3913,19 @@ int32_t main(int argc, char** argv)
 
     /* cURL to call createDisplay */
     if (!(curlRequestResult = rdkWmTestCurlRequest(
-        RDKWM_TEST_CREATEDISPLAY_METHOD,
-        RDKWM_TEST_CREATEDISPLAY_CALLSIGN,
-        RDKWM_TEST_PARAM_TYPE_CREATEDISPLAY,
-        &ctx->display,
-        RDKWM_TEST_CREATEDISPLAY_REQUEST_ID,
-        createdisplayResponseString))) {
+                                RDKWM_TEST_CREATEDISPLAY_METHOD,
+                                RDKWM_TEST_CREATEDISPLAY_CALLSIGN,
+                                RDKWM_TEST_PARAM_TYPE_CREATEDISPLAY,
+                                &ctx->display,
+                                RDKWM_TEST_CREATEDISPLAY_REQUEST_ID,
+                                createdisplayResponseString)))
+    {
         RDKWM_TEST_ERROR(("HTTP POST request to createdisplay failed: %s", createdisplayResponseString.c_str()));
         goto test_fail;
     }
 
     /* For the Testapp to work, we are assigning clientName to displayName for wl_display_connect to work */
-    if(ctx->display.displayName == "")
+    if (ctx->display.displayName == NULL || strlen(ctx->display.displayName) == 0)
     {
         ctx->display.displayName = ctx->display.clientName;
     }
@@ -4038,7 +4011,7 @@ int32_t main(int argc, char** argv)
         }
         #ifdef RDK_WINDOW_MANAGER_LOGGER
         RdkTestLogMonitorConfig monitorCfg = {RDK_WINDOW_MANAGER_LOGFILE};
-        if(rdkTestLogMonitorInitialize(monitorCfg) == -1)
+        if(rdkTestLogMonitorInitialize(std::move(monitorCfg)) == -1)
         {
             RDKWM_TEST_ERROR(("rdkTestLogMonitorInitialize failed"));
         }
@@ -4096,7 +4069,7 @@ test_help:
     /* RDK WM Test context delete */
     if (NULL != ctx)
     {
-        free(ctx);
+        delete ctx;
         ctx = NULL;
     }
 
@@ -4115,7 +4088,7 @@ static void rdkWmTestDefaultDisplay(RdkWmTestWmDisplay *params)
         return;
     }
 
-    params->clientName[0] = '\0';
+    memset(params->clientName, 0, sizeof(params->clientName));
     params->displayName = "" ;
     params->displayWidth = RDKWM_TEST_RESOLUTION_DEFAULT_DISPLAY_WIDTH;
     params->displayHeight = RDKWM_TEST_RESOLUTION_DEFAULT_DISPLAY_HEIGHT;
@@ -4188,7 +4161,6 @@ static bool rdkWmTestFetchSecurityToken(std::string &token)
 
 static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const std::string& jsonData, const std::string& security_token, struct curl_slist** headers, std::string& response)
 {
-    *headers = curl_slist_append(*headers, "Content-Type: application/json");
     char auth_header[RDKWM_TEST_AUTHORIZATION_HEADER_MAX_SIZE];
 
     if(headers == nullptr)
@@ -4196,7 +4168,8 @@ static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const 
         RDKWM_TEST_ERROR(("Headers is still null"));
         goto curl_exit;
     }
-    
+    *headers = curl_slist_append(*headers, "Content-Type: application/json");
+
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", security_token.c_str());
     if (auth_header[0] == '\0' || security_token.empty())
     {
@@ -4204,14 +4177,14 @@ static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const 
         goto curl_exit;
     }
     *headers = curl_slist_append(*headers, auth_header);
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rdkWmTestWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);     /* Set connection timeout to 5 seconds */
+    (void)curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    (void)curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+    (void)curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
+    (void)curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rdkWmTestWriteCallback);
+    (void)curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);     /* Set connection timeout to 5 seconds */
 
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);    /* Set the total timeout to 10 seconds */
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    (void)curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);    /* Set the total timeout to 10 seconds */
+    (void)curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 
 curl_exit:
     return;
@@ -4361,11 +4334,9 @@ static std::string rdkWmTestSendCurlRequest(const std::string& method, const std
         if (res == CURLE_OPERATION_TIMEDOUT) {
             RDKWM_TEST_ERROR(("curl_easy_perform() timeout: %s", curl_easy_strerror(res)));
             result = "[Curl response error] Curl timedout";
-            goto curl_exit;
         } else {
             RDKWM_TEST_ERROR(("curl_easy_perform() failed: %s", curl_easy_strerror(res)));
             result = "[Curl response error] Curl failed";
-            goto curl_exit;
         }
     } while (attempts < RDKWM_TEST_MAX_CURL_RETRIES);
 
@@ -4556,9 +4527,9 @@ static void wmTestDestroyContext(RdkWmTestAppCtx *ctx)
                 ctx->buffers = NULL;
             }
         }
-        if (ctx->fbWm != NULL && ctx->display.clientName != NULL)
+        if (ctx->fbWm != NULL && strlen(ctx->display.clientName))
         {
-           firebolt_wm_destroy(ctx->fbWm , (const char*)ctx->display.clientName);
+           firebolt_wm_destroy(ctx->fbWm, (const char*)ctx->display.clientName);
            RDKWM_TEST_INFO(("Destroy Client/Display ID %s",ctx->display.clientName));
         }
         if (NULL != ctx->wlCompositor)
@@ -4630,12 +4601,12 @@ static void *rdkWmTestExecutorThreadRoutine(void* param)
         ctx->failCount = 0;
         ctx->passCount = 0;
 
-        for ( auto& testCase : ctx->testList )
+        for (auto& testCase : ctx->testList)
         {
-            if( ( testCase.first ) && ( testCase.second.func ) )
+            if ((testCase.first) && (testCase.second.func))
             {
                 RDKWM_TEST_INFO(("-----------------------------------------------------------------------------"));
-                RDKWM_TEST_INFO(("Running loop:%d test{name:%s func@%p}", loop+1, testCase.first, testCase.second));
+                RDKWM_TEST_INFO(("Running loop:%d test{name:%s func@%p}", loop+1, testCase.first, testCase.second.func));
                 num = setjmp(gTestEnv);
                 if (num == 0)
                 {
@@ -4672,15 +4643,15 @@ static void *rdkWmTestExecutorThreadRoutine(void* param)
                          testCase.second.runStatus.message.push_back(ctx->logMessage);
                     }
 
-                    if ( testResult == RDKWM_TEST_RESULT_FAIL )
+                    if (testResult == RDKWM_TEST_RESULT_FAIL)
                     {
                         ++ctx->failCount;
                     }
-                    else if ( testResult == RDKWM_TEST_RESULT_PASS )
+                    else if (testResult == RDKWM_TEST_RESULT_PASS)
                     {
                         ++ctx->passCount;
                     }
-                    else if( testResult == RDKWM_TEST_RESULT_FORCE_STOP )
+                    else if(testResult == RDKWM_TEST_RESULT_FORCE_STOP)
                     {
                         RDKWM_TEST_WARN(("Exiting the test case due to signal interrupt"));
                         goto ret_fail;
@@ -4699,23 +4670,23 @@ static void *rdkWmTestExecutorThreadRoutine(void* param)
             }
             RDKWM_TEST_INFO(("-----------------------------------------------------------------------------"));
         }
+
+ret_fail:
+        if (!rdkWmTestReport(ctx, RDKWM_TEST_REPORT_FORMAT_PLAIN_TEXT))
+        {
+            RDKWM_TEST_ERROR(("Failure to generate the report file"));
+        }
+
+        RDKWM_TEST_INFO(("Test Executor Routine - exit"));
     }
     else
     {
         RDKWM_TEST_ERROR(("Test Executor Routine - context invalid!"));
     }
-ret_fail:
-    if (NULL != ctx)
-    {
-        if (!rdkWmTestReport(ctx, RDKWM_TEST_REPORT_FORMAT_PLAIN_TEXT))
-        {
-            RDKWM_TEST_ERROR(("Failure to generate the report file"));
-        }
-    }
 
     gTestAppRunning = false;
-    RDKWM_TEST_INFO(("Test Executor Routine - exit"));
-    pthread_exit((void *)ctx->returnStatus);
+    pthread_exit(((NULL != ctx) ? (void *)ctx->returnStatus : (void *)NULL));
+    return NULL;
 }
 
 static bool rdkWmTestCreateExecutorThread(RdkWmTestAppCtx *ctx)
@@ -5057,8 +5028,8 @@ static bool rdkWmTestReceiveMessage(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg,
         }
         else
         {
-            struct   timespec tm;
-            struct   timespec wait;
+            struct timespec tm;
+            struct timespec wait;
 
             clock_gettime(CLOCK_REALTIME, &tm);
             unsigned long totalMilliSeconds;
@@ -5067,10 +5038,10 @@ static bool rdkWmTestReceiveMessage(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg,
             wait.tv_sec  = tm.tv_sec + totalMilliSeconds / 1000;
             wait.tv_nsec = (totalMilliSeconds % 1000) * 1000000;
 
-             RDKWM_TEST_INFO(("mq_timedreceive timed wait for %dms",timeoutInMilliSecs));
+            RDKWM_TEST_INFO(("mq_timedreceive timed wait for %dms",timeoutInMilliSecs));
 
-             /* Receive a message from message queue */
-             bytes = mq_timedreceive(ctx->msgQueueFds[fdIndex], (char *)msg, sizeof(RdkWmTestMessage), NULL, &wait);
+            /* Receive a message from message queue */
+            bytes = mq_timedreceive(ctx->msgQueueFds[fdIndex], (char *)msg, sizeof(RdkWmTestMessage), NULL, &wait);
         }
         if ((ssize_t)-1 == bytes)
         {
@@ -5588,17 +5559,43 @@ err:
     return -1;
 }
 
-static int create_tmpfile_cloexec(char *tmpname)
+static int create_tmpfile_cloexec(char *tmpName)
 {
     int fd;
+    mode_t oldUmask;
 
-    fd = mkstemp(tmpname);
-    if (fd > 0) {
-        fd = set_cloexec_or_close(fd);
-        unlink(tmpname);
+    /* Save the current umask and remove all restrictions */
+    oldUmask = umask(S_IWOTH);
+    fd = mkstemp(tmpName);
+
+    /* Restore the original umask */
+    umask(oldUmask);
+
+    /* Check if mkstemp failed */
+    if(-1 == fd)
+    {
+        RDKWM_TEST_ERROR(("Failed to create tmpfile - %s", tmpName));
+        goto err;
     }
 
+    /* Set fd to close-on-exec or close */
+    fd = set_cloexec_or_close(fd);
+    if(-1 == fd)
+    {
+        RDKWM_TEST_ERROR(("Failed to set CLOEXEC or close fd for %s", tmpName));
+        goto err;
+    }
+
+    /* Unlink the tmpfile */
+    if(0 != unlink(tmpName))
+    {
+        RDKWM_TEST_ERROR(("Failed to unlink tmpfile - %s", tmpName));
+        goto err;
+    }
     return fd;
+
+err:
+    return -1;
 }
 
 static int os_create_anonymous_file(off_t size)
@@ -5668,7 +5665,6 @@ static int createShmBuffer(RdkWmTestAppCtx *ctx, struct wl_buffer **buffer, uint
     if (ctx->data == MAP_FAILED)
     {
         RDKWM_TEST_ERROR(("mmap failed: %m\n"));
-        close(fd);
         goto exit;
     }
 
@@ -5677,7 +5673,7 @@ static int createShmBuffer(RdkWmTestAppCtx *ctx, struct wl_buffer **buffer, uint
     {
         RDKWM_TEST_ERROR(("wl_shm_create_pool failed\n"));
         munmap(ctx->data, size);
-        close(fd);
+        ctx->data = NULL;
         goto exit;
     }
 
@@ -5689,17 +5685,22 @@ static int createShmBuffer(RdkWmTestAppCtx *ctx, struct wl_buffer **buffer, uint
     {
         RDKWM_TEST_ERROR(("wl_shm_pool_create_buffer failed\n"));
         munmap(ctx->data, size);
+        ctx->data = NULL;
         wl_shm_pool_destroy(pool);
-        close(fd);
         goto exit;
     }
 
     result = 0;
 exit:
     if (fd != -1)
+    {
         close(fd);
-    if (result == -1 && ctx->data != MAP_FAILED)
+    }
+    if (result == -1 && (ctx->data != MAP_FAILED) && (NULL !=ctx->data))
+    {
         munmap(ctx->data, size);
+        ctx->data = NULL;
+    }
     return result;
 }
 
@@ -5719,20 +5720,20 @@ static void RdkWmtestRenderGraphics(RdkWmTestAppCtx *ctx)
 
     // Define colors for each vertex
     static const GLfloat colors[6][4] = {
-        { 1, 1, 0, 1.0 },
-        { 0, 1, 1, 1.0 },
-        { 1, 0, 1, 1.0 },
-        { 0, 1, 1, 1.0 },
-        { 1, 0, 1, 1.0 },
-        { 1, 1, 0, 1.0 }
+        { 1.f, 1.f, 0.f, 1.0 },
+        { 0.f, 1.f, 1.f, 1.0 },
+        { 1.f, 0.f, 1.f, 1.0 },
+        { 0.f, 1.f, 1.f, 1.0 },
+        { 1.f, 0.f, 1.f, 1.0 },
+        { 1.f, 1.f, 0.f, 1.0 }
         };
 
     GLfloat angle;
     GLfloat rotation[4][4] = {
-        { 1, 0, 0, 0 },
-        { 0, 1, 0, 0 },
-        { 0, 0, 1, 0 },
-        { 0, 0, 0, 1 }
+        { 1.f, 0.f, 0.f, 0.f },
+        { 0.f, 1.f, 0.f, 0.f },
+        { 0.f, 0.f, 1.f, 0.f },
+        { 0.f, 0.f, 0.f, 1.f }
         };
 
         static const uint32_t speed_div = 5;
@@ -5757,7 +5758,7 @@ static void RdkWmtestRenderGraphics(RdkWmTestAppCtx *ctx)
         glEnableVertexAttribArray(ctx->gl.pos);
         glEnableVertexAttribArray(ctx->gl.col);
 
-            /* Draw the rectangle using two triangles*/
+        /* Draw the rectangle using two triangles*/
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glDisableVertexAttribArray(ctx->gl.pos);

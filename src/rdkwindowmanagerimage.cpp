@@ -72,7 +72,8 @@ namespace RdkWindowManager
     };
 
     Image::Image() : mFileName(), mProgram(0), mVertexShader(0), mFragmentShader(0),
-        mResolutionLocation(0), mPositionLocation(0), mUvLocation(0), mTextureLocation(0), mTexture(0)
+        mResolutionLocation(0), mPositionLocation(0), mUvLocation(0), mTextureLocation(0), mTexture(0),
+        mX(0), mY(0), mWidth(0), mHeight(0)
     {
         initialize();
     }
@@ -85,7 +86,8 @@ namespace RdkWindowManager
         loadLocalFile(fileName);
     }
 
-    Image::Image(const char* imageData, int32_t width, int32_t height) : mWidth(width), mHeight(height)
+    Image::Image(const char* imageData, int32_t width, int32_t height) : mWidth(width), mHeight(height), mTexture(0),
+        mX(0), mY(0), mResolutionLocation(0)
     {
         initialize();
         loadImageData(imageData, mWidth*mHeight);
@@ -344,7 +346,6 @@ namespace RdkWindowManager
         unsigned char *image = nullptr;
         int32_t width = 0;
         int32_t height = 0;
-        bool isPngImage = true;
         success = loadPngFromData(imageData, imageSize, image, width, height); 
         if (success)
         {
@@ -355,8 +356,8 @@ namespace RdkWindowManager
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            glTexImage2D(GL_TEXTURE_2D, 0, (isPngImage)?GL_RGBA:GL_RGB,
-                        width, height, 0, (isPngImage)?GL_RGBA:GL_RGB,
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                        width, height, 0, GL_RGBA,
                         GL_UNSIGNED_BYTE, image);
         }
         free(image);
@@ -424,7 +425,12 @@ namespace RdkWindowManager
 
         unsigned char pngHeader[8];
         memset(pngHeader, 0, sizeof(pngHeader));
-        fread(pngHeader, 1, 8, file);
+        if(fread(pngHeader, 1, 8, file) < (size_t)8)
+        {
+            Logger::log(LogLevel::Error, "png file[%s] header bytes lesser than expected", fileName.c_str());
+            fclose(file);
+            return false;
+        }
         if (png_sig_cmp(pngHeader, 0, 8))
         {
             Logger::log(LogLevel::Error, "not a png file [%s]", fileName.c_str());
@@ -504,13 +510,15 @@ namespace RdkWindowManager
                         }
                         
                         png_read_image(pngPointer, rowPointers);
-
                         png_read_end(pngPointer, NULL);
-
-                        free(rowPointers);
-                        rowPointers = NULL;
                         ret = true;
                     }
+                    else
+                    {
+                        Logger::log(LogLevel::Error, "unable to create memory for image data [%s]", fileName.c_str());
+                    }
+                    free(rowPointers);
+                    rowPointers = NULL;
                 }
                 else
                 {
@@ -535,6 +543,11 @@ namespace RdkWindowManager
     {
         FILE *file;
         int depth;
+        int16_t bitsPerPixel=0, dataOffset=0, compressionMethod=0;
+        int fileOffsets[] = {10, 18, 22, 28, 30};  /* File offsets */
+        size_t sizes[] = {4, 4, 4, 2, 4}; /* fread sizes */
+        void *data[] = {&dataOffset, &width, &height, &bitsPerPixel, &compressionMethod};
+
         file = fopen(fileName.c_str(), "rb");
         if (!file)
         {
@@ -542,11 +555,14 @@ namespace RdkWindowManager
             return false;
         }
 
-        int16_t bitsPerPixel=0, dataOffset=0, compressionMethod=0;
         unsigned char bmpHeader[14];
         memset(bmpHeader, 0, sizeof(bmpHeader));
-        fread(bmpHeader, 1, 14, file);
-
+        if(fread(bmpHeader, 1, 14, file) < (size_t)14)
+        {
+            Logger::log(LogLevel::Error, "bitmap file[%s] header bytes lesser than expected", fileName.c_str());
+            fclose(file);
+            return false;
+        }
         if (memcmp(bmpHeader, "BM", 2) != 0)
         {
             Logger::log(LogLevel::Error, "bitmap file header is not valid %s", fileName.c_str());
@@ -554,20 +570,24 @@ namespace RdkWindowManager
             return false;
         }
 
-        fseek(file, 10, SEEK_SET);
-        fread(&dataOffset, 4, 1, file);
+        for (uint16_t i = 0; i < sizeof(fileOffsets) / sizeof(fileOffsets[0]); i++)
+        {
+            /* Seek to the correct position */
+            if (fseek(file, fileOffsets[i], SEEK_SET) != 0)
+            {
+                Logger::log(LogLevel::Error, "Error seeking to position %d", fileOffsets[i]);
+                fclose(file);
+                return false;
+            }
 
-        fseek(file, 18, SEEK_SET);
-        fread(&width, 4, 1, file);
-
-        fseek(file, 22, SEEK_SET);
-        fread(&height, 4, 1, file);
-
-        fseek(file, 28, SEEK_SET);
-        fread(&bitsPerPixel, 2, 1, file);
-
-        fseek(file, 30, SEEK_SET);
-        fread(&compressionMethod, 4, 1, file);
+            /* Read data from file */
+            if (fread(data[i], sizes[i], 1, file) != 1)
+            {
+                Logger::log(LogLevel::Error, "Error reading data at position %d", fileOffsets[i]);
+                fclose(file);
+                return false;
+            }
+        }
 
         Logger::log(LogLevel::Debug, "Bitmap infoformation: filename[%s] width[%d] height[%d] bitsperpixel[%d] compressionmethod [%d]", fileName.c_str(), width, height, bitsPerPixel, compressionMethod);
 
@@ -615,14 +635,19 @@ namespace RdkWindowManager
             dataPointer = (unsigned char*)(image+((height-i-1)*newRowSize));
             for (int j=0; j<paddedRowSize; j+=3)
             {
-                fseek(file, dataOffset+(i*paddedRowSize) + j, SEEK_SET);
+                (void)fseek(file, dataOffset+(i*paddedRowSize) + j, SEEK_SET);
                 if ((paddedRowSize -j) <  3)
                 {
                     continue;
                 }
                 char pixel[3];
                 memset(pixel, 0, 3);
-                fread(pixel, 1, 3, file);
+                if (fread(pixel, 1, 3, file) < (size_t)3)
+                {
+                    Logger::log(LogLevel::Error, "Error reading data bitmap file [%s]", fileName.c_str());
+                    fclose(file);
+                    return false;
+                }
                 dataPointer[0] = pixel[2];
                 dataPointer[1] = pixel[1];
                 dataPointer[2] = pixel[0];
@@ -736,13 +761,16 @@ namespace RdkWindowManager
                         }
                         
                         png_read_image(pngPointer, rowPointers);
-
                         png_read_end(pngPointer, NULL);
 
-                        free(rowPointers);
-                        rowPointers = NULL;
                         ret = true;
                     }
+                    else
+                    {
+                        Logger::log(LogLevel::Error, "unable to create memory for image data");
+                    }
+                    free(rowPointers);
+                    rowPointers = NULL;
                 }
                 else
                 {

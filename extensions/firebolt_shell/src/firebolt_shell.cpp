@@ -45,7 +45,7 @@ static const struct firebolt_shell_interface fireboltShellInterfaceImpl = {
  *
  */
 FireboltShell::FireboltShell()
-        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap()
+        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap(), mInstance(NULL)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_shell@.FireboltShell: constructor");
@@ -75,6 +75,7 @@ FireboltShellClientInfo* FireboltShell::getFireboltShellClientInfo(wl_resource *
         FireboltShell *fbShellCtx = reinterpret_cast<FireboltShell*>(wl_resource_get_user_data(resource));
         if (NULL != fbShellCtx)
         {
+            std::lock_guard<std::mutex> locker(FireboltShell::mContextLock);
             FireboltShell::ClientListMap::iterator it = fbShellCtx->mClientListMap.find(resource);
             if (it != fbShellCtx->mClientListMap.end()) 
             {
@@ -217,7 +218,7 @@ static void firebolt_shell_resource_destory(struct wl_resource *resource)
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
-                        " firebolt_shell@.resource_destory: resource@%p - incorrect"
+                        " firebolt_shell@.resource_destory: incorrect"
                         " clientInfo@%p resource@%p clientInfo->resource@%p",
                         clientInfo, resource, (clientInfo ? clientInfo->resource : NULL));
             }

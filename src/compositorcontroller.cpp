@@ -54,7 +54,7 @@ namespace RdkWindowManager
 
     struct CompositorInfo
     {
-        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType() {}
+        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), autoDestroy(false), zorder(-1) {}
         std::string name;
         std::shared_ptr<RdkCompositor> compositor;
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
@@ -97,7 +97,7 @@ namespace RdkWindowManager
     struct GenerateKeyEvent
     {
         GenerateKeyEvent(const std::string& client, uint32_t keyCode, uint32_t modifiers, double triggerTime) :
-            client(client) , triggerTime(triggerTime), keyCode(keyCode), modifiers(modifiers) {}
+            client(client), triggerTime(triggerTime), keyCode(keyCode), modifiers(modifiers) {}
         std::string client;
         double triggerTime;
         uint32_t keyCode;
@@ -371,28 +371,18 @@ namespace RdkWindowManager
 
     void updateKeyRepeat()
     {
-        if (gKeyRepeatConfig.enabled)
+        if (gKeyRepeatConfig.enabled && gLastKeyPressStartTime > 0.0) 
         {
-            if (gLastKeyPressStartTime > 0.0)
-            {
-                double currentTime = RdkWindowManager::seconds();
-                if (gLastKeyRepeatTime == 0.0)
-                {
-                    if ((currentTime - gLastKeyPressStartTime) * 1000.0 > gKeyRepeatConfig.initialDelay)
-                    {
-                        CompositorController::onKeyPress(gLastKeyCode, gLastKeyModifiers, gLastKeyMetadata);
-                        gLastKeyRepeatTime = currentTime;
-                    }
-                }
-                else
-                {
-                    if ((currentTime - gLastKeyRepeatTime) * 1000.0 > gKeyRepeatConfig.repeatInterval)
-                    {
-                        CompositorController::onKeyPress(gLastKeyCode, gLastKeyModifiers, gLastKeyMetadata);
-                        gLastKeyRepeatTime = currentTime;
-                    }
-                }
+            double currentTime = RdkWindowManager::seconds();
+            double timeSincePress = (currentTime - gLastKeyPressStartTime);
+            double timeSinceRepeat = (currentTime - gLastKeyRepeatTime);
 
+            /* Check if the initial delay has passed or the repeat interval has passed */
+            if (((gLastKeyRepeatTime == 0.0) && (timeSincePress * 1000.0 > gKeyRepeatConfig.initialDelay)) || \
+                ((gLastKeyRepeatTime != 0.0) && (timeSinceRepeat * 1000.0 > gKeyRepeatConfig.repeatInterval)))
+            {
+                CompositorController::onKeyPress(gLastKeyCode, gLastKeyModifiers, gLastKeyMetadata);
+                gLastKeyRepeatTime = currentTime;
             }
         }
     }
@@ -466,7 +456,7 @@ namespace RdkWindowManager
 
         if (it == gCompositorList.end())
         {
-            it = std::find_if(gTopmostCompositorList.begin(), gTopmostCompositorList.end(), lambda);
+            it = std::find_if(gTopmostCompositorList.begin(), gTopmostCompositorList.end(), std::move(lambda));
 
             if (it == gTopmostCompositorList.end())
             {
@@ -882,7 +872,7 @@ namespace RdkWindowManager
 
     bool CompositorController::generateKey(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::string virtualKey)
     {
-        return generateKey(client, keyCode, flags, virtualKey, 0.0);
+        return generateKey(client, keyCode, flags, std::move(virtualKey), 0.0);
     }
 
     bool CompositorController::generateKey(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::string virtualKey, double duration)
@@ -901,8 +891,8 @@ namespace RdkWindowManager
 
         if (client.empty())
         {
-	    CompositorController::onKeyPress(code, modifiers, 0, false);
-	    if (duration == 0.0)
+            CompositorController::onKeyPress(code, modifiers, 0, false);
+            if (duration == 0.0)
             {
                 CompositorController::onKeyRelease(code, modifiers, 0, false);
             }
@@ -921,7 +911,7 @@ namespace RdkWindowManager
                 if (it->compositor != nullptr)
                 {
                     it->compositor->onKeyPress(code, modifiers, 0);
-		    if (duration == 0.0)
+                    if (duration == 0.0)
                     {
                         it->compositor->onKeyRelease(code, modifiers, 0);
                     }
@@ -1046,6 +1036,7 @@ namespace RdkWindowManager
         }
         return false;
     }
+
     bool CompositorController::setBounds(const std::string& client, const uint32_t x, const uint32_t y, const uint32_t width, const uint32_t height)
     {
         CompositorListIterator it;
@@ -1094,7 +1085,7 @@ namespace RdkWindowManager
             opacity = (unsigned int)(o * 100);
             if (opacity > 100)
             {
-                    opacity = 100;
+                opacity = 100;
             }
             return true;
         }
@@ -1176,7 +1167,7 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it))
         {
             it->compositor->setCrop(cropX, cropY, cropWidth, cropHeight);
-            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "crop  function for %s set to x=%f,y=%f,w=%f,h=%f", client.c_str(),cropX,cropY,cropWidth,cropHeight);
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "crop  function for %s set to x=%d,y=%d,w=%d,h=%d", client.c_str(),cropX,cropY,cropWidth,cropHeight);
             return true;
         }
         return false;
@@ -1391,12 +1382,12 @@ namespace RdkWindowManager
             if (topmost)
             {
                 compositorInfo.zorder = (gTopmostCompositorList.empty() == true) ? 0 : (gTopmostCompositorList.begin()->zorder + 1);
-                addCompositor(&gTopmostCompositorList, compositorInfo);
+                addCompositor(&gTopmostCompositorList, std::move(compositorInfo));
             }
             else
             {
                 compositorInfo.zorder = (gCompositorList.empty() == true) ? 0 : (gCompositorList.begin()->zorder + 1);
-                addCompositor(&gCompositorList, compositorInfo);
+                addCompositor(&gCompositorList, std::move(compositorInfo));
             }
         }
         return ret;
@@ -1441,13 +1432,13 @@ namespace RdkWindowManager
         {
             gCursor->draw();
         }
-	    return true;
+        return true;
     }
 
     bool CompositorController::update()
     {
         updateKeyRepeat();
-	    updateGenerateKeyEvents();
+        updateGenerateKeyEvents();
 
         if (gEnableInactivityReporting)
         {
@@ -1523,7 +1514,7 @@ namespace RdkWindowManager
 
     void CompositorController::setEventListener(std::shared_ptr<RdkWindowManagerEventListener> listener)
     {
-        gRdkWindowManagerEventListener = listener;
+        gRdkWindowManagerEventListener = std::move(listener);
     }
 
     void CompositorController::enableInactivityReporting(bool enable)
@@ -1565,7 +1556,7 @@ namespace RdkWindowManager
     {
         if (!gRdkWindowManagerEventListener)
         {
-            Logger::log(LogLevel::Information,  "event listener is not present and unable to send event ", eventName.c_str());
+            Logger::log(LogLevel::Information,  "event listener is not present and unable to send event: %s", eventName.c_str());
             return false;
         }
         return true;
@@ -1618,7 +1609,7 @@ namespace RdkWindowManager
             targetList = &gCompositorList;
         }
 
-        auto compositorInfo = *it;
+        const auto &compositorInfo = *it;
         compositorInfoList->erase(it);
         targetList->insert(targetList->begin(), compositorInfo);
 
@@ -1688,8 +1679,8 @@ namespace RdkWindowManager
 
     bool CompositorController::getLastKeyPress(uint32_t &keyCode, uint32_t &modifiers, uint64_t &timestampInSeconds)
     {
-        uint64_t timeSinceLastKeyPress = RdkWindowManager::seconds() - gLastKeyEventTime;
-        time_t currentTimeInSeconds = time(0);
+        double timeSinceLastKeyPress = (RdkWindowManager::seconds() - gLastKeyEventTime);
+        uint64_t currentTimeInSeconds = (uint64_t)time(0);
         timestampInSeconds = (uint64_t)currentTimeInSeconds - (uint64_t)timeSinceLastKeyPress;
         keyCode = gLastKeyCode;
         modifiers = gLastKeyModifiers;
@@ -1797,7 +1788,7 @@ namespace RdkWindowManager
 
     bool CompositorController::setAVBlocked(std::string callsign, bool blockAV)
     {
-        return RdkWindowManager::EssosInstance::instance()->setAVBlocked(callsign, blockAV);
+        return RdkWindowManager::EssosInstance::instance()->setAVBlocked(std::move(callsign), blockAV);
     }
 
     bool CompositorController::getBlockedAVApplications(std::vector<std::string>& apps)
@@ -1861,7 +1852,7 @@ namespace RdkWindowManager
     bool CompositorController::getFireboltSurface(const std::string& client, int surfaceId, uint32_t type)
     {
         CompositorListIterator it;
-	    if (getCompositorInfo(client, it))
+        if (getCompositorInfo(client, it))
         {
             bool result = it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
             return result;
@@ -1959,3 +1950,4 @@ namespace RdkWindowManager
         return false;
     }
 }
+

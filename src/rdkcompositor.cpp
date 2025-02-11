@@ -470,7 +470,7 @@ namespace RdkWindowManager
 
         if (needsHolePunch)
         {
-            prepareHolePunchRects(rects, rect);
+            prepareHolePunchRects(std::move(rects), rect);
         }
 
         glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -591,7 +591,7 @@ namespace RdkWindowManager
 
         if (needsHolePunch)
         {
-            prepareHolePunchRects(rects, rect);
+            prepareHolePunchRects(std::move(rects), rect);
         }
     }
 
@@ -724,7 +724,7 @@ namespace RdkWindowManager
 
     void RdkCompositor::setVisible(bool visible)
     {
-        if (visible && (mApplicationState == RdkWindowManager::ApplicationState::Suspended))
+        if (visible && (RdkWindowManager::ApplicationState::Suspended == RdkCompositor::getApplicationState()))
         {
             Logger::log(LogLevel::Information,  "application not made visible because of suspended state");
             return;
@@ -816,14 +816,14 @@ namespace RdkWindowManager
 
     int RdkCompositor::registerStateChangeEventListener(std::function<void(uint32_t)> listener)
     {
+        std::lock_guard<std::mutex> locker(mStateChangeLock);
         if (true == mSuspendedBeforeStart)
         {
            // suspendApplication();
         }
-        std::lock_guard<std::mutex> locker(mStateChangeLock);
         const int tag = mStateChangeListenerTags++;
         if (true == mSuspendedBeforeStart)
-	    {
+        {
             if (listener)
             {
                listener(3);
@@ -926,6 +926,12 @@ namespace RdkWindowManager
         mApplicationName = application;
     }
 
+    RdkWindowManager::ApplicationState RdkCompositor::getApplicationState(void)
+    {
+        std::lock_guard<std::recursive_mutex> lock{mApplicationMutex};
+        return mApplicationState;
+    }
+
     bool RdkCompositor::isKeyPressed()
     {
         return mReceivedKeyPress;
@@ -972,6 +978,7 @@ namespace RdkWindowManager
         const uint32_t _HIDDEN = 2;
         const uint32_t _SUSPENDED = 3;
 
+        std::lock_guard<std::recursive_mutex> lock{mApplicationMutex};
         if (mApplicationState == ApplicationState::Suspended)
         {
             broadcastStateChangeEvent(_SUSPENDED);

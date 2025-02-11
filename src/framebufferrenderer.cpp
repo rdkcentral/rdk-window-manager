@@ -61,10 +61,10 @@ namespace RdkWindowManager
         // vertices in screen coordinates, origin of the blit is translated using the matrix
         float vertices[4][2] =
         {
-            {0, 0},
-            {boundsWidth, 0},
-            {0, boundsHeight},
-            {boundsWidth, boundsHeight}
+            {0.f, 0.f},
+            {(float)boundsWidth, 0.f},
+            {0.f, (float)boundsHeight},
+            {(float)boundsWidth, (float)boundsHeight}
         };
 
         float uvCoordinates[4][2] =
@@ -132,6 +132,7 @@ namespace RdkWindowManager
             "{\n"
             "  gl_FragColor = texture2D(s_texture, v_uv) * u_alpha;\n"
             "}\n";
+        
         GLint status;
 
         GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);

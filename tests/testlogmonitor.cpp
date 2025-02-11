@@ -283,7 +283,7 @@ static void processLogLine(const std::string& logLine) {
                 if (existingAppId.empty() && !appId.empty()) 
                 {
                     // If no app ID found for this resource, map it with the current rdkwmtestapp
-                    resourceToClientMap[resourceAddress] = appId;
+                    resourceToClientMap[resourceAddress] = std::move(appId);
                 }
             }
         }
@@ -503,6 +503,7 @@ static void* monitorLogFile(void* arg) {
     std::string logLine;
     struct timespec unsubscribeTime, currentTime;
     off_t currentOffset = 0;
+    off_t lOffset;
 
     if (!args) {
         RDK_TESTLOGGING_ERROR(("RdkTestLogMonitorConfig pointer is null!"));
@@ -518,17 +519,28 @@ static void* monitorLogFile(void* arg) {
 
     // Move to the end of the file for tailing
     currentOffset = lseek(fd, 0, SEEK_END);
+    if(-1 == currentOffset)
+    {
+        RDK_TESTLOGGING_ERROR(("File seek error: %s", strerror(errno)));
+        close(fd);
+        return nullptr;
+    }
 
     fds[0].fd = fd; 
     fds[0].events = POLLIN;
     fds[1].fd = mq;
     fds[1].events = POLLIN;
 
-    while (true) {
+    memset(&currentTime, 0, sizeof(currentTime));
+    memset(&unsubscribeTime, 0, sizeof(unsubscribeTime));
+    while (true)
+    {
+        lOffset = 0;
         // Poll both the log file and message queue
         int pollResult = poll(fds, 2, -1);
 
-        if (pollResult == -1) {
+        if (pollResult == -1)
+        {
             RDK_TESTLOGGING_ERROR(("poll error:%s", strerror(errno)));
             break;
         }
@@ -541,7 +553,11 @@ static void* monitorLogFile(void* arg) {
                 break;
             }
 
-            lseek(fd, currentOffset, SEEK_SET);
+            if (-1 == lseek(fd, currentOffset, SEEK_SET))
+            {
+                RDK_TESTLOGGING_ERROR(("File seek error: %s", strerror(errno)));
+                break;
+            }
 
             while (readLine(fd, logLine)) 
             {
@@ -550,7 +566,16 @@ static void* monitorLogFile(void* arg) {
                 processLogLine(logLine);
 
                 // Update the offset after each line is processed
-                currentOffset = lseek(fd, 0, SEEK_CUR);
+                lOffset = lseek(fd, 0, SEEK_CUR);
+                if (-1 == lOffset)
+                {
+                    RDK_TESTLOGGING_ERROR(("File seek error: %s", strerror(errno)));
+                    break;
+                }
+                else
+                {
+                    currentOffset = lOffset;
+                }
             }
             if (flock(fd, LOCK_UN) == -1) 
             {
@@ -559,7 +584,7 @@ static void* monitorLogFile(void* arg) {
             }
 
             //wait for completing the processlogline until unsubscricbe received
-            if(currentState == RDK_TEST_LOG_MONITOR_STATE_WAITING_FOR_UNSUBSCRIBED)
+            if (currentState == RDK_TEST_LOG_MONITOR_STATE_WAITING_FOR_UNSUBSCRIBED)
             {
                 RDK_TESTLOGGING_INFO(("Posting the  RDK_TEST_EVENT_LOG_PROCESSED"));
                 RdkTestLogMonitorEvent logProcessedEvent = {RDK_TEST_EVENT_LOG_PROCESSED, nullptr};
@@ -575,7 +600,15 @@ static void* monitorLogFile(void* arg) {
             {
                 if (msg_buffer.msgType == RDK_TEST_LOG_MONITOR_SUBSCRIBE) 
                 {
-                    currentOffset = lseek(fd, 0, SEEK_END);
+                    lOffset = lseek(fd, 0, SEEK_END);
+                    if (-1 == lOffset)
+                    {
+                        RDK_TESTLOGGING_ERROR(("File seek error: %s", strerror(errno)));
+                    }
+                    else
+                    {
+                        currentOffset = lOffset;
+                    }
                     RdkTestLogMonitorEvent subscribeEvent = {RDK_TEST_EVENT_SUBSCRIBE, nullptr};
                     handleEvent(&subscribeEvent);
                 }
@@ -605,7 +638,10 @@ static void* monitorLogFile(void* arg) {
         }
     }
 
-    close(fd);
+    if(-1 != fd)
+    {
+        close(fd);
+    }
     return nullptr;
 }
 
@@ -707,7 +743,7 @@ int rdkTestLogMonitorInitialize(RdkTestLogMonitorConfig monitorCfg) {
         return -1;
     }
 
-    RdkTestLogMonitorConfig* monitorCfgCopy = new RdkTestLogMonitorConfig(monitorCfg);
+    RdkTestLogMonitorConfig* monitorCfgCopy = new RdkTestLogMonitorConfig(std::move(monitorCfg));
     if (pthread_create(&monitorThread, nullptr, monitorLogFile, monitorCfgCopy) != 0) {
         RDK_TESTLOGGING_ERROR(("Failed to create monitor thread."));
         rdkTestLogMonitorDestory();
