@@ -68,7 +68,7 @@
 
 typedef struct rdkwmTestAppCtx
 {
-   char                     *clientName;
+   const char               *clientName;
    char                     *wldisplayName;
    struct wl_shm            *wlshm;
    struct wl_shell          *wlshell;
@@ -155,7 +155,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->wlshm));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 
@@ -168,7 +168,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->wlcompositor));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 
@@ -181,7 +181,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->wlshell));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
@@ -195,7 +195,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->fbSurface));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
@@ -211,7 +211,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->fbShell));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
@@ -227,7 +227,7 @@ static void registryHandleGlobal(void *data,
         }
         else
         {
-            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version, ctx->fbWm));
+            RDKWM_TEST_ERROR(("wl_registry_bind id:%d interface:%s version:%d client failed", id, interface, version));
         }
     }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
@@ -374,12 +374,12 @@ int main(int argc, char** argv)
 
     if (!ctx.clientName)
     {
-        ctx.clientName = RDK_WINDOW_MANAGER_TESTAPP_NAME;
+        ctx.clientName = (char *)RDK_WINDOW_MANAGER_TESTAPP_NAME;
     }
 
     if (!ctx.wldisplayName)
     {
-        ctx.wldisplayName = RDK_WINDOW_MANAGER_WAYLAND_DISPLAY_NAME;
+        ctx.wldisplayName = (char *)RDK_WINDOW_MANAGER_WAYLAND_DISPLAY_NAME;
     }
 
     RDKWM_TEST_INFO(("clientName %s wldisplayName:%s", ctx.clientName, ctx.wldisplayName));
@@ -404,9 +404,8 @@ int main(int argc, char** argv)
             RDKWM_TEST_ERROR(("wl_display_get_registry(%p) failed", ctx.wldisplay));
             goto test_fail;
         }
-        RDKWM_TEST_INFO(("wl_display_get_registry(%p) registry: success", ctx.wldisplay, registry));
+        RDKWM_TEST_INFO(("wl_display_get_registry(%p) registry:%p success", ctx.wldisplay, registry));
 
-        ctx.wldisplay = ctx.wldisplay;
         ctx.wlregistry = registry;
         RDKWM_TEST_INFO(("Calling wl_registry_add_listener registry:%p", ctx.wlregistry));
         ret = wl_registry_add_listener(registry, &registryListener, &ctx);

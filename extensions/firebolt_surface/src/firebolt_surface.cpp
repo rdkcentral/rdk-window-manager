@@ -58,7 +58,7 @@ static const struct firebolt_surface_interface fireboltSurfaceInterfaceImpl = {
  *
  */
 FireboltSurface::FireboltSurface()
-        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap()
+        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap(), mInstance(NULL)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_surface@.FireboltSurface: constructor");
@@ -478,7 +478,7 @@ static void firebolt_surface_set_bounds(struct wl_client *client, struct wl_reso
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_surface@.set_bounds: client@%p resource@%p surfaceId:%d",
+                " firebolt_surface@.set_bounds: client@%p resource@%p surfaceId:%d"
                 " Surface{x:%d y:%d width:%d height:%d} - invalid param", client, resource, surfaceId, x, y, width, height);
     }
 
@@ -551,7 +551,7 @@ static void firebolt_surface_set_crop(struct wl_client *client, struct wl_resour
     else
     {
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
-                " firebolt_surface@.set_crop: client@%p resource@%p surfaceId:%d",
+                " firebolt_surface@.set_crop: client@%p resource@%p surfaceId:%d"
                 " Surface{x:%f y:%f width:%f height:%f} - invalid param", client, resource, surfaceId, wl_fixed_to_double(sx),
                     wl_fixed_to_double(sy), wl_fixed_to_double(swidth), wl_fixed_to_double(sheight));
     }
@@ -714,7 +714,7 @@ static void firebolt_surface_resource_destory(struct wl_resource *resource)
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
-                        " firebolt_surface@.resource_destory: resource@%p - incorrect"
+                        " firebolt_surface@.resource_destory: incorrect"
                         " clientInfo@%p resource@%p clientInfo->resource@%p",
                         clientInfo, resource, (clientInfo ? clientInfo->resource : NULL));
             }

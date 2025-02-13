@@ -116,7 +116,7 @@ static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
  *
  */
 FireboltWindowManager::FireboltWindowManager()
-        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap()
+        :mWstCompositor(NULL), mWlGlobal(NULL), mWlDisplay(NULL), mWstDisplayName(), mClientListMap(), mInstance(NULL)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.FireboltWindowManager: constructor");
@@ -146,6 +146,7 @@ FireboltWmClientInfo* FireboltWindowManager::getFireboltWmClientInfo(wl_resource
         FireboltWindowManager *fbWmCtx = reinterpret_cast<FireboltWindowManager*>(wl_resource_get_user_data(resource));
         if (NULL != fbWmCtx)
         {
+            std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
             FireboltWindowManager::ClientListMap::iterator it = fbWmCtx->mClientListMap.find(resource);
             if (it != fbWmCtx->mClientListMap.end()) 
             {
@@ -526,7 +527,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.create_with_properties: client@%p resource@%p id:%s dispName:%s" \
-                    " display{width:%u height:%u zorder:%u(%d) focus:%d}" \
+                    " display{width:%u height:%u zorder:%d(%d) focus:%d}" \
                     " virtualDisplay{enable:%d width:%u height:%u} - Failed to create display!",
                     client, resource, id, displayName.c_str(), width, height, zorder,
                     (zorder ? true : false), focused, virtualDispEnabled, virtualWidth, virtualHeight);
@@ -535,7 +536,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                     " firebolt_wm@.create_with_properties: client@%p resource@%p id:%s dispName:%s" \
-                    " display{width:%u height:%u zorder:%u focus:%d}" \
+                    " display{width:%u height:%u zorder:%d(%d) focus:%d}" \
                     " virtualDisplay{enable:%d width:%u height:%u} - Success",
                     client, resource, id, displayName.c_str(), width, height, zorder,
                     (zorder ? true : false), focused, virtualDispEnabled, virtualWidth, virtualHeight);
@@ -560,7 +561,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                         " firebolt_wm@.create_with_properties: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - id not exist!",
+                        " opacity:%f zorder:%d visible:%u crop{x:%d y:%d width:%d height:%d}} - id not exist!",
                         id, clientInfo.x, clientInfo.y, clientInfo.width, clientInfo.height,
                         clientInfo.opacity, clientInfo.zorder, clientInfo.visible,
                         clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
@@ -570,7 +571,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
                         " firebolt_wm@.create_with_properties: set_properties id:%s" \
                         " clientInfo{x:%d y:%d width:%u height:%u" \
-                        " opacity:%f zorder:%u visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
+                        " opacity:%f zorder:%d visible:%u crop{x:%d y:%d width:%d height:%d}} - Success",
                         id, clientInfo.x, clientInfo.y, clientInfo.width, clientInfo.height,
                         clientInfo.opacity, clientInfo.zorder, clientInfo.visible,
                         clientInfo.cropX, clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
@@ -935,7 +936,7 @@ static void firebolt_wm_resource_destory(struct wl_resource *resource)
             else
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
-                        " firebolt_wm@.resource_destory: resource@%p - incorrect"
+                        " firebolt_wm@.resource_destory: incorrect"
                         " clientInfo@%p! resource@%p clientInfo->resource@%p",
                         clientInfo, resource, (clientInfo ? clientInfo->resource : NULL));
             }

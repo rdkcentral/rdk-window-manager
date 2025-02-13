@@ -178,7 +178,7 @@ typedef enum _RdkWmTestInputType
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_ZORDER,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_NAME,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_SET_OPACITY,
-    RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_HOLE_PUNCH,
+    RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_DESTROY,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSHELL_GET_FB_SURFACE,
     RDKWM_TEST_INPUT_PARAM_MAX
@@ -294,7 +294,7 @@ firebolt_shell_firebolt_surface_type fbSurfaceType;
 typedef struct _RdkWmTestWmDisplay
 {
     char       clientName[RDKWM_TEST_NAME_MAXSIZE];
-    char      *displayName;
+    const char *displayName;
     uint32_t   displayWidth;
     uint32_t   displayHeight;
     uint32_t   outputDisplayWidth;

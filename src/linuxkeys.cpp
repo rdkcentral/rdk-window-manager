@@ -642,7 +642,7 @@ bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t
 
 bool keyCodeFromVirtual(std::string& virtualKey, uint32_t &mappedKeyCode, uint32_t &mappedFlags)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "virtual key event - key: %s", virtualKey);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "virtual key event - key: %s", virtualKey.c_str());
     std::map<std::string, struct RdkWindowManagerKeyMap>::iterator it  = sRdkWindowManagerVirtualKeyMap.find(virtualKey);
     if (it != sRdkWindowManagerVirtualKeyMap.end())
     {
