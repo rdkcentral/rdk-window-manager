@@ -96,7 +96,7 @@ jobs:
              
       - name: Upload artifacts
         if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: |
