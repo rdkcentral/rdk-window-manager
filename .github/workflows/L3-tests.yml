@@ -32,7 +32,7 @@ jobs:
         run: >
           sudo apt update
           &&
-          sudo apt install -y libwayland-dev doxygen libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
+          sudo apt install -y libwayland-dev doxygen libunwind-dev libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
           &&
           sudo apt install -y meson graphviz xsltproc xmlto wayland-protocols libbison-dev libexpat1-dev libxml2-dev autoconf automake libtool pkg-config libxau-dev libffi-dev libegl1-mesa-dev mesa-utils libcurl4-openssl-dev
           &&
