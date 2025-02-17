@@ -39,7 +39,7 @@ jobs:
           python3 -m pip install --upgrade meson
           
       - name: Checkout rdk-window-manger
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: rdk-window-manager
 
