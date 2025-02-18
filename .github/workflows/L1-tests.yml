@@ -14,7 +14,7 @@ env:
 jobs:
   unit-tests:
     name: Build and run unit tests
-    runs-on: ubuntu-20.04
+    runs-on: comcast-ubuntu-latest
     strategy:
       matrix:
         compiler: [ gcc ]
@@ -96,7 +96,7 @@ jobs:
              
       - name: Upload artifacts
         if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: |

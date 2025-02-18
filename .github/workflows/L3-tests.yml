@@ -14,7 +14,7 @@ env:
 jobs:
   unit-tests:
     name: Build and run unit tests
-    runs-on: ubuntu-20.04
+    runs-on: comcast-ubuntu-latest
     strategy:
       matrix:
         compiler: [ gcc, clang ]
@@ -32,14 +32,14 @@ jobs:
         run: >
           sudo apt update
           &&
-          sudo apt install -y libwayland-dev doxygen libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
+          sudo apt install -y libwayland-dev doxygen libunwind-dev libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
           &&
           sudo apt install -y meson graphviz xsltproc xmlto wayland-protocols libbison-dev libexpat1-dev libxml2-dev autoconf automake libtool pkg-config libxau-dev libffi-dev libegl1-mesa-dev mesa-utils libcurl4-openssl-dev
           &&
           python3 -m pip install --upgrade meson
           
       - name: Checkout rdk-window-manger
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: rdk-window-manager
 
