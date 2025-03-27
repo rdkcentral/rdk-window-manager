@@ -31,7 +31,7 @@
 namespace RdkWindowManager
 {
     bool RdkCompositorNested::createDisplay(const std::string& displayName, const std::string& clientName,
-        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight)
+        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId)
     {
         if (width > 0 && height > 0)
         {
@@ -104,6 +104,28 @@ namespace RdkWindowManager
 
         enableVirtualDisplay(virtualDisplayEnabled);
         setVirtualResolution(virtualWidth, virtualHeight);
+
+        if ((!displayName.empty()) && (0 < ownerId))
+        {
+            const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+
+            if(NULL != runtimeDir)
+            {
+                std::string displaySocket = std::string(runtimeDir) + "/" + displayName;
+
+                Logger::log(LogLevel::Information,"change owner of %s for ownerId : %d", displaySocket.c_str(), ownerId);
+                if(0 != chown(displaySocket.c_str(), ownerId, 0))
+                {
+                    Logger::log(LogLevel::Error,"failed to change ownership for ownerId : %d", ownerId);
+                    error= true;
+                }
+            }
+            else
+            {
+                Logger::log(LogLevel::Error,"failed to get runtime directory");
+                error= true;
+            }
+        }
 
         if (error)
         {

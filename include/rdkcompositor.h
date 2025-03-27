@@ -65,7 +65,7 @@ namespace RdkWindowManager
             RdkCompositor();
             virtual ~RdkCompositor();
             virtual bool createDisplay(const std::string& displayName, const std::string& clientName,
-                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight) = 0;
+                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId) = 0;
             void draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata);
             void onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata);
