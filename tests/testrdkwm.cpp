@@ -4527,11 +4527,6 @@ static void wmTestDestroyContext(RdkWmTestAppCtx *ctx)
                 ctx->buffers = NULL;
             }
         }
-        if (ctx->fbWm != NULL && strlen(ctx->display.clientName))
-        {
-           firebolt_wm_destroy(ctx->fbWm, (const char*)ctx->display.clientName);
-           RDKWM_TEST_INFO(("Destroy Client/Display ID %s",ctx->display.clientName));
-        }
         if (NULL != ctx->wlCompositor)
         {
             wl_compositor_destroy(ctx->wlCompositor);
