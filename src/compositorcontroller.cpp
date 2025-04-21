@@ -1314,7 +1314,7 @@ namespace RdkWindowManager
 
     bool CompositorController::createDisplay(const std::string& client, const std::string& displayName,
         uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight,
-        bool topmost, bool focus , bool autodestroy, int32_t ownerId)
+        bool topmost, bool focus , bool autodestroy, int32_t ownerId, int32_t groupId)
     {
         Logger::log(LogLevel::Information,
             "rdkwindowmanager createDisplay client: %s, displayName: %s, res: %d x %d, virtualDisplayEnabled: %d, virtualRes: %d x %d, topmost: %d, focus: %d\n",
@@ -1364,7 +1364,7 @@ namespace RdkWindowManager
         }
 
         bool ret = compositorInfo.compositor->createDisplay(compositorDisplayName, clientDisplayName, width, height,
-            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId);
+            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId);
 
         if (ret)
         {

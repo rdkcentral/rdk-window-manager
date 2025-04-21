@@ -28,7 +28,7 @@ namespace RdkWindowManager
     {
         public:
             bool createDisplay(const std::string& displayName, const std::string& clientName,
-                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId);
+                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId);
     };
 }
 

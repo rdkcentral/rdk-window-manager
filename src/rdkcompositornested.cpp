@@ -31,7 +31,7 @@
 namespace RdkWindowManager
 {
     bool RdkCompositorNested::createDisplay(const std::string& displayName, const std::string& clientName,
-        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId)
+        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId)
     {
         if (width > 0 && height > 0)
         {
@@ -114,7 +114,7 @@ namespace RdkWindowManager
                 std::string displaySocket = std::string(runtimeDir) + "/" + displayName;
 
                 Logger::log(LogLevel::Information,"change owner of %s for ownerId : %d", displaySocket.c_str(), ownerId);
-                if(0 != chown(displaySocket.c_str(), ownerId, 0))
+                if(0 != chown(displaySocket.c_str(), ownerId, (groupId>0)?groupId:0))
                 {
                     Logger::log(LogLevel::Error,"failed to change ownership for ownerId : %d", ownerId);
                     error= true;
