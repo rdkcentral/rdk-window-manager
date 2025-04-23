@@ -48,6 +48,7 @@ namespace RdkWindowManager
         int32_t cropY;
         int32_t cropWidth;
         int32_t cropHeight;
+        int32_t ownerId;
     };
 
     class CompositorController

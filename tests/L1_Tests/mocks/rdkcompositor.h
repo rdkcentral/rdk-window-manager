@@ -120,6 +120,7 @@ namespace RdkWindowManager
             bool hasOverlays();
             bool hasCompositor(WstCompositor* compositor);
             bool getSurfaceInfo(int surfaceId, FireboltSurfaceInfo& surfaceInfo);
+            bool setOwner(int ownerId, int32_t groupId);
 
 
         private:
@@ -160,6 +161,7 @@ namespace RdkWindowManager
             int32_t mCropY;
             int32_t mCropWidth;
             int32_t mCropHeight;
+            int32_t mOwnerId;
             bool mEnableKeyMetadata;
             int mInputListenerTags;
             std::mutex mInputLock;

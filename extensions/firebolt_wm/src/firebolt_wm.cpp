@@ -95,6 +95,7 @@ static void firebolt_wm_set_client_focus(struct wl_client *client, struct wl_res
 static void firebolt_wm_get_properties(struct wl_client *client, struct wl_resource *resource, const char *id);
 static void firebolt_wm_get_focused_client(struct wl_client *client, struct wl_resource *resource);
 static void firebolt_wm_get_clients(struct wl_client *client, struct wl_resource *resource);
+static void firebolt_wm_set_owner(struct wl_client *client, struct wl_resource *resource, const char *id, int32_t owner);
 
 /* vtable of firebolt_wm interfaces implementation */
 static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
@@ -108,7 +109,8 @@ static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
                                         .set_client_focus           = firebolt_wm_set_client_focus,
                                         .get_properties             = firebolt_wm_get_properties,
                                         .get_focused_client         = firebolt_wm_get_focused_client,
-                                        .get_clients                = firebolt_wm_get_clients
+                                        .get_clients                = firebolt_wm_get_clients,
+                                        .set_owner                  = firebolt_wm_set_owner
                                     };
 
 /**
@@ -269,6 +271,50 @@ static void firebolt_wm_set_properties(struct wl_client *client,
     }
 
 ret_fail:
+    return;
+}
+
+static void firebolt_wm_set_owner(struct wl_client *client,
+                                   struct wl_resource *resource,
+                                   const char *id,
+                                   int32_t owner)
+{
+    if (id != NULL)
+    {
+        RdkWindowManager::ClientInfo clientInfo;
+        memset(&clientInfo, 0, sizeof(clientInfo));
+
+        if (RdkWindowManager::CompositorController::getClientInfo(id, clientInfo))
+        {
+            clientInfo.ownerId = owner;
+
+            if (!RdkWindowManager::CompositorController::setClientInfo(id, clientInfo))
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                        " firebolt_wm@.set_owner: client@%p resource@%p app id:%s - setClientInfo failed!",
+                        client, resource, id);
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                        " firebolt_wm@.set_owner: client@%p resource@%p app id:%s - Success",
+                        client, resource, id);
+            }
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_wm@.set_owner: client@%p resource@%p app id:%s - getClientInfo failed!",
+                    client, resource, id);
+        }
+    }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                " firebolt_wm@.set_owner: client@%p resource@%p id@%p - invalid id param!",
+                client, resource, id);
+    }
+
     return;
 }
 

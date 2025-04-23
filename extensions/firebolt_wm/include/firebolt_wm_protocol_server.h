@@ -212,6 +212,17 @@ struct firebolt_wm_interface {
 	 */
 	void (*get_clients)(struct wl_client *client,
 			    struct wl_resource *resource);
+	/**
+	 * sets the owner id of the app
+	 *
+	 * 
+	 * @param id id of the app
+	 * @param owner the owner id
+	 */
+	void (*set_owner)(struct wl_client *client,
+			  struct wl_resource *resource,
+			  const char *id,
+			  int32_t owner);
 };
 
 #define FIREBOLT_WM_CLIENT_PROPERTIES 0
@@ -275,6 +286,10 @@ struct firebolt_wm_interface {
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_GET_CLIENTS_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_SET_OWNER_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm

@@ -117,7 +117,7 @@ namespace RdkWindowManager
             bool hasOverlays();
             bool hasCompositor(WstCompositor* compositor);
             bool getSurfaceInfo(int surfaceId, FireboltSurfaceInfo& surfaceInfo);
-
+            bool setOwner(int ownerId, int32_t groupId);
 
         private:
             void prepareHolePunchRects(std::vector<WstRect> wstrects, RdkWindowManagerRect& rect);
@@ -156,6 +156,7 @@ namespace RdkWindowManager
             int32_t mCropY;
             int32_t mCropWidth;
             int32_t mCropHeight;
+            int32_t mOwnerId;
             int mInputListenerTags;
             std::mutex mInputLock;
             std::unordered_map<int, std::function<void(const RdkWindowManager::InputEvent&)>> mInputListeners;

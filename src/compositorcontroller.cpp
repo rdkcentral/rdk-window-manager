@@ -1832,7 +1832,10 @@ namespace RdkWindowManager
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
-
+        if (!(c->setOwner(ci.ownerId, -1)))
+        {
+            Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());
+        }
         return true;
     }
 

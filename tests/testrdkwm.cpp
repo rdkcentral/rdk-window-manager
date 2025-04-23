@@ -119,6 +119,7 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetOpacity(RdkWmTestAppCtx *ctx, Rd
 RdkWmTestReturnStatus testFireboltWmExtensionSetCrop(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltWmExtensionSetClientDisplayBounds(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx,RdkWmTestcase *testCase);
+RdkWmTestReturnStatus testFireboltWmExtensionSetGetClientOwnerId(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
@@ -237,6 +238,15 @@ static RdkWmTestcase gRdkWmTests[] = {
              .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
                                    .property = {.visible = 1}}}
            },
+           { "testFireboltWmExtensionSetGetOwnerId",
+             "Test firebolt_wm extension get the client owner id",
+             testFireboltWmExtensionSetGetClientOwnerId,
+             {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_CLIENT_OWNERID,
+             .u = {.ownerId = 100},
+                .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_OPAQUE_MODE,
+                                    .property = {.opacity = { .numEntries = 1, .values = {1.0}}}}
+                }
+            },
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
@@ -3372,6 +3382,42 @@ RdkWmTestReturnStatus testFireboltWmExtensionFullOpaqueMode(RdkWmTestAppCtx *ctx
     {
         RDKWM_TEST_ERROR(("Invalid context!"));
     }
+test_fail:
+    return ret;
+}
+
+RdkWmTestReturnStatus testFireboltWmExtensionSetGetClientOwnerId(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase)
+{
+    RdkWmTestReturnStatus ret = RDKWM_TEST_RESULT_FAIL ;
+    if((NULL !=ctx) && (ctx->fbWm !=NULL) && (testCase != NULL))
+    {
+        ctx->logMessage[0] = '\0';
+        if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_CLIENT_OWNERID)
+        {
+            RDKWM_TEST_ERROR(("WMExtensionSetClientOwnerId :Unexpected Input param error@%d", __LINE__));
+            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WMExtensionSetClientOwnerId :Unexpected Input param error@%d", __LINE__);
+            goto test_fail;
+        }
+        else
+        {
+            RdkWmTestMessage getMsg;
+            RdkTestFbWmClientInfo clientInfo;
+            if (rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
+            {
+                RDKWM_TEST_ERROR(("Signal recieved"));
+                ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                goto test_fail;
+            }
+            firebolt_wm_set_owner(ctx->fbWm, (const char*)ctx->display.clientName, testCase->testInputs.u.ownerId);
+            ret = RDKWM_TEST_RESULT_PASS ;
+        }
+    }
+    else
+    {
+        RDKWM_TEST_ERROR(("Invalid context!"));
+        goto test_fail;
+    }
+
 test_fail:
     return ret;
 }

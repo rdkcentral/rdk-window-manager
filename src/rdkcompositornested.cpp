@@ -104,27 +104,10 @@ namespace RdkWindowManager
 
         enableVirtualDisplay(virtualDisplayEnabled);
         setVirtualResolution(virtualWidth, virtualHeight);
-
-        if ((!displayName.empty()) && (0 < ownerId))
+        if (!setOwner(ownerId, groupId))
         {
-            const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
-
-            if(NULL != runtimeDir)
-            {
-                std::string displaySocket = std::string(runtimeDir) + "/" + displayName;
-
-                Logger::log(LogLevel::Information,"change owner of %s for ownerId : %d", displaySocket.c_str(), ownerId);
-                if(0 != chown(displaySocket.c_str(), ownerId, (groupId>0)?groupId:0))
-                {
-                    Logger::log(LogLevel::Error,"failed to change ownership for ownerId : %d", ownerId);
-                    error= true;
-                }
-            }
-            else
-            {
-                Logger::log(LogLevel::Error,"failed to get runtime directory");
-                error= true;
-            }
+            Logger::log(LogLevel::Error,  "error setting the ownerID: %d", ownerId);
+            error= true;
         }
 
         if (error)
