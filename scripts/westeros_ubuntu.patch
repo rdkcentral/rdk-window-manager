@@ -1,3 +1,12 @@
+From 07d21227d1cac9c82227641fc3c11e4f82864907 Mon Sep 17 00:00:00 2001
+From: Molina D <modsouza@synamedia.com>
+Date: Wed, 18 Sep 2024 15:44:54 +0530
+Subject: [PATCH] RDK-50079:Integrate CI Workflow
+
+Upstream-Status: NA
+Signed-off-by: Sourav Dutta <sdutta@synamedia.com>
+---
+
 diff --git a/Makefile.ubuntu b/Makefile.ubuntu
 index 2e5f3cb..0ae2153 100644
 --- a/Makefile.ubuntu

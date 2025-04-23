@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's LICENSE
+ * file the following copyright and licenses apply:
  *
  * Copyright 2024 RDK Management
  *
@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 /** \file
  *
  *  \brief Include the client API and protocol C API.
