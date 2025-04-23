@@ -52,7 +52,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1)
     {
         if (gForce720)
         {
@@ -779,6 +779,46 @@ namespace RdkWindowManager
             mMatrix[12] = 0.f;
             mMatrix[13] = 0.f;
         }
+    }
+
+    bool RdkCompositor::setOwner(int32_t ownerId, int32_t groupId)
+    {
+        bool status = false;
+
+        if (mDisplayName.empty())
+        {
+            Logger::log(LogLevel::Error,"display name is empty");
+        }
+        else if (mOwnerId == ownerId)
+        {
+            status = true;
+        }
+        else
+        {
+            const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+
+            if (NULL != runtimeDir)
+            {
+                std::string displaySocket = std::string(runtimeDir) + "/" + mDisplayName;
+
+                Logger::log(LogLevel::Information,"change owner of %s with ownerId : %d", displaySocket.c_str(), ownerId);
+                if (0 != chown(displaySocket.c_str(), ownerId, (groupId>0)?groupId:-1))
+                {
+                    Logger::log(LogLevel::Error,"failed to change ownership for ownerId : %d errno: %s", ownerId, strerror(errno));
+                }
+                else
+                {
+                    mOwnerId = ownerId;
+                    status = true;
+                }
+            }
+            else
+            {
+                Logger::log(LogLevel::Error,"failed to get runtime directory");
+            }
+        }
+
+        return status;
     }
 
     void RdkCompositor::crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)

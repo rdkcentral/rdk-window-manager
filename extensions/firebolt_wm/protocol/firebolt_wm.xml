@@ -101,6 +101,13 @@
             <description summary="returns a list of clients"/>
         </request>
 
+        <request name="set_owner">
+            <description summary="sets the owner id of the app">
+            </description>
+                <arg name="id" type="string" summary="id of the app"/>
+                <arg name="owner" type="int" summary="the owner id"/>
+        </request>
+
         <event name="client_properties">
             <arg name="id" type="string" summary="Id of the app"/>
             <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>

@@ -181,6 +181,7 @@ typedef enum _RdkWmTestInputType
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_VIDEO_HOLE_PUNCH,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSURFACE_DESTROY,
     RDKWM_TEST_INPUT_PARAM_TYPE_FBSHELL_GET_FB_SURFACE,
+    RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_CLIENT_OWNERID,
     RDKWM_TEST_INPUT_PARAM_MAX
 } RdkWmTestInputType;
 
@@ -345,6 +346,7 @@ typedef struct _RdkWmTestInputParam
         int32_t                 visiblity;
         RdkTestOpacity          opacity;
         RdkWmTestSurface surface;
+        int32_t                 ownerId;
     } u;
     RdkWmTestPrerequisites      prerequisite;   /* Test perquisite conditions and associated test properties */
 }RdkWmTestInputParam;
