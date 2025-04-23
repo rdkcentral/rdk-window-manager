@@ -238,7 +238,7 @@ static RdkWmTestcase gRdkWmTests[] = {
              .prerequisite = {.condition = RDKWM_TEST_RUNS_ON_VISIBILITY_MODE,
                                    .property = {.visible = 1}}}
            },
-           { "testFireboltWmExtensionSetGetOwnerId",
+           { "testFireboltWmExtensionSetGetClientOwnerId",
              "Test firebolt_wm extension get the client owner id",
              testFireboltWmExtensionSetGetClientOwnerId,
              {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_CLIENT_OWNERID,
@@ -431,11 +431,13 @@ static void testFireboltWmGetClientPropertiesListener(void *data, struct firebol
                                wl_fixed_t cropHeight, int32_t texture);
 static void testFireboltWmGetFocusedClientListener(void *data, struct firebolt_wm *firebolt_wm, const char *id);
 static void testFireboltWmGetClientsListener(void *data, struct firebolt_wm *firebolt_wm, const char *id);
+static void testFireboltWmGetClientOwnerIdListener(void *data, struct firebolt_wm *firebolt_wm, const char *id, const int32_t ownerId);
 
 static const struct firebolt_wm_listener gTestFireboltWmListener = {
            .client_properties = testFireboltWmGetClientPropertiesListener,
            .focused_client    = testFireboltWmGetFocusedClientListener,
-           .clients           = testFireboltWmGetClientsListener
+           .clients           = testFireboltWmGetClientsListener,
+           .client_owner     = testFireboltWmGetClientOwnerIdListener
         };
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
@@ -1327,6 +1329,33 @@ static void testFireboltWmGetClientsListener(void *data, struct firebolt_wm *fir
     }
     return;
 }
+
+static void testFireboltWmGetClientOwnerIdListener(void *data, struct firebolt_wm *firebolt_wm, const char *id, int32_t ownerId)
+{
+    RdkWmTestAppCtx *ctx = (RdkWmTestAppCtx*)data;
+    RdkWmTestMessage cbMsg;
+    RDKWM_TEST_INFO(("Test firebolt_wm@.callback get_owner client Id:%s", id));
+    cbMsg.msgType = RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_OWNER;
+    memset(cbMsg.u.fbWmClients, 0, sizeof(cbMsg.u.fbWmClients));
+    if (id != NULL)
+    {
+        cbMsg.u.fbWmClientOwnerId = ownerId;
+        if (rdkWmTestSendMessage(ctx, &cbMsg, 0))
+        {
+            RDKWM_TEST_ERROR(("Test firebolt_wm@.callback get_owner ctx@%p message send failed", ctx));
+        }
+        else
+        {
+            RDKWM_TEST_INFO(("Test firebolt_wm@.callback get_owner ctx@%p message sent", ctx));
+        }
+    }
+    else
+    {
+        RDKWM_TEST_ERROR(("Test firebolt_wm@.callback get_owner received NULL id"));
+    }
+    return;
+}
+
 #endif /*RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION*/
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
@@ -3394,8 +3423,8 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetGetClientOwnerId(RdkWmTestAppCtx
         ctx->logMessage[0] = '\0';
         if (testCase->testInputs.inputParamType != RDKWM_TEST_INPUT_PARAM_TYPE_FBWM_CLIENT_OWNERID)
         {
-            RDKWM_TEST_ERROR(("WMExtensionSetClientOwnerId :Unexpected Input param error@%d", __LINE__));
-            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WMExtensionSetClientOwnerId :Unexpected Input param error@%d", __LINE__);
+            RDKWM_TEST_ERROR(("WMExtensionSetGetClientOwnerId  :Unexpected Input param error@%d", __LINE__));
+            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WMExtensionSetGetClientOwnerId  :Unexpected Input param error@%d", __LINE__);
             goto test_fail;
         }
         else
@@ -3409,6 +3438,32 @@ RdkWmTestReturnStatus testFireboltWmExtensionSetGetClientOwnerId(RdkWmTestAppCtx
                 goto test_fail;
             }
             firebolt_wm_set_owner(ctx->fbWm, (const char*)ctx->display.clientName, testCase->testInputs.u.ownerId);
+            if(rdkWmTestVerifyDisplayOutput(RDKWM_TEST_DEFAULT_WAITTIME) == false)
+            {
+                RDKWM_TEST_ERROR(("Signal recieved"));
+                ret = RDKWM_TEST_RESULT_FORCE_STOP ;
+                goto test_fail;
+            }
+            if (true == rdkWmGetProperties(ctx,&getMsg,RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_OWNER,0,RDKWM_TEST_MESSAGEQUEUE_TIMEOUT_MS))
+            {
+                /* Callback message received */
+                int32_t ownerId = getMsg.u.fbWmClientOwnerId;
+                RDKWM_TEST_INFO(("ctx@%p firebolt_wm@.message: client_owner" \
+                    "{id:%s ownerId:%d",ctx, ctx->display.clientName, ownerId));
+                if (ownerId != testCase->testInputs.u.ownerId)
+                {
+                    RDKWM_TEST_ERROR(("id:%s failed to get the expected ownerId:%d got ownerId:%d entry",
+                        ctx->display.clientName, testCase->testInputs.u.ownerId, ownerId));
+                    snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WMExtensionSetGetClientOwnerId: failed to get the expected ownerId:%d got ownerId:%d error@%d", testCase->testInputs.u.ownerId, ownerId, __LINE__);
+                    goto test_fail;
+                }
+            }
+            else
+            {
+                RDKWM_TEST_ERROR(("WMExtensionSetGetClientOwnerId %d>:Got Unexpected Message", __LINE__));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WMExtensionSetGetClientOwnerId %d>:Got Unexpected Message", __LINE__);
+                goto test_fail;
+            }
             ret = RDKWM_TEST_RESULT_PASS ;
         }
     }
@@ -4941,6 +4996,10 @@ static bool rdkWmGetProperties(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, RdkW
 
             case RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_FOCUSED_CLIENT:
                 firebolt_wm_get_focused_client(ctx->fbWm);
+                break;
+
+            case RDKWM_TEST_MESSAGE_TYPE_FBWM_CB_CLIENT_OWNER:
+                firebolt_wm_get_owner(ctx->fbWm, (const char*)ctx->display.clientName);
                 break;
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 

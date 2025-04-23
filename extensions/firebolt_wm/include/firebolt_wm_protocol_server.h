@@ -223,11 +223,18 @@ struct firebolt_wm_interface {
 			  struct wl_resource *resource,
 			  const char *id,
 			  int32_t owner);
+	/**
+	 * @param id id of the app
+	 */
+	void (*get_owner)(struct wl_client *client,
+			  struct wl_resource *resource,
+			  const char *id);
 };
 
 #define FIREBOLT_WM_CLIENT_PROPERTIES 0
 #define FIREBOLT_WM_FOCUSED_CLIENT 1
 #define FIREBOLT_WM_CLIENTS 2
+#define FIREBOLT_WM_CLIENT_OWNER 3
 
 /**
  * @ingroup iface_firebolt_wm
@@ -241,6 +248,10 @@ struct firebolt_wm_interface {
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_CLIENTS_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_OWNER_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm
@@ -290,6 +301,10 @@ struct firebolt_wm_interface {
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_SET_OWNER_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_GET_OWNER_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm
@@ -337,6 +352,19 @@ static inline void
 firebolt_wm_send_clients(struct wl_resource *resource_, const char *id)
 {
 	wl_resource_post_event(resource_, FIREBOLT_WM_CLIENTS, id);
+}
+
+/**
+ * @ingroup iface_firebolt_wm
+ * Sends an client_owner event to the client owning the resource.
+ * @param resource_ The client's resource
+ * @param id app / client id
+ * @param owner owner id
+ */
+static inline void
+firebolt_wm_send_client_owner(struct wl_resource *resource_, const char *id, int32_t owner)
+{
+	wl_resource_post_event(resource_, FIREBOLT_WM_CLIENT_OWNER, id, owner);
 }
 
 #ifdef  __cplusplus

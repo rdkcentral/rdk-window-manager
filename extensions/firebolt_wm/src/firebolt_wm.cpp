@@ -96,6 +96,7 @@ static void firebolt_wm_get_properties(struct wl_client *client, struct wl_resou
 static void firebolt_wm_get_focused_client(struct wl_client *client, struct wl_resource *resource);
 static void firebolt_wm_get_clients(struct wl_client *client, struct wl_resource *resource);
 static void firebolt_wm_set_owner(struct wl_client *client, struct wl_resource *resource, const char *id, int32_t owner);
+static void firebolt_wm_get_owner(struct wl_client *client, struct wl_resource *resource, const char *id);
 
 /* vtable of firebolt_wm interfaces implementation */
 static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
@@ -110,7 +111,9 @@ static const struct firebolt_wm_interface fireboltWindowManagerImpl = {
                                         .get_properties             = firebolt_wm_get_properties,
                                         .get_focused_client         = firebolt_wm_get_focused_client,
                                         .get_clients                = firebolt_wm_get_clients,
-                                        .set_owner                  = firebolt_wm_set_owner
+                                        .set_owner                  = firebolt_wm_set_owner,
+                                        .get_owner                  = firebolt_wm_get_owner
+
                                     };
 
 /**
@@ -946,6 +949,46 @@ static void firebolt_wm_get_clients (struct wl_client *client, struct wl_resourc
     firebolt_wm_send_clients(resource, (const char *)clientIdList.str().c_str());
 
     return;
+}
+
+/**
+ * get the owner of client details by passing client id
+ * Return owner id of the client.
+ */
+static void firebolt_wm_get_owner(struct wl_client *client, struct wl_resource *resource, const char *id)
+{
+
+    if (id != NULL)
+    {
+        RdkWindowManager::ClientInfo clientInfo;
+        memset(&clientInfo, 0, sizeof(clientInfo));
+        /* Get the properties of the given client app id */
+        if (!RdkWindowManager::CompositorController::getClientInfo(id, clientInfo))
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                    " firebolt_wm@.get_owner: client@%p resource@%p id:%s - id not exist!",
+                    client, resource, id);
+            goto ret_fail;
+        }
+        else
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " firebolt_wm@.get_owner: client id:%s" \
+                    " clientInfo{ownerId:%d} - Success", id, clientInfo.ownerId);
+            /* Notifying client_owner event to the caller of the app id */
+            firebolt_wm_send_client_owner(resource, id, clientInfo.ownerId);
+        }
+    }
+    else
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                " firebolt_wm@.get_owner: client@%p resource@%p app id@%p - invalid id param!",
+                client, resource, id);
+    }
+
+ret_fail:
+    return;
+
 }
 
 /**

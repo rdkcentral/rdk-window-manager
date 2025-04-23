@@ -87,6 +87,7 @@ namespace RdkWindowManager
             void holePunch(bool &holePunchEnabled);
             void setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
             void crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
+            void ownerId(int32_t& ownerId);
             void keyMetadataEnabled(bool &enabled);
             void setKeyMetadataEnabled(bool enable);
             int registerInputEventListener(std::function<void(const RdkWindowManager::InputEvent&)> listener);
