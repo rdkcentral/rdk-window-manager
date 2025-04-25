@@ -53,17 +53,19 @@ static const struct wl_message firebolt_wm_requests[] = {
 	{ "get_focused_client", "", firebolt_wm_types + 0 },
 	{ "get_clients", "", firebolt_wm_types + 0 },
 	{ "set_owner", "si", firebolt_wm_types + 0 },
+	{ "get_owner", "s", firebolt_wm_types + 0 },
 };
 
 static const struct wl_message firebolt_wm_events[] = {
 	{ "client_properties", "siiuufiiffffi", firebolt_wm_types + 0 },
 	{ "focused_client", "s", firebolt_wm_types + 0 },
 	{ "clients", "s", firebolt_wm_types + 0 },
+	{ "client_owner", "si", firebolt_wm_types + 0 },
 };
 
 WL_EXPORT const struct wl_interface firebolt_wm_interface = {
 	"firebolt_wm", 1,
-	12, firebolt_wm_requests,
-	3, firebolt_wm_events,
+	13, firebolt_wm_requests,
+	4, firebolt_wm_events,
 };
 

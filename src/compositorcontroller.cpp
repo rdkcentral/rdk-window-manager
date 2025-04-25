@@ -1815,7 +1815,7 @@ namespace RdkWindowManager
         c->position(ci.x, ci.y);
         c->size(ci.width, ci.height);
         c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
-
+        c->ownerId(ci.ownerId);
         return true;
     }
 

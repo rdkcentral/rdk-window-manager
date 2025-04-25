@@ -108,6 +108,10 @@
                 <arg name="owner" type="int" summary="the owner id"/>
         </request>
 
+        <request name="get_owner">
+            <arg name="id" type="string" summary="id of the app"/>
+        </request>
+
         <event name="client_properties">
             <arg name="id" type="string" summary="Id of the app"/>
             <arg name="x" type="int" summary="the left position of the surface in pixel screen coordinates"/>
@@ -136,6 +140,13 @@
             Returns list of clients
             </description>
                 <arg name="id" type="string" summary="focused client id"/>
+        </event>
+
+        <event name="client_owner">
+            <description summary="sent for the response of get_owner">
+            </description>
+            <arg name="id" type="string" summary="app / client id"/>
+            <arg name="owner" type="int" summary="owner id"/>
         </event>
    </interface>
 </protocol>

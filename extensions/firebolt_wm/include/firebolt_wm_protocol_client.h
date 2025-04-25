@@ -99,6 +99,17 @@ struct firebolt_wm_listener {
 	void (*clients)(void *data,
 			struct firebolt_wm *firebolt_wm,
 			const char *id);
+	/**
+	 * sent for the response of get_owner
+	 *
+	 *
+	 * @param id app / client id
+	 * @param owner owner id
+	 */
+	void (*client_owner)(void *data,
+			     struct firebolt_wm *firebolt_wm,
+			     const char *id,
+			     int32_t owner);
 };
 
 /**
@@ -124,6 +135,7 @@ firebolt_wm_add_listener(struct firebolt_wm *firebolt_wm,
 #define FIREBOLT_WM_GET_FOCUSED_CLIENT 9
 #define FIREBOLT_WM_GET_CLIENTS 10
 #define FIREBOLT_WM_SET_OWNER 11
+#define FIREBOLT_WM_GET_OWNER 12
 
 /**
  * @ingroup iface_firebolt_wm
@@ -137,6 +149,10 @@ firebolt_wm_add_listener(struct firebolt_wm *firebolt_wm,
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_CLIENTS_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_OWNER_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm
@@ -186,6 +202,10 @@ firebolt_wm_add_listener(struct firebolt_wm *firebolt_wm,
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_SET_OWNER_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_GET_OWNER_SINCE_VERSION 1
 
 /** @ingroup iface_firebolt_wm */
 static inline void
@@ -339,6 +359,16 @@ firebolt_wm_set_owner(struct firebolt_wm *firebolt_wm, const char *id, int32_t o
 {
 	wl_proxy_marshal((struct wl_proxy *) firebolt_wm,
 			 FIREBOLT_WM_SET_OWNER, id, owner);
+}
+
+/**
+ * @ingroup iface_firebolt_wm
+ */
+static inline void
+firebolt_wm_get_owner(struct firebolt_wm *firebolt_wm, const char *id)
+{
+	wl_proxy_marshal((struct wl_proxy *) firebolt_wm,
+			 FIREBOLT_WM_GET_OWNER, id);
 }
 
 #ifdef  __cplusplus

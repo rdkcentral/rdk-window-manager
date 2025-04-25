@@ -829,6 +829,11 @@ namespace RdkWindowManager
         cropHeight = mCropHeight;
     }
 
+    void RdkCompositor::ownerId(int32_t& ownerId)
+    {
+        ownerId = mOwnerId;
+    }
+
     int RdkCompositor::registerInputEventListener(std::function<void(const RdkWindowManager::InputEvent&)> listener)
     {
         std::lock_guard<std::mutex> locker(mInputLock);
