@@ -78,6 +78,7 @@ jobs:
         run: |
           cp $GITHUB_WORKSPACE/tests/L1_Tests/.lcovrc_l1 ~/.lcovrc
           lcov -c -o coverage.info \
+            --ignore-errors mismatch \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_wm_tests \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_shell_tests \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_surface_tests
@@ -90,6 +91,7 @@ jobs:
                 '*/tests/L1_Tests/firebolt_shell_tests/*' \
                 '*/tests/L1_Tests/firebolt_wm_tests/*' \
                 '*/tests/L1_Tests/firebolt_surface_tests/*' \
+                --ignore-errors unused \
                 -o filtered_coverage.info
              # Generate HTML report
              genhtml -o coverage -t "rdk-window-manager coverage" filtered_coverage.info      
