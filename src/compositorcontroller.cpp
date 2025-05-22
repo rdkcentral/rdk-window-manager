@@ -232,7 +232,12 @@ namespace RdkWindowManager
          }
          else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME) == 0)
          {
-                 listener->onApplicationFirstFrame(client);
+                 CompositorListIterator it;
+                 listener->onReady(client);
+                 if (getCompositorInfo(client, it))
+                 {
+                     it->compositor->setFirstFrameRendered(true);
+                 }
          }
     }
     
@@ -1952,5 +1957,25 @@ namespace RdkWindowManager
         }
         return false;
     }
-}
 
+    bool CompositorController::enableDisplayRender(const std::string& client, bool enable)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            bool result =it->compositor->enableDisplayRender(enable);
+            return result;
+        }
+        return false;
+    }
+
+    bool CompositorController::renderReady(const std::string& client)
+    {
+        CompositorListIterator it;
+        if (getCompositorInfo(client, it))
+        {
+            return it->compositor->renderReady();
+        }
+        return false;
+    }
+}
