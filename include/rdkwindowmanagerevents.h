@@ -33,7 +33,7 @@ namespace RdkWindowManager
           virtual void onApplicationConnected(const std::string& client) {}
           virtual void onApplicationDisconnected(const std::string& client)  {}
           virtual void onApplicationTerminated(const std::string& client) {}
-          virtual void onApplicationFirstFrame(const std::string& client) {}
+          virtual void onReady(const std::string& client) {}
           virtual void onUserInactive(const double minutes) {}
           virtual void onKeyEvent(const uint32_t keyCode, const uint32_t flags, const bool keyDown) {}
           virtual void onSizeChangeComplete(const std::string& client) {}

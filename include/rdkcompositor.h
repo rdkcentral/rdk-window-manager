@@ -119,6 +119,9 @@ namespace RdkWindowManager
             bool hasCompositor(WstCompositor* compositor);
             bool getSurfaceInfo(int surfaceId, FireboltSurfaceInfo& surfaceInfo);
             bool setOwner(int ownerId, int32_t groupId);
+            bool enableDisplayRender(bool enable);
+            void setFirstFrameRendered(bool enable);
+            bool renderReady();
 
         private:
             void prepareHolePunchRects(std::vector<WstRect> wstrects, RdkWindowManagerRect& rect);
@@ -181,6 +184,8 @@ namespace RdkWindowManager
             bool mSuspendedBeforeStart;
             bool mFocused;
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
+            bool mRendererEnabled;
+            bool mFirstFrameRendered;
     };
 }
 
