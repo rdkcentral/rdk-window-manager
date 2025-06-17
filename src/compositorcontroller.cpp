@@ -54,13 +54,12 @@ namespace RdkWindowManager
 
     struct CompositorInfo
     {
-        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), autoDestroy(false), zorder(-1) {}
+        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1) {}
         std::string name;
         std::shared_ptr<RdkCompositor> compositor;
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
         std::vector<std::shared_ptr<RdkWindowManagerEventListener>> eventListeners;
         std::string mimeType;
-        bool autoDestroy;
         int32_t zorder;
     };
 
@@ -1319,7 +1318,7 @@ namespace RdkWindowManager
 
     bool CompositorController::createDisplay(const std::string& client, const std::string& displayName,
         uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight,
-        bool topmost, bool focus , bool autodestroy, int32_t ownerId, int32_t groupId)
+        bool topmost, bool focus , int32_t ownerId, int32_t groupId)
     {
         Logger::log(LogLevel::Information,
             "rdkwindowmanager createDisplay client: %s, displayName: %s, res: %d x %d, virtualDisplayEnabled: %d, virtualRes: %d x %d, topmost: %d, focus: %d\n",
@@ -1341,7 +1340,6 @@ namespace RdkWindowManager
         }
         CompositorInfo compositorInfo;
         compositorInfo.name = clientDisplayName;
-        compositorInfo.autoDestroy = autodestroy;
         compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
 
         uint32_t width = 0;
@@ -1504,7 +1502,7 @@ namespace RdkWindowManager
             {
                 sendApplicationEvent(it->eventListeners[i], eventName, it->name);
             }
-            if ((eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0) && (it->autoDestroy == true))
+            if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0)
             {
                 clientToKill = it->name;
                 killClient = true;

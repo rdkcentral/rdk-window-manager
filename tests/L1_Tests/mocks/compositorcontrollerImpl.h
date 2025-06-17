@@ -42,7 +42,7 @@ public:
     virtual bool getScreenResolution(uint32_t& width, uint32_t& height) = 0;
     virtual bool createDisplay(const std::string& client, const std::string& displayName,
     uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight,
-    bool topmost, bool focus, bool autodestroy) = 0;
+    bool topmost, bool focus) = 0;
     virtual bool getTopmost(std::string& client) = 0;
     virtual bool getFocused(std::string& client) = 0;
     virtual bool kill(const std::string& client) = 0;

@@ -26,6 +26,7 @@
 #include <functional>
 #include <unordered_map>
 #include <memory>
+#include <atomic>
 #include "westeros-compositor.h"
 #include "inputevent.h"
 #include "application.h"
@@ -186,6 +187,7 @@ namespace RdkWindowManager
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
             bool mRendererEnabled;
             bool mFirstFrameRendered;
+            std::atomic<int> mApplicationConnectionCount;
     };
 }
 
