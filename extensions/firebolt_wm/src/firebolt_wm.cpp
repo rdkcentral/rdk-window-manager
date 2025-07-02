@@ -359,7 +359,7 @@ static void firebolt_wm_create (struct wl_client *client,
         /* Create a new wayland display */
         if (!RdkWindowManager::CompositorController::createDisplay(id, displayName,
                     width, height, virtualDispEnabled, virtualWidth, virtualHeight,
-                    FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG, FB_WM_DISPLAY_DEFAULT_FOCUS_FLAG, false))
+                    FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG, FB_WM_DISPLAY_DEFAULT_FOCUS_FLAG))
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.create: client@%p resource@%p id:%s dispName:%s" \
@@ -472,7 +472,7 @@ static void firebolt_wm_create_with_bounds (struct wl_client *client,
         /* Create a new wayland display */
         if (!RdkWindowManager::CompositorController::createDisplay(id, displayName,
                     width, height, virtualDispEnabled, virtualWidth, virtualHeight,
-                    FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG, FB_WM_DISPLAY_DEFAULT_FOCUS_FLAG, false))
+                    FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG, FB_WM_DISPLAY_DEFAULT_FOCUS_FLAG))
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.create_with_bounds: client@%p resource@%p id:%s dispName:%s" \
@@ -572,7 +572,7 @@ static void firebolt_wm_create_with_properties(struct wl_client *client,
         /* Create a new wayland display */
         if (!RdkWindowManager::CompositorController::createDisplay(id, displayName,
                     width, height, virtualDispEnabled, virtualWidth, virtualHeight,
-                    (zorder ? true : false), focused, false))
+                    (zorder ? true : false), focused))
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
                     " firebolt_wm@.create_with_properties: client@%p resource@%p id:%s dispName:%s" \

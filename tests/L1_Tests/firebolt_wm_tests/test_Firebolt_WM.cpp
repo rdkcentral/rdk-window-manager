@@ -577,7 +577,7 @@ TEST_F(FireboltWmTest, createDisplay_withoutTopmostQuery)
 {
     const char* id = "topmost_display_id";
     
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, getClientInfo(testing::_, testing::_))
@@ -600,7 +600,7 @@ TEST_F(FireboltWmTest, createDisplay_withTopmostQueryOnClientInfoFailure)
     const char* id = "topmost_display_id";
     std::string topClientName = "top_client";
     
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, getClientInfo(testing::_, testing::_))
@@ -626,7 +626,7 @@ TEST_F(FireboltWmTest, createDisplay_withTopmostQueryOnClientInfoFailure)
 TEST_F(FireboltWmTest, createDisplay_withClientInfo_NoTopmost) {
     const char* id = "topmost_display_id";
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, getClientInfo(testing::_, testing::_))
@@ -650,7 +650,7 @@ TEST_F(FireboltWmTest, createDisplay_withCreateDisplayFailure)
 {
     const char* id = "topmost_display_id";
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(false));
 
     EXPECT_CALL(*p_compositeImplMock, getClientInfo(testing::_, testing::_))
@@ -676,7 +676,7 @@ TEST_F(FireboltWmTest, createDisplayWithBounds_withCreateDisplaySuccess)
     int32_t x = 50, y = 100;
     uint32_t width = 1280, height = 720;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, setBounds(testing::_, testing::_,testing::_, testing::_,testing::_))
@@ -698,7 +698,7 @@ TEST_F(FireboltWmTest, createDisplayWithBounds_withSetBoundsFailure)
     int32_t x = 50, y = 100;
     uint32_t width = 1280, height = 720;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, setBounds(testing::_, testing::_, testing::_, testing::_, testing::_))
@@ -719,7 +719,7 @@ TEST_F(FireboltWmTest, createDisplayWithBounds_withCreateDisplayFailure)
     int32_t x = 50, y = 100;
     uint32_t width = 1280, height = 720;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(false));
 
     EXPECT_CALL(*p_compositeImplMock, setBounds(testing::_, testing::_,testing::_, testing::_,testing::_))
@@ -740,7 +740,7 @@ TEST_F(FireboltWmTest, createDisplayWithBounds_withInvalidId)
     int32_t x = 50, y = 100;
     uint32_t width = 1280, height = 720;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(0);
 
     EXPECT_CALL(*p_compositeImplMock, setBounds(testing::_, testing::_,testing::_, testing::_,testing::_))
@@ -767,7 +767,7 @@ TEST_F(FireboltWmTest, createDisplayWithProperties_whenCreateDisplaySuccess)
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
     int32_t focused = 1;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::_, testing::_))
@@ -795,7 +795,7 @@ TEST_F(FireboltWmTest, createDisplayWithProperties_onSetClientInfoFailure)
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
     int32_t focused = 1;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(true));
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::_, testing::_))
@@ -822,7 +822,7 @@ TEST_F(FireboltWmTest, createDisplayWithProperties_onCreateDisplayFailure)
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
     int32_t focused = 1;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(false));
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::_, testing::_))
@@ -848,7 +848,7 @@ TEST_F(FireboltWmTest, createDisplayWithProperties_withInvalidParam)
     wl_fixed_t crop_width = wl_fixed_from_int(100), crop_height = wl_fixed_from_int(200);
     int32_t focused = 1;
 
-    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*p_compositeImplMock, createDisplay(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(0);
 
     EXPECT_CALL(*p_compositeImplMock, setClientInfo(testing::_, testing::_))

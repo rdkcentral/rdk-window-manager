@@ -105,7 +105,7 @@ namespace RdkWindowManager
             static void onPointerButtonPress(uint32_t keyCode, uint32_t x, uint32_t y);
             static void onPointerButtonRelease(uint32_t keyCode, uint32_t x, uint32_t y);
             static bool createDisplay(const std::string& client, const std::string& displayName, uint32_t displayWidth=0, uint32_t displayHeight=0,
-                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , bool autodestroy = true);
+                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false);
             static bool addAnimation(const std::string& client, double duration, std::map<std::string, RdkWindowManagerData> &animationProperties);
             static bool removeAnimation(const std::string& client);
             static bool addListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
@@ -178,7 +178,7 @@ extern bool (*getClientInfo)(const std::string&, ClientInfo&);
 extern bool (*setClientInfo)(const std::string&, const ClientInfo&);
 extern bool (*setVirtualResolution)(const std::string&, uint32_t, uint32_t);
 extern bool (*getScreenResolution)(uint32_t&, uint32_t&);
-extern bool (*createDisplay)(const std::string&, const std::string&, uint32_t, uint32_t, bool, uint32_t, uint32_t, bool, bool, bool);
+extern bool (*createDisplay)(const std::string&, const std::string&, uint32_t, uint32_t, bool, uint32_t, uint32_t, bool, bool);
 extern bool (*getTopmost)(std::string&);
 extern bool (*getFocused)(std::string&);
 extern bool (*kill)(const std::string&);

@@ -30,7 +30,7 @@ public:
     MOCK_METHOD(bool, setClientInfo, (const std::string& client, const ClientInfo& ci), (override));
     MOCK_METHOD(bool, setVirtualResolution, (const std::string& client, uint32_t virtualWidth, uint32_t virtualHeight), (override));
     MOCK_METHOD(bool, getScreenResolution, (uint32_t &width, uint32_t &height), (override));
-    MOCK_METHOD(bool, createDisplay, (const std::string& client, const std::string& displayName, uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, bool topmost, bool focus, bool autodestroy), (override));
+    MOCK_METHOD(bool, createDisplay, (const std::string& client, const std::string& displayName, uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, bool topmost, bool focus), (override));
     MOCK_METHOD(bool, getTopmost, (std::string& client), (override));
     MOCK_METHOD(bool, getFocused, (std::string& client), (override));
     MOCK_METHOD(bool, kill, (const std::string& client), (override));

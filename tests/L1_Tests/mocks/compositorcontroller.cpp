@@ -65,11 +65,11 @@ namespace RdkWindowManager
     }
     bool CompositorController::createDisplay(const std::string& client, const std::string& displayName,
                                               uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth,
-                                              uint32_t virtualHeight,bool topmost, bool focus , bool autodestroy)
+                                              uint32_t virtualHeight,bool topmost, bool focus)
     {
           assert(nullptr != impl);
           return impl->createDisplay(client,displayName,displayWidth,displayHeight,virtualDisplayEnabled,virtualWidth,
-                                     virtualHeight,topmost,focus,autodestroy);
+                                     virtualHeight,topmost,focus);
     }
         
     bool CompositorController::getTopmost(std::string& client)
@@ -171,7 +171,7 @@ namespace RdkWindowManager
     bool (*setClientInfo)(const std::string&, const ClientInfo&) = &CompositorController::setClientInfo;
     bool (*setVirtualResolution)(const std::string&, uint32_t, uint32_t) = &CompositorController::setVirtualResolution;
     bool (*getScreenResolution)(uint32_t&, uint32_t&) = &CompositorController::getScreenResolution;
-    bool (*createDisplay)(const std::string&, const std::string&, uint32_t, uint32_t, bool, uint32_t, uint32_t, bool, bool, bool) = &CompositorController::createDisplay;
+    bool (*createDisplay)(const std::string&, const std::string&, uint32_t, uint32_t, bool, uint32_t, uint32_t, bool, bool) = &CompositorController::createDisplay;
     bool (*getTopmost)(std::string&) = &CompositorController::getTopmost;
     bool (*getFocused)(std::string&) = &CompositorController::getFocused;
     bool (*kill)(const std::string&) = &CompositorController::kill;
