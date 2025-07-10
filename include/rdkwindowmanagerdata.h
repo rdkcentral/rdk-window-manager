@@ -21,6 +21,7 @@
 
 #include <typeindex>
 #include <string>
+#include <cstdint>
 
 namespace RdkWindowManager
 {

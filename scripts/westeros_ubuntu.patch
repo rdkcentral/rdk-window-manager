@@ -1,14 +1,15 @@
-From 07d21227d1cac9c82227641fc3c11e4f82864907 Mon Sep 17 00:00:00 2001
-From: Molina D <modsouza@synamedia.com>
-Date: Wed, 18 Sep 2024 15:44:54 +0530
-Subject: [PATCH] RDK-50079:Integrate CI Workflow
+From 1d8940de3e5294fe1564451399ec42ce7f13128c
+From: Sundara Raja Moorthy S <subrsund@synamedia.com>
+Date:   Wed Jul 9 11:23:00 2025 +0530
+
+Subject: [PATCH] RDKEMW-5733 : Use ubuntu-latest instead of comcast-ubuntu-latest in rdk-window-manager workflows
 
 Upstream-Status: NA
-Signed-off-by: Sourav Dutta <sdutta@synamedia.com>
+Signed-off-by: Sundara Raja Moorthy S <subrsund@synamedia.com>
 ---
 
 diff --git a/Makefile.ubuntu b/Makefile.ubuntu
-index 2e5f3cb..0ae2153 100644
+index 2e5f3cb..1ed7dee 100644
 --- a/Makefile.ubuntu
 +++ b/Makefile.ubuntu
 @@ -20,7 +20,7 @@
@@ -20,19 +21,15 @@ index 2e5f3cb..0ae2153 100644
  
  clean: init
  
-@@ -39,8 +39,10 @@ init:
- 	cd protocol/version4 && rm -f *.h && rm -f *.c
+@@ -40,6 +40,8 @@ init:
  	cd protocol/version5 && rm -f *.h && rm -f *.c
  	cd simpleshell/protocol && rm -f *.h && rm -f *.c
--	cd simpleshell && rm -f *.o && rm -f *.lo && rm -rf .libs/*
--	rm -f *.o && rm -f *.lo && rm -f .libs/*
-+	cd simpleshell && rm -f *.o && rm -f *.lo && rm -rf .libs/*
+ 	cd simpleshell && rm -f *.o && rm -f *.lo && rm -rf .libs/*
 +	cd essos && rm -rf *.o *.lo *.la .libs/*
 +	cd drm && rm -rf *.o *.lo *.la
-+	rm -f *.o && rm -f *.lo && rm -f .libs/*
+ 	rm -f *.o && rm -f *.lo && rm -f .libs/*
  	rm -f external/install/include/vpc*.h
  	
- externals: external \
 @@ -57,7 +59,7 @@ external:
  external/.proto:	
  	$(call setenv) && \
@@ -60,16 +57,22 @@ index 2e5f3cb..0ae2153 100644
  	cd libxcb && \
  	./autogen.sh --prefix $(WID) && \
  	make && make install && \
-@@ -87,7 +89,7 @@ external/.libxcd:
+@@ -87,10 +89,11 @@ external/.libxcd:
  external/.libxkbcommon:
  	$(call setenv) && \
  	cd external && \
 -	git clone git://github.com/xkbcommon/libxkbcommon && \
 +        git clone https://github.com/xkbcommon/libxkbcommon.git -b xkbcommon-0.8.3 && \
  	cd libxkbcommon && \
- 	./autogen.sh --prefix $(WID) && \
- 	make && make install && \
-@@ -99,11 +101,11 @@ external/.wayland:
+-	./autogen.sh --prefix $(WID) && \
+-	make && make install && \
++	meson setup build --prefix $(WID) --libdir $(WID)/lib/ --includedir $(WID)/include/ && \
++	meson compile -C build && \
++	ninja -C build install && \
+ 	cd .. && \
+ 	touch .libxkbcommon
+ 
+@@ -99,11 +102,11 @@ external/.wayland:
  	cd external && \
  	mkdir wayland && \
  	cd wayland && \
@@ -86,7 +89,7 @@ index 2e5f3cb..0ae2153 100644
  	cd ../.. && \
  	touch .wayland
  	
-@@ -149,7 +151,7 @@ simpleshell/protocol/simpleshell-protocol.c:
+@@ -149,7 +152,7 @@ simpleshell/protocol/simpleshell-protocol.c:
  
  westeros-simpleshell:
  	$(call setenv) && \
@@ -95,7 +98,7 @@ index 2e5f3cb..0ae2153 100644
  	aclocal -I cfg && \
  	libtoolize --automake && \
  	autoheader && \
-@@ -159,8 +161,23 @@ westeros-simpleshell:
+@@ -159,8 +162,23 @@ westeros-simpleshell:
  	./configure --prefix $(WID) && \
  	make && make install
  
