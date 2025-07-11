@@ -8,13 +8,11 @@ on:
 
 env:
   BUILD_TYPE: Debug
-  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME}}
-  AUTOMATICS_PASSCODE: ${{ secrets. AUTOMATICS_PASSCODE}}
 
 jobs:
   unit-tests:
     name: Build and run unit tests
-    runs-on: comcast-ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         compiler: [ gcc, clang ]
@@ -34,7 +32,7 @@ jobs:
           &&
           sudo apt install -y libwayland-dev doxygen libunwind-dev libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
           &&
-          sudo apt install -y meson graphviz xsltproc xmlto wayland-protocols libbison-dev libexpat1-dev libxml2-dev autoconf automake libtool pkg-config libxau-dev libffi-dev libegl1-mesa-dev mesa-utils libcurl4-openssl-dev
+          sudo apt install -y meson graphviz xsltproc xmlto wayland-protocols libbison-dev libexpat1-dev libxml2-dev autoconf automake libtool pkg-config libxau-dev libffi-dev libegl1-mesa-dev mesa-utils libcurl4-openssl-dev libjpeg-dev libpng-dev libc6-dev
           &&
           python3 -m pip install --upgrade meson
           

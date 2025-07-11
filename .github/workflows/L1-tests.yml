@@ -8,13 +8,11 @@ on:
 
 env:
   BUILD_TYPE: Debug
-  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
-  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
 
 jobs:
   unit-tests:
     name: Build and run unit tests
-    runs-on: comcast-ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         compiler: [ gcc ]
