@@ -96,7 +96,7 @@ namespace RdkWindowManager
             static void onPointerButtonPress(uint32_t keyCode, uint32_t x, uint32_t y);
             static void onPointerButtonRelease(uint32_t keyCode, uint32_t x, uint32_t y);
             static bool createDisplay(const std::string& client, const std::string& displayName, uint32_t displayWidth=0, uint32_t displayHeight=0,
-                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , bool autodestroy = true, int32_t ownerId = 0, int32_t groupId = 0);
+                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , int32_t ownerId = 0, int32_t groupId = 0);
             static bool addListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool removeListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool onEvent(RdkCompositor* eventCompositor, const std::string& eventName);
@@ -143,6 +143,8 @@ namespace RdkWindowManager
             static bool setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible);
             static bool fireboltSurfaceDestroy(const std::string& client, int surfaceId);
             static bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
+            static bool enableDisplayRender(const std::string& client, bool enable);
+            static bool renderReady(const std::string& client);
     };
 }
 

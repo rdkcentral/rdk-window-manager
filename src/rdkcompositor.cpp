@@ -52,7 +52,8 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1)
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
+        mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
         if (gForce720)
         {
@@ -174,7 +175,27 @@ namespace RdkWindowManager
 
         if (eventFound)
         {
-            CompositorController::onEvent(this, eventName);
+            if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED) == 0)
+            {
+                if(mApplicationConnectionCount.fetch_add(1) == 0)
+                {
+                    RdkWindowManager::Logger::log(LogLevel::Information,  "sending event %s", eventName.c_str());
+                    CompositorController::onEvent(this, eventName);
+                }
+            }
+            else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0)
+            {
+                if(mApplicationConnectionCount.fetch_sub(1) == 1)
+                {
+                    RdkWindowManager::Logger::log(LogLevel::Information,  "sending event %s", eventName.c_str());
+                    CompositorController::onEvent(this, eventName);
+                }
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(LogLevel::Information,  "sending event %s", eventName.c_str());
+                CompositorController::onEvent(this, eventName);
+            }
         }
     }
 
@@ -292,6 +313,10 @@ namespace RdkWindowManager
             return;
         }
         #endif //!RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+        if (!mRendererEnabled)
+        {
+            return;
+        }
 
         if (mVirtualDisplayEnabled)
         {
@@ -1328,4 +1353,30 @@ namespace RdkWindowManager
         return false;
     }
 
+    bool RdkCompositor::enableDisplayRender(bool enable)
+    {
+        if (mRendererEnabled != enable)
+        {
+            mRendererEnabled = enable;
+
+#if 0
+            if(enable == false)
+            {
+                /* TODO: Westeros clientFirstFrame API to be called here */
+                mFirstFrameRendered = false;
+            }
+#endif /* #if 0 */
+        }
+        return true;
+    }
+
+    void RdkCompositor::setFirstFrameRendered(bool enable)
+    {
+        mFirstFrameRendered = enable;
+    }
+
+    bool RdkCompositor::renderReady()
+    {
+        return mFirstFrameRendered;
+    }
 }
