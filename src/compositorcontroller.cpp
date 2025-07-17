@@ -961,21 +961,19 @@ namespace RdkWindowManager
         return true;
     }
 
-    bool CompositorController::getZOrder(std::vector<std::string>& clients)
+    bool CompositorController::getZOrder(const std::string& client, int32_t &zorder)
     {
-        clients.clear();
+        CompositorListIterator it;
 
-        for (const auto &client : gTopmostCompositorList)
+        if (!getCompositorInfo(client, it))
         {
-            std::string clientName = client.name;
-            clients.push_back(clientName);
+            Logger::log(LogLevel::Error, "Client '%s' not found. Cannot get zorder ", client.c_str());
+            return false;
         }
 
-        for (const auto &client : gCompositorList)
-        {
-            std::string clientName = client.name;
-            clients.push_back(clientName);
-        }
+        zorder = it->zorder;
+
+        Logger::log(LogLevel::Information, "Successfully got zorder %d for client '%s'.", zorder, client.c_str());
         return true;
     }
 

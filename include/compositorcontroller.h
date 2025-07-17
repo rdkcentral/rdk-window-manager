@@ -75,7 +75,7 @@ namespace RdkWindowManager
             static bool getScreenResolution(uint32_t &width, uint32_t &height);
             static bool setScreenResolution(const uint32_t width, const uint32_t height);
             static bool getClients(std::vector<std::string>& clients);
-            static bool getZOrder(std::vector<std::string>&clients);
+            static bool getZOrder(const std::string& client, int32_t &zorder);
             static bool setZorder(const std::string& client, int32_t zorder);
             static bool getBounds(const std::string& client, uint32_t &x, uint32_t &y, uint32_t &width, uint32_t &height);
             static bool setBounds(const std::string& client, const uint32_t x, const uint32_t y, const uint32_t width, const uint32_t height);
