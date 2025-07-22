@@ -238,6 +238,22 @@ namespace RdkWindowManager
                      it->compositor->setFirstFrameRendered(true);
                  }
          }
+         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_VISIBLE) == 0)
+         {
+                 listener->onApplicationVisible(client);
+         }
+         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_HIDDEN) == 0)
+         {
+                 listener->onApplicationHidden(client);
+         }
+         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS) == 0)
+         {
+                 listener->onApplicationFocus(client);
+         }
+         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR) == 0)
+         {
+                 listener->onApplicationBlur(client);
+         }
     }
     
     bool interceptKey(uint32_t keycode, uint32_t flags, uint64_t metadata, bool isPressed)

@@ -37,6 +37,10 @@ namespace RdkWindowManager
           virtual void onUserInactive(const double minutes) {}
           virtual void onKeyEvent(const uint32_t keyCode, const uint32_t flags, const bool keyDown) {}
           virtual void onSizeChangeComplete(const std::string& client) {}
+          virtual void onApplicationVisible(const std::string& client) {}
+          virtual void onApplicationHidden(const std::string& client) {}
+          virtual void onApplicationFocus(const std::string& client) {}
+          virtual void onApplicationBlur(const std::string& client) {}
     };
 
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED = "onApplicationConnected";
@@ -46,4 +50,8 @@ namespace RdkWindowManager
     const std::string RDK_WINDOW_MANAGER_EVENT_USER_INACTIVE = "onUserInactive";
     const std::string RDK_WINDOW_MANAGER_EVENT_KEY = "onKeyEvent";
     const std::string RDK_WINDOW_MANAGER_EVENT_SIZE_CHANGE_COMPLETE = "onSizeChangeComplete";
+    const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_VISIBLE = "onApplicationVisible";
+    const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_HIDDEN = "onApplicationHidden";
+    const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS = "onApplicationFocus";
+    const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR = "onApplicationBlur";
 }
