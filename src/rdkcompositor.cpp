@@ -755,8 +755,23 @@ namespace RdkWindowManager
             return;
         }
 
-        mVisible = visible;
-        updateWaylandState();
+        /* Send onVisible event if new is true and old was false,
+            send onHidden event if new is false and old was true */
+        if (visible != mVisible)
+        {
+            if (visible)
+            {
+                Logger::log(LogLevel::Information, "sending onVisible event");
+                CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_VISIBLE);
+            }
+            else
+            {
+                Logger::log(LogLevel::Information, "sending onHidden event");
+                CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_HIDDEN);
+            }
+            mVisible = visible;
+            updateWaylandState();
+        }
     }
     
     void RdkCompositor::visible(bool &visible)
@@ -1069,8 +1084,23 @@ namespace RdkWindowManager
 
     void RdkCompositor::setFocused(bool focused)
     {
-        mFocused = focused;
-        updateWaylandState();
+        /* Send onFocus event if new is true and old was false,
+            send onBlur event if new is false and old was true */
+        if (focused != mFocused)
+        {
+            if (focused)
+            {
+                Logger::log(LogLevel::Information, "sending onFocus event");
+                CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS);
+            }
+            else
+            {
+                Logger::log(LogLevel::Information, "sending onBlur event");
+                CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR);
+            }
+            mFocused = focused;
+            updateWaylandState();
+        }
     }
 
     bool RdkCompositor::convertToFireboltSurface(int surfaceId, SurfaceType surfaceType)
