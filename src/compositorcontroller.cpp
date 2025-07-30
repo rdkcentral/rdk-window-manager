@@ -35,11 +35,18 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+#include "VncServer.h"
+#endif
 
 #define RDK_WINDOW_MANAGER_ANY_KEY 65536
 #define RDK_WINDOW_MANAGER_DEFAULT_INACTIVITY_TIMEOUT_IN_SECONDS 15*60
 #define RDK_WINDOW_MANAGER_WILDCARD_KEY_CODE 255
 #define RDK_WINDOW_MANAGER_WATERMARK_ID 65536
+
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+static bool gVncServerEnabled = false;
+#endif
 
 namespace RdkWindowManager
 {
@@ -1989,5 +1996,45 @@ namespace RdkWindowManager
             return it->compositor->renderReady();
         }
         return false;
+    }
+
+    bool CompositorController::startVncServer()
+    {
+        bool result = false;
+
+    #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        uint32_t width = 0, height = 0;
+        getScreenResolution(width, height);
+        result = VncServer::getInstance().start(width, height);
+        if (result)
+        {
+            gVncServerEnabled = true;
+            Logger::log(LogLevel::Information, "VNC server started successfully with width %d height %d", width, height);
+        }
+        else
+        {
+            Logger::log(LogLevel::Error, "VNC server failed to start");
+        }
+    #else
+        Logger::log(LogLevel::Warn, "VNC server feature is not enabled, attempt to start VNC server failed");
+    #endif
+
+        return result;
+    }
+
+    bool CompositorController::stopVncServer()
+    {
+        bool result = false;
+
+    #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        gVncServerEnabled = false;
+        VncServer::getInstance().stop();
+        Logger::log(LogLevel::Information,  "VNC server stopped successfully");
+        result = true;
+    #else
+        Logger::log(LogLevel::Warn, "VNC server feature is not enabled, attempt to stop VNC server failed");
+    #endif
+
+        return result;
     }
 }
