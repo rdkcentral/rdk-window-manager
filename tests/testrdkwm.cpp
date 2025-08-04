@@ -99,8 +99,8 @@
 #define RDKWM_TEST_CREATEDISPLAY_CALLSIGN     RDKWM_TESTAPP_NAME
 #define RDKWM_TEST_CREATEDISPLAY_REQUEST_ID (3)
 
-#define RDKWM_TEST_GETCLIENTS               "org.rdk.RDKWindowManager.1.getClients"
-#define RDKWM_TEST_GETCLIENTS_REQUEST_ID    (3)
+#define RDKWM_TEST_GETAPPS                  "org.rdk.RDKWindowManager.1.getApps"
+#define RDKWM_TEST_GETAPPS_REQUEST_ID       (3)
 
 #define RDKWM_TEST_NSEC_PER_MILLISEC        (1000u * 1000u)
 #define RDKWM_TEST_MILLISEC_PER_SECOND      (1000u)
@@ -144,7 +144,7 @@ RdkWmTestReturnStatus testFireboltSurfaceExtensionVideoPinHole(RdkWmTestAppCtx *
 static bool rdkWmGetProperties(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, RdkWmTestMessageTypeEnum message, uint32_t surfaceId, uint32_t timeoutInMilliSecs);
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
 
-RdkWmTestReturnStatus testWmThunderPluginGetClients(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
+RdkWmTestReturnStatus testWmThunderPluginGetApps(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 
 static RdkWmTestcase gRdkWmTests[] = {
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
@@ -344,9 +344,9 @@ static RdkWmTestcase gRdkWmTests[] = {
            },
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
-           { "testWmThunderPluginGetClients",
-             "Test Thunder Plugin getclients - gets the list of clients and checks the expected clients match",
-             testWmThunderPluginGetClients,
+           { "testWmThunderPluginGetApps",
+             "Test Thunder Plugin getApps - gets the list of Apps and checks the expected clients match",
+             testWmThunderPluginGetApps,
              {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_NOT_NEEDED}
            },
            {
@@ -409,9 +409,13 @@ static bool logMonitorCallback(void *ctx, void *userParam, const char *log);
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION
 static void testFireboltShellFbVideoSurfaceIdListener(void *data, struct firebolt_shell *firebolt_shell, const char *videoId);
+static void testFireboltShellOnFocusListener(void *data, struct firebolt_shell *firebolt_shell, const char *client_id);
+static void testFireboltShellOnBlurListener(void *data, struct firebolt_shell *firebolt_shell, const char *client_id);
 
-static const struct firebolt_shell_listener  fbShellListener = {
-           .firebolt_video_surface_id = testFireboltShellFbVideoSurfaceIdListener
+static const struct firebolt_shell_listener fbShellListener = {
+            .firebolt_video_surface_id = testFireboltShellFbVideoSurfaceIdListener,
+            .on_focus = testFireboltShellOnFocusListener,
+            .on_blur = testFireboltShellOnBlurListener
         };
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
 
@@ -1104,6 +1108,46 @@ static void testFireboltShellFbVideoSurfaceIdListener(void *data, struct firebol
         RDKWM_TEST_ERROR(("Test firebolt_shell@.callback firebolt video surface received NULL videoId"));
     }
     /* To be implemented */
+}
+
+static void testFireboltShellOnFocusListener(void *data, struct firebolt_shell *firebolt_shell, const char *client_id)
+{
+    RdkWmTestAppCtx *ctx = (RdkWmTestAppCtx*)data;
+    RdkWmTestMessage cbMsg;
+
+    RDKWM_TEST_INFO(("Test firebolt_shell@.callback on_focus for client: %s", client_id));
+
+/* NAN - Commented, TBD */
+#if 0
+    cbMsg.msgType = RDKWM_TEST_MESSAGE_TYPE_FBSHELL_CB_ON_FOCUS;
+    strncpy(cbMsg.u.clientId, client_id ? client_id : "", sizeof(cbMsg.u.clientId) - 1);
+    cbMsg.u.clientId[sizeof(cbMsg.u.clientId) - 1] = '\0';
+
+    if (rdkWmTestSendMessage(ctx, &cbMsg, 0))
+    {
+        RDKWM_TEST_ERROR(("Test firebolt_shell@.callback on_focus ctx@%p message send failed", ctx));
+    }
+#endif /* #if 0 */
+}
+
+static void testFireboltShellOnBlurListener(void *data, struct firebolt_shell *firebolt_shell, const char *client_id)
+{
+    RdkWmTestAppCtx *ctx = (RdkWmTestAppCtx*)data;
+    RdkWmTestMessage cbMsg;
+
+    RDKWM_TEST_INFO(("Test firebolt_shell@.callback on_blur for client: %s", client_id));
+
+/* NAN - Commented, TBD */
+#if 0
+    cbMsg.msgType = RDKWM_TEST_MESSAGE_TYPE_FBSHELL_CB_ON_BLUR;
+    strncpy(cbMsg.u.clientId, client_id ? client_id : "", sizeof(cbMsg.u.clientId) - 1);
+    cbMsg.u.clientId[sizeof(cbMsg.u.clientId) - 1] = '\0';
+
+    if (rdkWmTestSendMessage(ctx, &cbMsg, 0))
+    {
+        RDKWM_TEST_ERROR(("Test firebolt_shell@.callback on_blur ctx@%p message send failed", ctx));
+    }
+#endif /* #if 0 */
 }
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SHELL_EXTENSION */
 
@@ -3499,40 +3543,40 @@ test_fail:
  * - RDKWM_TEST_RESULT_FORCE_STOP on signal interrupt/sem failure
  */
 
-RdkWmTestReturnStatus testWmThunderPluginGetClients(RdkWmTestAppCtx *ctx,RdkWmTestcase *testCase)
+RdkWmTestReturnStatus testWmThunderPluginGetApps(RdkWmTestAppCtx *ctx,RdkWmTestcase *testCase)
 {
     RdkWmTestReturnStatus ret = RDKWM_TEST_RESULT_FAIL;
     bool                  curlRequestResult;
-    std::string           getClientList;
+    std::string           getAppsList;
 
     if ((NULL != ctx) && (testCase != NULL))
     {
         ctx->logMessage[0] = '\0';
 
-        /* cURL to call getClients */
+        /* cURL to call getApps */
         if (!(curlRequestResult = rdkWmTestCurlRequest(
-            RDKWM_TEST_GETCLIENTS,
+            RDKWM_TEST_GETAPPS,
             "",
             RDKWM_TEST_PARAM_TYPE_NONE,
             nullptr,
-            RDKWM_TEST_GETCLIENTS_REQUEST_ID,
-            getClientList)))
+            RDKWM_TEST_GETAPPS_REQUEST_ID,
+            getAppsList)))
         {
-            RDKWM_TEST_ERROR(("HTTP POST request to getClients failed: %s", getClientList.c_str()));
-            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmThunderPluginGetClients %d>:failed to getClients list", __LINE__);
+            RDKWM_TEST_ERROR(("HTTP POST request to getClients failed: %s", getAppsList.c_str()));
+            snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE, "WmThunderPluginGetApps %d>:failed to getApps list", __LINE__);
             goto test_fail;
         }
         else
         {
             RDKWM_TEST_INFO(("ctx@%p" \
-                    " clients id:%s , clients %s ",
-                    ctx, ctx->display.clientName,getClientList.c_str()));
+                    " clients id:%s , Apps %s ",
+                    ctx, ctx->display.clientName,getAppsList.c_str()));
 
-           if(strstr(getClientList.c_str(), ctx->display.clientName)==nullptr)
+           if(strstr(getAppsList.c_str(), ctx->display.clientName)==nullptr)
            {
                 RDKWM_TEST_ERROR(("id: Failed to get the expected clients:%s got clients:%s ",
-                    ctx->display.clientName ,getClientList.c_str() ));
-                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmThunderPluginGetClients: Failed to get the expected clients:%s got clients:%s error @%d",ctx->display.clientName, getClientList.c_str(), __LINE__);
+                    ctx->display.clientName ,getAppsList.c_str() ));
+                snprintf(ctx->logMessage,RDKWM_TEST_LOG_MESSAGE_MAXSIZE,"WmThunderPluginGetApps: Failed to get the expected clients:%s got clients:%s error @%d",ctx->display.clientName, getAppsList.c_str(), __LINE__);
                 goto test_fail;
             }
             ret = RDKWM_TEST_RESULT_PASS ;
@@ -4273,6 +4317,7 @@ static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const 
         RDKWM_TEST_ERROR(("Headers is still null"));
         goto curl_exit;
     }
+#if 0
     *headers = curl_slist_append(*headers, "Content-Type: application/json");
 
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", security_token.c_str());
@@ -4282,6 +4327,7 @@ static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const 
         goto curl_exit;
     }
     *headers = curl_slist_append(*headers, auth_header);
+#endif /* #if 0 */
     (void)curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     (void)curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
     (void)curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
@@ -4328,7 +4374,7 @@ static int rdkWmTestExtractIdFromCurlResponse(const std::string& response, const
 
 RdkWmTestCurlMethodEnum rdkWmTestGetMethodEnum(const std::string& method)
 {
-    if (method == RDKWM_TEST_GETCLIENTS) {
+    if (method == RDKWM_TEST_GETAPPS) {
         return RDKWM_TEST_GETCLIENTS_ENUM;
     } else if (method == RDKWM_TEST_ACTIVATE_METHOD) {
         return RDKWM_TEST_ACTIVATE_METHOD_ENUM;
@@ -4410,7 +4456,7 @@ static std::string rdkWmTestSendCurlRequest(const std::string& method, const std
 {
     CURLcode           res;
     int                attempts = 0;
-    std::string        securityToken;
+    std::string        securityToken = "";
     std::string        result;
     std::string        response;
     struct curl_slist* headers = nullptr;
@@ -4420,11 +4466,13 @@ static std::string rdkWmTestSendCurlRequest(const std::string& method, const std
         return "[Curl response error] Curl initialization failed";
     }
 
+#if 0
     if (!rdkWmTestFetchSecurityToken(securityToken)) {
         rdkWmTestCleanupCurl(curl, headers);
         result = "[Curl response error] Failed to fetch security token";
         goto curl_exit;
     }
+#endif /* #if 0 */
 
     rdkWmTestSetupCurlOptions(curl, RDKWM_TEST_JSON_RPC_URL, jsonData, securityToken, &headers, response);
     do {

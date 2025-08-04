@@ -54,4 +54,15 @@ namespace RdkWindowManager
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_HIDDEN = "onApplicationHidden";
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS = "onApplicationFocus";
     const std::string RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR = "onApplicationBlur";
+
+
+    class FireboltExtensionEventListener
+    {
+        public:
+          virtual void on_focus(const char* clientName) {}
+          virtual void on_blur(const char* clientName) {}
+    };
+
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS = "on_focus";
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR = "on_blur";
 }

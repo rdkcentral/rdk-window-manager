@@ -68,4 +68,14 @@ namespace RdkWindowManager
     const std::string RDK_WINDOW_MANAGER_EVENT_POWER_KEY = "onPowerKey";
     const std::string RDK_WINDOW_MANAGER_EVENT_KEY = "onKeyEvent";
     const std::string RDK_WINDOW_MANAGER_EVENT_SIZE_CHANGE_COMPLETE = "onSizeChangeComplete";
+
+    class FireboltExtensionEventListener
+    {
+        public:
+          virtual void on_focus(const char* clientName) {}
+          virtual void on_blur(const char* clientName) {}
+    };
+
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS = "on_focus";
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR = "on_blur";
 }

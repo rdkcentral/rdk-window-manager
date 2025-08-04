@@ -98,11 +98,21 @@ struct firebolt_shell_interface {
 };
 
 #define FIREBOLT_SHELL_FIREBOLT_VIDEO_SURFACE_ID 0
+#define FIREBOLT_SHELL_ON_FOCUS 1
+#define FIREBOLT_SHELL_ON_BLUR 2
 
 /**
  * @ingroup iface_firebolt_shell
  */
 #define FIREBOLT_SHELL_FIREBOLT_VIDEO_SURFACE_ID_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_shell
+ */
+#define FIREBOLT_SHELL_ON_FOCUS_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_shell
+ */
+#define FIREBOLT_SHELL_ON_BLUR_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_shell
@@ -119,6 +129,28 @@ static inline void
 firebolt_shell_send_firebolt_video_surface_id(struct wl_resource *resource_, const char *video_id)
 {
 	wl_resource_post_event(resource_, FIREBOLT_SHELL_FIREBOLT_VIDEO_SURFACE_ID, video_id);
+}
+
+/**
+ * @ingroup iface_firebolt_shell
+ * Sends an on_focus event to the client owning the resource.
+ * @param resource_ The client's resource
+ */
+static inline void
+firebolt_shell_send_on_focus(struct wl_resource *resource_, const char *client_id)
+{
+	wl_resource_post_event(resource_, FIREBOLT_SHELL_ON_FOCUS, client_id);
+}
+
+/**
+ * @ingroup iface_firebolt_shell
+ * Sends an on_blur event to the client owning the resource.
+ * @param resource_ The client's resource
+ */
+static inline void
+firebolt_shell_send_on_blur(struct wl_resource *resource_, const char *client_id)
+{
+	wl_resource_post_event(resource_, FIREBOLT_SHELL_ON_BLUR, client_id);
 }
 
 #ifdef  __cplusplus

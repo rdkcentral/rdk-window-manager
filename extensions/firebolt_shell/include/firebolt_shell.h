@@ -22,6 +22,7 @@
 #include <map>
 #include "westeros-compositor.h"
 #include "firebolt_shell_protocol_server.h"
+#include "compositorcontroller.h"
 
 typedef struct
 {
@@ -48,5 +49,22 @@ class FireboltShell
         WstCompositor          *mWstCompositor;
         struct wl_display      *mWlDisplay;
         std::string             mWstDisplayName;
+
+        /* Firebolt Shell Listener */
+        static std::shared_ptr<RdkWindowManager::FireboltExtensionEventListener> mFireboltShellEventListener;
+        class FireboltShellListener : public RdkWindowManager::FireboltExtensionEventListener
+        {
+            public:
+                FireboltShellListener() = default;
+                ~FireboltShellListener() = default;
+
+                /* Events listeners */
+                void on_focus(const char* clientName) override;
+                void on_blur(const char* clientName) override;
+
+                void notify_focus_event(const char* clientName,
+                                    const std::string& eventName,
+                                    void (*fbShellEventCallback)(wl_resource*, const char*));
+        };
 };
 #endif

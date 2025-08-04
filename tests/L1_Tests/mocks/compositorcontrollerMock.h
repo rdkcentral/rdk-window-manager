@@ -48,5 +48,7 @@ public:
     MOCK_METHOD(bool, setFireboltSurfaceVisibility, (const std::string& client, int surfaceId, bool visible), (override));
     MOCK_METHOD(bool, fireboltSurfaceDestroy, (const std::string& client, int surfaceId), (override));
     MOCK_METHOD(bool, getSurfaceInfo, (const std::string& client, int surfaceId, FireboltSurfaceInfo& si),(override));
+    MOCK_METHOD(bool, addFireboltExtensionListener, (const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener),(override));
+    MOCK_METHOD(bool, removeFireboltExtensionListener, (const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener),(override));
 };
 }

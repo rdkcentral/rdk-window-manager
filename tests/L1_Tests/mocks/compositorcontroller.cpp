@@ -72,6 +72,16 @@ namespace RdkWindowManager
                                      virtualHeight,topmost,focus);
     }
         
+    bool CompositorController::addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener)
+    {
+          assert(nullptr != impl);
+          return impl->addFireboltExtensionListener(client,listener);
+    }
+    bool CompositorController::removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener)
+    {
+          assert(nullptr != impl);
+          return impl->removeFireboltExtensionListener(client,listener);
+    }
     bool CompositorController::getTopmost(std::string& client)
     {
            assert(nullptr != impl);

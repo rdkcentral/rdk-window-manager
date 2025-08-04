@@ -100,6 +100,9 @@ namespace RdkWindowManager
             static bool addListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool removeListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool onEvent(RdkCompositor* eventCompositor, const std::string& eventName);
+            static bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
+            static bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
+            static bool onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName);
             static void enableInactivityReporting(const bool enable);
             static void setInactivityInterval(const double minutes);
             static void resetInactivityTime();
