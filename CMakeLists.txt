@@ -19,6 +19,18 @@ cmake_minimum_required(VERSION 2.8)
 project(window_manager)
 set(CMAKE_CXX_STANDARD 14)
 
+if (RDK_WINDOW_MANAGER_VNC_SERVER)
+# Add the top level directory as an include path for all modules
+set( CMAKE_VERBOSE_MAKEFILE on )
+message("CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/")
+message("CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}")
+
+find_package( GLIB REQUIRED gobject gio gio-unix )
+find_package( LibSoup REQUIRED )
+find_package( Boost REQUIRED )
+endif (RDK_WINDOW_MANAGER_VNC_SERVER)
+
 option(RDK_WINDOW_MANAGER_BUILD_APP "RDK_WINDOW_MANAGER_BUILD_APP" ON)
 option(RDK_WINDOW_MANAGER_BUILD_KEY_METADATA "RDK_WINDOW_MANAGER_BUILD_KEY_METADATA" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_HIDDEN_SUPPORT "RDK_WINDOW_MANAGER_BUILD_HIDDEN_SUPPORT" OFF)
@@ -108,6 +120,22 @@ if(BUILD_ENABLE_ERM)
     set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lessosrmgr)
 endif()
 
+if (RDK_WINDOW_MANAGER_VNC_SERVER)
+add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER_PORT=5900")
+include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/VncServer)
+list( APPEND RDK_WINDOW_MANAGER_SOURCES
+  src/VncServer/VncServer.cpp
+  src/VncServer/VncClient.cpp
+  src/VncServer/VncBuffer.cpp
+  src/VncServer/VncSoupTcpServer.cpp
+  src/VncServer/VncSoupTcpSocket.cpp
+)
+include_directories(${GLIB_INCLUDE_DIRS})
+include_directories(${GIO_INCLUDE_DIRS})
+include_directories(${GIO_UNIX_INCLUDE_DIRS})
+include_directories(${LIBSOUP_INCLUDE_DIRS})
+endif (RDK_WINDOW_MANAGER_VNC_SERVER)
+
 if (RDK_WINDOW_MANAGER_LOGGER)
   add_definitions("-DRDK_WINDOW_MANAGER_LOGGER")
   add_definitions(-DRDK_WINDOW_MANAGER_LOGFILE=\"/opt/logs/rdkwindowmanager.log\")
@@ -149,6 +177,15 @@ add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES})
 set_target_properties(rdkwindowmanager_shared PROPERTIES OUTPUT_NAME rdkwindowmanager)
 target_link_libraries(rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_LINK_LIBRARIES})
 
+if (RDK_WINDOW_MANAGER_VNC_SERVER)
+target_link_libraries(rdkwindowmanager_shared 
+      secure_wrapper
+      ${GLIB_GIO_LIBRARIES}
+      ${GLIB_GIO_UNIX_LIBRARIES}
+      ${GLIB_GOBJECT_LIBRARIES}
+      ${GLIB_LIBRARIES}
+      ${LIBSOUP_LIBRARIES})
+endif (RDK_WINDOW_MANAGER_VNC_SERVER)
 
 if (RDK_WINDOW_MANAGER_BUILD_APP)
     message("Building rdkwindowmanager executable")
