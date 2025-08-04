@@ -61,11 +61,13 @@ static const struct wl_message firebolt_wm_events[] = {
 	{ "focused_client", "s", firebolt_wm_types + 0 },
 	{ "clients", "s", firebolt_wm_types + 0 },
 	{ "client_owner", "si", firebolt_wm_types + 0 },
+	{ "client_connected", "s", firebolt_wm_types + 0 },
+	{ "client_disconnected", "s", firebolt_wm_types + 0 },
 };
 
 WL_EXPORT const struct wl_interface firebolt_wm_interface = {
 	"firebolt_wm", 1,
 	13, firebolt_wm_requests,
-	4, firebolt_wm_events,
+	6, firebolt_wm_events,
 };
 

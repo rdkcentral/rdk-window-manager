@@ -440,12 +440,17 @@ static void testFireboltWmGetClientPropertiesListener(void *data, struct firebol
 static void testFireboltWmGetFocusedClientListener(void *data, struct firebolt_wm *firebolt_wm, const char *id);
 static void testFireboltWmGetClientsListener(void *data, struct firebolt_wm *firebolt_wm, const char *id);
 static void testFireboltWmGetClientOwnerIdListener(void *data, struct firebolt_wm *firebolt_wm, const char *id, const int32_t ownerId);
+static void testFireboltWmOnClientConnected(void* data,struct firebolt_wm* firebolt_wm,const char* id);
+static void testFireboltWmOnClientDisconnected(void* data,struct firebolt_wm* firebolt_wm,const char* id);
+
 
 static const struct firebolt_wm_listener gTestFireboltWmListener = {
            .client_properties = testFireboltWmGetClientPropertiesListener,
            .focused_client    = testFireboltWmGetFocusedClientListener,
            .clients           = testFireboltWmGetClientsListener,
-           .client_owner     = testFireboltWmGetClientOwnerIdListener
+           .client_owner     = testFireboltWmGetClientOwnerIdListener,
+           .client_connected    = testFireboltWmOnClientConnected,
+           .client_disconnected = testFireboltWmOnClientDisconnected,
         };
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION */
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
@@ -1224,6 +1229,32 @@ static void testFireboltSurfaceGetPropertiesListener(void *data, struct firebolt
 #endif /* RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION */
 
 #ifdef RDK_WINDOW_MANAGER_BUILD_FIREBOLT_WM_EXTENSION
+/*
+ * This function serves as a callback listener for clientConnected updates from the Firebolt WM extension.
+ * Input:
+ * - void *data: A pointer to the context structure (RdkWmTestAppCtx) which contains information
+ *   about the test application.
+ * - struct firebolt_wm *firebolt_wm: A pointer to the Firebolt WM instance.
+ * - const char *id: The ID of the client whose properties are being updated.
+ */
+static void testFireboltWmOnClientConnected(void* data,struct firebolt_wm* firebolt_wm, const char* id)
+{
+    RDKWM_TEST_INFO(("Client connected: %s\n", id));
+}
+
+/*
+ * This function serves as a callback listener for clientDisonnected updates from the Firebolt WM extension.
+ * Input:
+ * - void *data: A pointer to the context structure (RdkWmTestAppCtx) which contains information
+ *   about the test application.
+ * - struct firebolt_wm *firebolt_wm: A pointer to the Firebolt WM instance.
+ * - const char *id: The ID of the client whose properties are being updated.
+ */
+static void testFireboltWmOnClientDisconnected(void* data,struct firebolt_wm* firebolt_wm, const char* id)
+{
+    RDKWM_TEST_INFO(("Client disconnected: %s\n", id));
+}
+
 /*
  * This function serves as a callback listener for client property updates from the Firebolt WM extension.
  * It logs the properties of the client and sends a message containing the updated client properties
@@ -4317,9 +4348,8 @@ static void rdkWmTestSetupCurlOptions(CURL* curl, const std::string& url, const 
         RDKWM_TEST_ERROR(("Headers is still null"));
         goto curl_exit;
     }
-#if 0
     *headers = curl_slist_append(*headers, "Content-Type: application/json");
-
+#if 0
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s", security_token.c_str());
     if (auth_header[0] == '\0' || security_token.empty())
     {

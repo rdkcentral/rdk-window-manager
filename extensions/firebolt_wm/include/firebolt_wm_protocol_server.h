@@ -235,6 +235,8 @@ struct firebolt_wm_interface {
 #define FIREBOLT_WM_FOCUSED_CLIENT 1
 #define FIREBOLT_WM_CLIENTS 2
 #define FIREBOLT_WM_CLIENT_OWNER 3
+#define FIREBOLT_WM_CLIENT_CONNECTED 4
+#define FIREBOLT_WM_CLIENT_DISCONNECTED 5
 
 /**
  * @ingroup iface_firebolt_wm
@@ -252,6 +254,14 @@ struct firebolt_wm_interface {
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_CLIENT_OWNER_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_CONNECTED_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_DISCONNECTED_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm
@@ -365,6 +375,30 @@ static inline void
 firebolt_wm_send_client_owner(struct wl_resource *resource_, const char *id, int32_t owner)
 {
 	wl_resource_post_event(resource_, FIREBOLT_WM_CLIENT_OWNER, id, owner);
+}
+
+/**
+ * @ingroup iface_firebolt_wm
+ * Sends an client_connected event to the client owning the resource.
+ * @param resource_ The client's resource
+ * @param id app / client id
+ */
+static inline void
+firebolt_wm_send_client_connected(struct wl_resource *resource_, const char *id)
+{
+	wl_resource_post_event(resource_, FIREBOLT_WM_CLIENT_CONNECTED, id);
+}
+
+/**
+ * @ingroup iface_firebolt_wm
+ * Sends an client_disconnected event to the client owning the resource.
+ * @param resource_ The client's resource
+ * @param id app / client id
+ */
+static inline void
+firebolt_wm_send_client_disconnected(struct wl_resource *resource_, const char *id)
+{
+	wl_resource_post_event(resource_, FIREBOLT_WM_CLIENT_DISCONNECTED, id);
 }
 
 #ifdef  __cplusplus

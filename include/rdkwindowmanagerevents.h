@@ -61,8 +61,12 @@ namespace RdkWindowManager
         public:
           virtual void on_focus(const char* clientName) {}
           virtual void on_blur(const char* clientName) {}
+          virtual void client_connected(const char* clientName) {}
+          virtual void client_disconnected(const char* clientName) {}
     };
 
     const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS = "on_focus";
     const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR = "on_blur";
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED      = "client_connected";
+    const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED = "client_disconnected";
 }

@@ -135,7 +135,9 @@ namespace RdkWindowManager
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
     const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
-            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR,  RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR }
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED},
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED}
         };
 
     std::string standardizeName(const std::string& clientName)
@@ -1573,9 +1575,17 @@ namespace RdkWindowManager
         {
             listener->on_blur(client.c_str());
         }
+        else if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED) == 0)
+        {
+            listener->client_connected(client.c_str());
+        }
+        else if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED) == 0)
+        {
+            listener->client_disconnected(client.c_str());
+        }
     }
 
-    bool CompositorController::addFireboltExtensionListener (const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
+    bool CompositorController::addFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
     {
         bool success = false;
 
@@ -1595,7 +1605,7 @@ namespace RdkWindowManager
         return success;
     }
 
-    bool CompositorController::removeFireboltExtensionListener (const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
+    bool CompositorController::removeFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
     {
         bool success = false;
 

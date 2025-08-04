@@ -32,10 +32,19 @@
 #define FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG       (true)
 #define FB_WM_DISPLAY_DEFAULT_CROP_XY_POSITION  (0)
 #define FB_WM_DISPLAY_DEFAULT_CROP_WH           (0)
+#define FIREBOLT_WM_EVENT_RETRY_INTERNAL_IN_MS    (30)
+#define FIREBOLT_WM_EVENT_RETRIES_MAX             (3)
 
 typedef std::map<WstCompositor*, FireboltWindowManager*> FireboltWMCompositorListMap;
 static FireboltWMCompositorListMap f_fireboltWmCompositorList;
 std::mutex FireboltWindowManager::mContextLock;
+
+std::shared_ptr<RdkWindowManager::FireboltExtensionEventListener> FireboltWindowManager::mFireboltWindowManagerEventListener = nullptr;
+
+const std::unordered_map<std::string, void (*)(wl_resource*, const char*)> gFireboltWmEventMap = {
+            { RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED, firebolt_wm_send_client_connected },
+            { RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED,  firebolt_wm_send_client_disconnected }
+        };
 
 static void firebolt_wm_set_properties(struct wl_client *client,
                                         struct wl_resource *resource,
@@ -134,6 +143,160 @@ FireboltWindowManager::~FireboltWindowManager()
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
             " firebolt_wm@.~FireboltWindowManager: destructor");
+}
+
+void FireboltWindowManager::FireboltWindowManagerListener::postEventToWorker(const char* clientName,const std::string& eventName)
+{
+    FireboltWindowManager* fbWmCtx = nullptr;
+
+    if (!clientName || eventName.empty())
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+        "postEventToWorker: Invalid input  clientName is %s, eventName is '%s'",
+        clientName ? clientName : "NULL", eventName.c_str());
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(FireboltWindowManager::mContextLock);
+        if (!f_fireboltWmCompositorList.empty())
+        {
+            fbWmCtx = f_fireboltWmCompositorList.begin()->second;
+        }
+    }
+
+    if (nullptr != fbWmCtx)
+    {
+        {
+            std::lock_guard<std::mutex> lock(fbWmCtx->mQueueMutex);
+            fbWmCtx->mEventQueue.push({clientName, eventName});
+        }
+        fbWmCtx->mQueueCV.notify_one();
+    }
+}
+
+void FireboltWindowManager::FireboltWindowManagerListener::client_connected(const char* clientName)
+{
+    postEventToWorker(clientName, RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED);
+}
+void FireboltWindowManager::FireboltWindowManagerListener::client_disconnected(const char* clientName)
+{
+    postEventToWorker(clientName, RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED);
+}
+
+bool FireboltWindowManager::notify_client_event( const char* clientName,
+    const std::string& eventName,
+    void (*fbWindowManagerEventCallback)(wl_resource*, const char*))
+{
+    if (!clientName)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+            " firebolt_wm@.notify_client_event:%s - clientName is NULL", eventName.c_str());
+        return false;
+    }
+
+    std::lock_guard<std::mutex> ctxLock(FireboltWindowManager::mContextLock);
+    bool found = false;
+    std::string name(clientName);
+
+    for (const auto& compositorEntry : f_fireboltWmCompositorList)
+    {
+        FireboltWindowManager* fbWmCtx = compositorEntry.second;
+        if (!fbWmCtx)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                "firebolt_wm@.%s: context is NULL in compositor list", eventName.c_str());
+            continue;
+        }
+        for (const auto& clientEntry : fbWmCtx->mClientListMap)
+        {
+            wl_resource* resource = clientEntry.first;
+            FireboltWmClientInfo* info = clientEntry.second;
+
+            if (!info)
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                    "firebolt_wm@.%s: event for client '%s' notified to listener resource@%p(clientInfo not found!)",
+                    eventName.c_str(), name.c_str(), resource);
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    "firebolt_wm@.%s: event for client '%s' notified to listener resource@%p(%s)",
+                    eventName.c_str(), name.c_str(), resource,  info->clientName.c_str());
+            }
+            fbWindowManagerEventCallback(resource, name.c_str());
+            found = true;
+        }
+    }
+    if (!found)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+            " firebolt_wm@.notify_client_event:%s client '%s' discarded - CompositorList.size:%zu",
+            eventName.c_str(), name.c_str(), f_fireboltWmCompositorList.size());
+    }
+    return found;
+}
+
+void FireboltWindowManager::fireboltWMEventWorkerThread(void)
+{
+    FireboltWmEventMessage event;
+    while (mThreadRunning)
+    {
+        {
+            std::unique_lock<std::mutex> lock(mQueueMutex);
+            mQueueCV.wait(lock, [&] { return !mEventQueue.empty() || !mThreadRunning; });
+            /* Exit if thread is signaled to stop and event queue is empty */
+            if (!mThreadRunning && mEventQueue.empty())
+            {
+                break;
+            }
+            event = mEventQueue.front();
+            mEventQueue.pop();
+        }
+        /* Firebolt Extension Events */
+        auto eventIt = gFireboltWmEventMap.find(event.eventName);
+        if (eventIt != gFireboltWmEventMap.end())
+        {
+            for (int i = 0; i < FIREBOLT_WM_EVENT_RETRIES_MAX; ++i)
+            {
+                if(true == notify_client_event(event.clientName.c_str(), event.eventName, eventIt->second))
+                {
+                    /* Event sent successfully */
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(FIREBOLT_WM_EVENT_RETRY_INTERNAL_IN_MS));
+            }
+        }
+    }
+}
+
+void FireboltWindowManager::createFireboltWMEventWorker(void)
+{
+    std::lock_guard<std::mutex> lock(mQueueMutex);
+    if (mThreadRunning)
+    {
+        return;
+    }
+    mThreadRunning = true;
+    mWorkerThread = std::thread(&FireboltWindowManager::fireboltWMEventWorkerThread, this);
+}
+
+void FireboltWindowManager::deleteFireboltWMEventWorker(void)
+{
+    {
+        std::lock_guard<std::mutex> lock(mQueueMutex);
+        /* Signal thread to stop */
+        mThreadRunning = false;
+    }
+    /* Wake up thread if waiting */
+    mQueueCV.notify_all();
+
+    if (mWorkerThread.joinable())
+    {
+        /* Wait for thread to finish */
+        mWorkerThread.join();
+    }
 }
 
 /**
@@ -1264,6 +1427,31 @@ extern "C"
                             fbWmCtx->mWlDisplay,
                             fbWmCtx->mWlGlobal);
                     f_fireboltWmCompositorList[wstCompositor] = fbWmCtx;
+
+                    fbWmCtx->createFireboltWMEventWorker();
+
+                    /* Register eventlListener callback with CompositorController */
+                    if (nullptr == FireboltWindowManager::mFireboltWindowManagerEventListener)
+                    {
+                        FireboltWindowManager::mFireboltWindowManagerEventListener = std::make_shared<FireboltWindowManager::FireboltWindowManagerListener>();
+                        if (false == RdkWindowManager::CompositorController::addFireboltExtensionListener(
+                                                                             firebolt_wm_interface.name,
+                                                                             FireboltWindowManager::mFireboltWindowManagerEventListener))
+                        {
+                            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                                    "firebolt_wm@.moduleInit: CompositorController::addFireboltExtensionListener failed for %s",
+                                    firebolt_wm_interface.name);
+
+                            /* Reset listener */
+                            FireboltWindowManager::mFireboltWindowManagerEventListener.reset();
+                        }
+                        else
+                        {
+                            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                    "firebolt_wm@.moduleInit: CompositorController::addFireboltExtensionListener success for %s",
+                                    firebolt_wm_interface.name);
+                        }
+                    }
                 }
             }
             else
@@ -1295,6 +1483,18 @@ extern "C"
         FireboltWindowManager *fireboltWmContext = fireboltWmHasContext(wstCompositor);
         if (NULL != fireboltWmContext)
         {
+            /* Unregister eventlListener callback with CompositorController */
+            if (nullptr == FireboltWindowManager::mFireboltWindowManagerEventListener)
+            {
+                /* Remove event listener */
+                RdkWindowManager::CompositorController::removeFireboltExtensionListener(
+                                                                firebolt_wm_interface.name,
+                                                                FireboltWindowManager::mFireboltWindowManagerEventListener);
+                /* Reset listener */
+                FireboltWindowManager::mFireboltWindowManagerEventListener.reset();
+            }
+            fireboltWmContext->deleteFireboltWMEventWorker();
+
             /* Delete extension context */
             fireboltWmDeleteContext(fireboltWmContext);
             f_fireboltWmCompositorList.erase(wstCompositor);
