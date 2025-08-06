@@ -54,13 +54,16 @@ namespace RdkWindowManager
 
     struct CompositorInfo
     {
-        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1) {}
+        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1), isSuspended(false), previousWidth(0), previousHeight(0) {}
         std::string name;
         std::shared_ptr<RdkCompositor> compositor;
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
         std::vector<std::shared_ptr<RdkWindowManagerEventListener>> eventListeners;
         std::string mimeType;
         int32_t zorder;
+        bool isSuspended;
+        uint32_t previousWidth;
+        uint32_t previousHeight;
     };
 
     struct KeyInterceptInfo
@@ -2126,6 +2129,22 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it))
         {
             bool result =it->compositor->enableDisplayRender(enable);
+            if (enable && it->isSuspended) //resuming from suspended
+            {
+                //resetting Display size to original
+                it->compositor->setSize(it->previousWidth, it->previousHeight);
+                it->isSuspended = false;
+                Logger::log(LogLevel::Information,  "resetting Display size to original for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
+            }
+            else if (!enable && !it->isSuspended) // going to suspended
+            {
+                //saving Display size
+                it->compositor->size(it->previousWidth, it->previousHeight);
+                it->isSuspended = true;
+                Logger::log(LogLevel::Information,  "saving Display size for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
+                //setting Display size to 1,1
+                it->compositor->setSize(1, 1);
+            }
             return result;
         }
         return false;

@@ -49,6 +49,9 @@ namespace RdkWindowManager
         int32_t cropWidth;
         int32_t cropHeight;
         int32_t ownerId;
+        uint32_t previousWidth;
+        uint32_t previousHeight;
+        bool isSuspended;
     };
 
     class CompositorControllerImpl;
