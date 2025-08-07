@@ -148,6 +148,19 @@
             <arg name="id" type="string" summary="app / client id"/>
             <arg name="owner" type="int" summary="owner id"/>
         </event>
+
+	<event name="client_connected">
+	     <description summary="sent when an app is connected to a Wayland display">
+	     </description>
+	     <arg name="id" type="string" summary="app / client id"/>
+	</event>
+
+	<event name="client_disconnected">
+	     <description summary="sent when an app is disconnected from a Wayland display">
+	     </description>
+	     <arg name="id" type="string" summary="app / client id"/>
+	</event>
+
    </interface>
 </protocol>
 

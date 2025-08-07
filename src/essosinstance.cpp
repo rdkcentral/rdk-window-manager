@@ -332,6 +332,7 @@ namespace RdkWindowManager
                 {
                     essosError = true;
                 }
+                RdkWindowManager::Logger::log(LogLevel::Information, "EssContextGetDisplaySize: %d x %d", width, height);
             }
             if (mOverrideResolution)
             {

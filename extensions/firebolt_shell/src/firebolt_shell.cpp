@@ -28,6 +28,7 @@
 typedef std::map<WstCompositor*, FireboltShell*> FireboltShellCompositorListMap;
 static FireboltShellCompositorListMap f_fireboltShellCompositorList;
 std::mutex FireboltShell::mContextLock;
+std::shared_ptr<RdkWindowManager::FireboltExtensionEventListener> FireboltShell::mFireboltShellEventListener = nullptr;
 
 static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
                     struct wl_resource *resource,
@@ -38,7 +39,6 @@ static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
 static const struct firebolt_shell_interface fireboltShellInterfaceImpl = {
                         .get_firebolt_surface = firebolt_shell_get_firebolt_surface
                     };
-
 
 /**
  * Constructor of the firebolt shell
@@ -184,6 +184,74 @@ static void firebolt_shell_get_firebolt_surface(struct wl_client *client,
     return;
 }
 
+void FireboltShell::FireboltShellListener::notify_focus_event(
+                                const char* clientName,
+                                const std::string& eventName,
+                                void (*fbShellEventCallback)(wl_resource*, const char*))
+{
+    if (!clientName)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+            " firebolt_shell@.notify_focus_event:%s - clientName is NULL", eventName.c_str());
+        return;
+    }
+
+    std::lock_guard<std::mutex> locker(FireboltShell::mContextLock);
+    bool found = false;
+    std::string name(clientName);
+
+    for (const auto& compositorEntry : f_fireboltShellCompositorList)
+    {
+        FireboltShell* fbShellCtx = compositorEntry.second;
+        if (!fbShellCtx)
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                " firebolt_shell@.notify_focus_event:%s context is NULL in compositor list", eventName.c_str());
+            continue;
+        }
+
+        for (const auto& clientEntry : fbShellCtx->mClientListMap)
+        {
+            wl_resource* resource = clientEntry.first;
+            FireboltShellClientInfo* clientInfo = clientEntry.second;
+
+            if (!clientInfo)
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                    " firebolt_shell@.notify_focus_event:%s for client '%s' notified to listener resource@%p(clientInfo not found!)",
+                    eventName.c_str(), name.c_str(), resource);
+            }
+            else
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    " firebolt_shell@.notify_focus_event:%s for client '%s' notified to listener resource@%p(%s)",
+                    eventName.c_str(), name.c_str(), resource, clientInfo->clientName.c_str());
+            }
+
+            /* Notify all clients */
+            fbShellEventCallback(resource, name.c_str());
+            found = true;
+        }
+    }
+
+    if (!found)
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+            " firebolt_shell@.notify_focus_event:%s client '%s' discarded - CompositorList.size:%zu",
+            eventName.c_str(), name.c_str(), f_fireboltShellCompositorList.size());
+    }
+}
+
+void FireboltShell::FireboltShellListener::on_focus(const char* clientName)
+{
+    notify_focus_event(clientName, RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS, firebolt_shell_send_on_focus);
+}
+
+void FireboltShell::FireboltShellListener::on_blur(const char* clientName)
+{
+    notify_focus_event(clientName, RdkWindowManager::RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR, firebolt_shell_send_on_blur);
+}
+
 /**
  * To destory firebolt_shell interface resource
  *
@@ -287,7 +355,7 @@ static void firebolt_shell_bind(struct wl_client *client, void *data, uint32_t v
         else
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                    " firebolt_wm@.bind: id:%u wl_resource_create resource:%p", id, resource);
+                    " firebolt_shell@.bind: id:%u wl_resource_create resource:%p", id, resource);
 
             /* Map of wl_resource against client Info */
             FireboltShellClientInfo *clientInfo = new FireboltShellClientInfo;
@@ -461,6 +529,29 @@ extern "C"
                             fbShellCtx->mWlDisplay,
                             fbShellCtx->mWlGlobal);
                     f_fireboltShellCompositorList[wstCompositor] = fbShellCtx;
+
+                    /* Register eventlListener callback with CompositorController */
+                    if (nullptr == FireboltShell::mFireboltShellEventListener)
+                    {
+                        FireboltShell::mFireboltShellEventListener = std::make_shared<FireboltShell::FireboltShellListener>();
+                        if (false == RdkWindowManager::CompositorController::addFireboltExtensionListener(
+                                                                             firebolt_shell_interface.name,
+                                                                             FireboltShell::mFireboltShellEventListener))
+                        {
+                            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                                    " firebolt_shell@.moduleInit: CompositorController::addFireboltExtensionListener failed for %s",
+                                    firebolt_shell_interface.name);
+
+                            /* Reset listener */
+                            FireboltShell::mFireboltShellEventListener.reset();
+                        }
+                        else
+                        {
+                            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                                    " firebolt_shell@.moduleInit: CompositorController::addFireboltExtensionListener success for %s",
+                                    firebolt_shell_interface.name);
+                        }
+                    }
                 }
             }
             else
@@ -492,6 +583,17 @@ extern "C"
         FireboltShell *fireboltShellContext = fireboltShellHasContext(wstCompositor);
         if (NULL != fireboltShellContext)
         {
+            /* Unregister eventlListener callback with CompositorController */
+            if (nullptr == FireboltShell::mFireboltShellEventListener)
+            {
+                /* Remove event listener */
+                RdkWindowManager::CompositorController::removeFireboltExtensionListener(
+                                                                firebolt_shell_interface.name,
+                                                                FireboltShell::mFireboltShellEventListener);
+                /* Reset listener */
+                FireboltShell::mFireboltShellEventListener.reset();
+            }
+
             /* Delete extension context */
             fireboltShellDeleteContext(fireboltShellContext);
             f_fireboltShellCompositorList.erase(wstCompositor);

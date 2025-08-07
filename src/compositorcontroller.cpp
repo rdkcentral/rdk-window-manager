@@ -132,6 +132,13 @@ namespace RdkWindowManager
     std::shared_ptr<Cursor> gCursor = nullptr;
     KeyRepeatConfig gKeyRepeatConfig;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
+    std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
+    const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED},
+            { RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED}
+        };
 
     std::string standardizeName(const std::string& clientName)
     {
@@ -255,7 +262,7 @@ namespace RdkWindowManager
                  listener->onApplicationBlur(client);
          }
     }
-    
+
     bool interceptKey(uint32_t keycode, uint32_t flags, uint64_t metadata, bool isPressed)
     {
         bool ret = false;
@@ -559,6 +566,7 @@ namespace RdkWindowManager
 
             gFocusedCompositor = *it;
             gFocusedCompositor.compositor->setFocused(true);
+
             return true;
         }
         return false;
@@ -1359,6 +1367,7 @@ namespace RdkWindowManager
         uint32_t width = 0;
         uint32_t height = 0;
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
+        Logger::log(LogLevel::Information, "EssosInstance resolution: %d x %d", width, height);
         if (displayWidth > 0)
         {
             width = displayWidth;
@@ -1379,20 +1388,29 @@ namespace RdkWindowManager
                 virtualHeight = height;
             }
         }
+        Logger::log(LogLevel::Information,
+            "Compositor createDisplay client: %s, displayName: %s, res: %d x %d, virtualDisplayEnabled: %d, virtualRes: %d x %d, topmost: %d, focus: %d\n",
+            clientDisplayName.c_str(), compositorDisplayName.c_str(), width, height, virtualDisplayEnabled, virtualWidth, virtualHeight,
+            topmost, focus);
 
         bool ret = compositorInfo.compositor->createDisplay(compositorDisplayName, clientDisplayName, width, height,
             virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId);
 
         if (ret)
         {
+            bool bNotifyFocusEvent = false;
+            CompositorInfo prevFocusedCompositor = gFocusedCompositor;
+
             if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
             {
                 gFocusedCompositor = compositorInfo;
+                bNotifyFocusEvent = true;
                 Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
             }
             else if (focus)
             {
                 gFocusedCompositor = compositorInfo;
+                bNotifyFocusEvent = true;
             }
 
             /* Updating compositor list based on topmost+1 zorder */
@@ -1405,6 +1423,15 @@ namespace RdkWindowManager
             {
                 compositorInfo.zorder = (gCompositorList.empty() == true) ? 0 : (gCompositorList.begin()->zorder + 1);
                 addCompositor(&gCompositorList, std::move(compositorInfo));
+            }
+
+            if (bNotifyFocusEvent)
+            {
+                if (prevFocusedCompositor.compositor)
+                {
+                    onFireboltExtensionEvent(prevFocusedCompositor.compositor.get(), RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR);
+                }
+                onFireboltExtensionEvent(gFocusedCompositor.compositor.get(), RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS);
             }
         }
         return ret;
@@ -1522,11 +1549,134 @@ namespace RdkWindowManager
                 killClient = true;
             }
         }
+
+        /* Firebolt Extension Events */
+        auto eventIt = gFireboltExtensionEventMap.find(eventName);
+        if (eventIt != gFireboltExtensionEventMap.end())
+        {
+            onFireboltExtensionEvent(eventCompositor, eventIt->second);
+        }
+
         if (true == killClient)
         {
             CompositorController::kill(clientToKill);
         }
         return true;
+    }
+
+    void sendFireboltExtensionEvent(const std::shared_ptr<FireboltExtensionEventListener>& listener, const std::string& eventName, const std::string& client)
+    {
+        Logger::log(LogLevel::Information, "sendFireboltExtensionEvent - client:%s eventName:%s", client.c_str(), eventName.c_str());
+        if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS) == 0)
+        {
+            listener->on_focus(client.c_str());
+        }
+        else if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR) == 0)
+        {
+            listener->on_blur(client.c_str());
+        }
+        else if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED) == 0)
+        {
+            listener->client_connected(client.c_str());
+        }
+        else if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED) == 0)
+        {
+            listener->client_disconnected(client.c_str());
+        }
+    }
+
+    bool CompositorController::addFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
+    {
+        bool success = false;
+
+        if (!listener)
+        {
+            Logger::log(LogLevel::Error,
+                "addFireboltExtensionListener: fbExtensionName:%s listener is null!", fbExtensionName.c_str());
+        }
+        else
+        {
+            gfbExtensionEventListenerMap[fbExtensionName] = listener;
+            Logger::log(LogLevel::Information,
+                "addFireboltExtensionListener: Listener is registered for fbExtensionName '%s'", fbExtensionName.c_str());
+            success = true;
+        }
+
+        return success;
+    }
+
+    bool CompositorController::removeFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
+    {
+        bool success = false;
+
+        auto it = gfbExtensionEventListenerMap.find(fbExtensionName);
+        if (it == gfbExtensionEventListenerMap.end())
+        {
+            Logger::log(LogLevel::Warn,
+                "removeFireboltExtensionListener: no listener found for fbExtensionName '%s'", fbExtensionName.c_str());
+        }
+        else if (it->second != listener)
+        {
+            Logger::log(LogLevel::Warn,
+                "removeFireboltExtensionListener: listener mismatch for fbExtensionName '%s'", fbExtensionName.c_str());
+        }
+        else
+        {
+            gfbExtensionEventListenerMap.erase(it);
+            Logger::log(LogLevel::Information,
+                "removeFireboltExtensionListener: Listener removed for fbExtensionName '%s'", fbExtensionName.c_str());
+            success = true;
+        }
+
+        return success;
+    }
+
+    bool CompositorController::onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName)
+    {
+        bool success = false;
+
+        if (eventCompositor != nullptr && !eventName.empty())
+        {
+            CompositorListIterator it;
+            if (getCompositorInfo(eventCompositor, it))
+            {
+                Logger::log(LogLevel::Information,
+                    "onFireboltExtensionEvent - eventName: %s display: %s", eventName.c_str(), it->name.c_str());
+
+                if (gfbExtensionEventListenerMap.empty())
+                {
+                    Logger::log(LogLevel::Warn, "onFireboltExtensionEvent - No event listeners registered!");
+                }
+
+                for (const auto& iter : gfbExtensionEventListenerMap)
+                {
+                    const std::shared_ptr<FireboltExtensionEventListener>& listener = iter.second;
+
+                    Logger::log(LogLevel::Information,
+                        "onFireboltExtensionEvent - fbExtensionName: %s eventName: %s display: %s", iter.first.c_str(), eventName.c_str(), it->name.c_str());
+
+                    sendFireboltExtensionEvent(listener, eventName, it->name);
+                }
+
+                success = true;
+            }
+            else
+            {
+                std::string displayName;
+                eventCompositor->displayName(displayName);
+
+                Logger::log(LogLevel::Warn,
+                    "onFireboltExtensionEvent - eventName: %s display: %s CompositorInfo not found!",
+                    eventName.c_str(), displayName.c_str());
+            }
+        }
+        else
+        {
+            Logger::log(LogLevel::Error,
+                "onFireboltExtensionEvent - Invalid eventCompositor[%p] or eventName[%s]", eventCompositor, eventName.c_str());
+        }
+
+        return success;
     }
 
     void CompositorController::setEventListener(std::shared_ptr<RdkWindowManagerEventListener> listener)

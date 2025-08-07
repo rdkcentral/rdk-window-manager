@@ -22,22 +22,24 @@
 #include "wayland-util.h"
 
 
-static const struct wl_interface *types[] = {
+static const struct wl_interface *firebolt_shell_types[] = {
 	NULL,
 	NULL,
 };
 
 static const struct wl_message firebolt_shell_requests[] = {
-	{ "get_firebolt_surface", "iu", types + 0 },
+	{ "get_firebolt_surface", "iu", firebolt_shell_types + 0 },
 };
 
 static const struct wl_message firebolt_shell_events[] = {
-	{ "firebolt_video_surface_id", "s", types + 0 },
+	{ "firebolt_video_surface_id", "s", firebolt_shell_types + 0 },
+	{ "on_focus", "s", firebolt_shell_types + 0 },
+	{ "on_blur", "s", firebolt_shell_types + 0 },
 };
 
 WL_EXPORT const struct wl_interface firebolt_shell_interface = {
 	"firebolt_shell", 1,
 	1, firebolt_shell_requests,
-	1, firebolt_shell_events,
+	3, firebolt_shell_events,
 };
 
