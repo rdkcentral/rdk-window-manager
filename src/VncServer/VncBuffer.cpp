@@ -91,7 +91,7 @@ VncBuffer::VncBuffer(size_t unalignedSize)
     sprintf(memName, "/vncbuffer-%08x", rand());
 
     // create a shared memory block of the correct buffer size
-    int memFd = AICommon::memfd_create(memName, MFD_CLOEXEC);
+    int memFd = RdkWindowManager::memfd_create(memName, MFD_CLOEXEC);
     if (memFd < 0)
     {
         Logger::log(LogLevel::Error, "failed to create mmefd for buffer %d", errno);

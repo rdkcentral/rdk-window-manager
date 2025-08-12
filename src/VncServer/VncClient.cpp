@@ -55,8 +55,6 @@ const std::set<VncEncoding> VncClient::mSupportedEncodings =
 
 
 /*
-    \internal
-
     We support palette mode - in a rubbish way - we take the RGB values and
     convert to 3_3_2 mode (3 bits of red and green and 2 bits of blue), this is
     our look-up into the palette.
@@ -143,23 +141,11 @@ VncClient::VncClient(ClientMode mode,
     , mSupportContinuousUpdates(false)
     , mState(ProtocolVersionHandshake)
     , mRfbVersion(RFB_3_8)
-    , mFrameBufferPtr(nullptr)
-    , mFrameBufferSize(0)
     , mEncoding(VncEncoding::Invalid)
     , mPixelFormat(ClientCaptureFormat::BGR0_8_8_8_8)
     , mContinuousUpdatesEnabled(false)
-    , mFrameUpdateInProgress(false)
-    , mFrameUpdatePending(false)
-    , mFrameUpdateRetryTimerId(0)
     , mSendPalettePending(false)
 {
-    // initialise the buffer to use for receiving frame buffers
-    if ((mMode != ClientMode::RFC6143) && !initFrameBuffer())
-    {
-        Logger::log(LogLevel::Information, "failed to initialise frame buffer");
-        terminate();
-        return;
-    }
     Logger::log(LogLevel::Information, "mMode : %d, mProtocolVersion : %s", mMode, mProtocolVersion.c_str());
 
     // create two ring buffers for the input and output messages
@@ -171,86 +157,18 @@ VncClient::VncClient(ClientMode mode,
         return;
     }
 
+    VncServer::getInstance().setVncSocket(mVncSocket);
     mVncSocket->readReady.connect(std::bind(&VncClient::onRecvData, this));
     mVncSocket->closed.connect(std::bind(&VncClient::onSocketClosed, this));
 
-    // the first thing we do is send our protocol version
-    writeProtocolVersion();
+    writeProtocolVersion(); // the first thing we do is send our protocol version
 }
 
 VncClient::~VncClient()
 {
-    // ensure the retry timer is cancelled
-    if (mFrameUpdateRetryTimerId > 0)
-    {
-        g_source_remove(mFrameUpdateRetryTimerId);
-        mFrameUpdateRetryTimerId = 0;
-    }
-
-    // we unmap the memory buffer
-    if (mFrameBufferPtr != nullptr)
-        munmap(mFrameBufferPtr, mFrameBufferSize);
-
-    mFrameBufferPtr = nullptr;
-    mFrameBufferSize = 0;
-
-    // manually reset the socket and bridge connections
+    // manually reset the socket
     mVncSocket.reset();
 }
-
-bool VncClient::initFrameBuffer()
-{
-    // calculate the size required and round up to page multiple
-    size_t size = (mFrameBufferWidth * mFrameBufferHeight * 4) + 8192;
-    size = ROUND_UP(size, 4096);
-
-    char memName[32];
-    sprintf(memName, "/vncbuffer-%08x", rand());
-
-    // create a shared memory block of the correct buffer size
-    int memFd = AICommon::memfd_create(memName, MFD_CLOEXEC);
-    if (memFd < 0)
-    {
-        Logger::log(LogLevel::Information, "failed to create memfd for buffer (%d - %s)",
-                   errno, g_strerror(errno));
-        return false;
-    }
-
-    if (ftruncate(memFd, size) != 0)
-    {
-        Logger::log(LogLevel::Information, "failed to resize memfd for buffer (%d - %s)",
-                   errno, g_strerror(errno));
-        close(memFd);
-        return false;
-    }
-
-    // mmap the mem file
-    void *memPtr = mmap(nullptr, size, PROT_WRITE | PROT_READ, MAP_SHARED,
-                        memFd, 0);
-    if (memPtr == MAP_FAILED)
-    {
-        Logger::log(LogLevel::Information, "failed to overlap memfd buffer (%d - %s)",
-                   errno, g_strerror(errno));
-        close(memFd);
-        return false;
-    }
-
-    // fill the entire buffer with 0
-    memset(memPtr, 0x00, size);
-    // we can actually close the memfd now, since it's mmapped that will remain
-    // and we've sent the fd to the VNCBridge service to use
-    if (close(memFd) != 0)
-    {
-        Logger::log(LogLevel::Information, "failed to close memfd (%d - %s)",
-                   errno, g_strerror(errno));
-    }
-    // store the buffer details
-    mFrameBufferPtr = static_cast<uint8_t*>(memPtr);
-    mFrameBufferSize = size;
-
-    return true;
-}
-
 
 void VncClient::terminate()
 {
@@ -261,12 +179,6 @@ void VncClient::terminate()
     // move to the terminating state
     mState = Terminating;
 
-    // stop the retry timer
-    if (mFrameUpdateRetryTimerId > 0)
-    {
-        g_source_remove(mFrameUpdateRetryTimerId);
-        mFrameUpdateRetryTimerId = 0;
-    }
     // close the socket (can be async operation)
     if (mVncSocket->state() == IVncSocket::State::Open)
     {
@@ -543,6 +455,7 @@ bool VncClient::processNextMessage()
                 {
                     onSetPixelFormat(mReadBuffer->tail<VncSetPixelFormat>());
                     mReadBuffer->advanceTail(sizeof(VncSetPixelFormat));
+                    VncServer::getInstance().setVncFrameUpdatePixelFormat(mPixelFormat);
                 }
                 break;
 
@@ -603,7 +516,7 @@ bool VncClient::processNextMessage()
             case PointerEvent:
                 if (mReadBuffer->size() >= sizeof(VncPointerEvent))
                 {
-                    Logger::log(LogLevel::Information, "ignoring pointer event");
+                    //Logger::log(LogLevel::Information, "ignoring pointer event");
                     mReadBuffer->advanceTail(sizeof(VncPointerEvent));
                 }
                 break;
@@ -845,23 +758,10 @@ void VncClient::onEnableContinuousUpdates(const VncEnableContinuousUpdates *enab
 */
 void VncClient::onFrameUpdateRequest(bool incremental)
 {
-    Logger::log(LogLevel::Information, "TODO: Ignoring frame update request");
-    return;
-
     // ignore requested if an incremental update and continuous updates are enabled
     if (incremental && mContinuousUpdatesEnabled)
     {
         Logger::log(LogLevel::Information, "ignoring incremental frame update request as continuous updates are available");
-        return;
-    }
-
-    // since we only return full screens, then can ignore the update request
-    // if already in the process of capturing a frame, as that frame will be
-    // sent when the capture is complete
-    if (mFrameUpdateInProgress)
-    {
-        mFrameUpdatePending = true;
-        Logger::log(LogLevel::Information, "ignoring frame update request as another one already in progress");
         return;
     }
 
@@ -887,115 +787,6 @@ void VncClient::onFrameUpdateRequest(bool incremental)
         mVncSocket->write(g_byte_array_free_to_bytes(message));
     }
 
-    // send the update, if successful clear the pending update flag
-    requestNewFrame();
-}
-
-/* Sends a frame buffer update */
-bool VncClient::requestNewFrame()
-{
-    Logger::log(LogLevel::Information, "requesting fb update");
-
-    constexpr size_t headerSize = sizeof(VncFrameBufferUpdate)
-                                  + sizeof(VncFrameBufferRectangle);
-
-    // align the offset within the buffer so that on the server side it writes
-    // to a 64-byte align address as that speeds up the copy because neon
-    // can be used
-    const size_t frameOffset = (headerSize + 63) & ~63;
-    const size_t headerOffset = frameOffset - headerSize;
-
-    Logger::log(LogLevel::Information, "calculated offsets : headerSize %zu : frameOffset %zu : headerOffset %zu",
-           headerSize, frameOffset, headerOffset);
-
-    // populate the update header
-    VncFrameBufferUpdate *update = reinterpret_cast<VncFrameBufferUpdate*>(mFrameBufferPtr + headerOffset);
-
-    update->messageType = 0x00;
-    update->numberOfRectangles = htons(1);
-
-    update->rectangles[0].xPosition = htons(0);
-    update->rectangles[0].yPosition = htons(0);
-    update->rectangles[0].width = htons(mFrameBufferWidth);
-    update->rectangles[0].height = htons(mFrameBufferHeight);
-    update->rectangles[0].encodingType = htonl(static_cast<int32_t>(VncEncoding::Raw));
-
-    Logger::log(LogLevel::Information, "TODO: Handling Buffer is missing");
-    mFrameUpdateInProgress = true;
-
-    return true;
-}
-
-/*
-    Starts a timer to fire in \a ms to send another request to the server to
-    get a frame.
- */
-void VncClient::scheduleFrameUpdate(const std::chrono::milliseconds &ms)
-{
-    auto timerCallback =
-        [](gpointer userData) -> gboolean
-        {
-            auto self = reinterpret_cast<VncClient*>(userData);
-            if (!self->mFrameUpdateInProgress)
-                self->requestNewFrame();
-
-            self->mFrameUpdateRetryTimerId = 0;
-            return G_SOURCE_REMOVE;
-        };
-
-    if (mFrameUpdateRetryTimerId == 0)
-    {
-        mFrameUpdateRetryTimerId = g_timeout_add(ms.count(), timerCallback, this);
-    }
-}
-
-void VncClient::onFrameUpdated(size_t headerOffset, size_t headerSize,
-                               ssize_t frameWritten)
-{
-    if (frameWritten <= 0)
-    {
-        // if frame update failed because it was cancelled due to closing
-        // then don't log as error and don't retry
-        //Abhay if (mVncBridge->state() == IVncBridgeConn::State::Connected)
-        {
-            Logger::log(LogLevel::Information, "frame update request failed...");
-
-            // change update state to pending and install a timer to retry again
-            // in 1s time
-            mFrameUpdatePending = true;
-            mFrameUpdateInProgress = false;
-            scheduleFrameUpdateIn(1s);
-        }
-
-        return;
-    }
-
-    Logger::log(LogLevel::Information, "received FrameBuffer from VNCBridge (%zd bytes)", frameWritten);
-
-    // wrap the buffer with a GBytes and gift to the socket to send, we'll be
-    // notified when that has happened
-    GBytes *data = g_bytes_new_with_free_func(mFrameBufferPtr + headerOffset,
-                                              headerSize + frameWritten,
-                                              &VncClient::onFrameSent, this);
-    mVncSocket->write(data);
-}
-
-/* Called when the buffer containing the frame has been sent out the socket. */
-void VncClient::onFrameSent(gpointer userData)
-{
-    Logger::log(LogLevel::Information, "sent FrameBuffer message");
-
-    auto self = reinterpret_cast<VncClient*>(userData);
-
-    // clear the in-progress flag
-    self->mFrameUpdateInProgress = false;
-
-    // finished sending the frame, check if another request has come in while
-    // we sent the last one
-    if (self->mFrameUpdatePending || self->mContinuousUpdatesEnabled)
-    {
-        self->mFrameUpdatePending = false;
-        self->requestNewFrame();
-    }
+    VncServer::getInstance().setVncFrameUpdateRequestFlag(true);
 }
 

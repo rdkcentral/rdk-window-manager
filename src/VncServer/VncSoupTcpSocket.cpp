@@ -273,5 +273,6 @@ void VncSoupTcpSocket::close()
     if (!g_socket_is_closed(socket))
     {
         g_socket_close(socket, nullptr);
+        g_object_unref(socket);
     }
 }
