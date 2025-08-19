@@ -83,39 +83,19 @@ public:
 
 private:
     void onSocketClosed();
-    void onBridgeDisconnected();
-
     void onRecvData();
-
-    bool initFrameBuffer();
-
     void onTimeout();
     bool processNextMessage();
-
     bool checkProtocolVersion(const char version[12]);
-
     void writeProtocolVersion();
     void writeSecurityTypes();
     void writeInvalidVersionError();
     void writeSecurityResult(bool result);
     void writeServerInit();
-
     void onSetPixelFormat(const VncSetPixelFormat *format);
     void onSetEncodings(const VncSetEncoding *encoding);
     void onFrameUpdateRequest(bool incremental);
     void onKeyEvent(const VncKeyEvent *keyEvent);
-    void scheduleFrameUpdate(const std::chrono::milliseconds &ms);
-
-    template<class Rep, class Period>
-    inline void scheduleFrameUpdateIn(const std::chrono::duration<Rep, Period> &t)
-    {
-        scheduleFrameUpdate(std::chrono::duration_cast<std::chrono::milliseconds>(t));
-    }
-
-    bool requestNewFrame();
-    void onFrameUpdated(size_t headerOffset, size_t headerSize,
-                        ssize_t frameWritten);
-    static void onFrameSent(gpointer userData);
     void onEnableContinuousUpdates(const VncEnableContinuousUpdates *enable);
 
 private:
@@ -169,30 +149,13 @@ private:
     };
 
     State mState;
-
     RFBVersion mRfbVersion;
-
     std::shared_ptr<VncBuffer> mReadBuffer;
-
-    uint8_t *mFrameBufferPtr;
-    size_t mFrameBufferSize;
-
     std::chrono::steady_clock::time_point mLastValidClientMessage;
-
     VncEncoding mEncoding;
-
     ClientCaptureFormat mPixelFormat;
-
     bool mContinuousUpdatesEnabled;
-
-    bool mFrameUpdateInProgress;
-    bool mFrameUpdatePending;
-
-    guint mFrameUpdateRetryTimerId;
-
     bool mSendPalettePending;
-
     static const std::set<VncEncoding> mSupportedEncodings;
-
     static const uint16_t mPalette[256 * 3];
 };

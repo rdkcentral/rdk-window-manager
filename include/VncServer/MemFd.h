@@ -52,7 +52,7 @@
 #endif
 
 
-namespace AICommon
+namespace RdkWindowManager
 {
     /*
         Syscall wrapper for the memfd_create function, needed because some

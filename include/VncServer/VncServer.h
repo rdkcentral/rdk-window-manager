@@ -23,6 +23,9 @@
 #include <atomic>
 #include <mutex>
 #include <glib.h>
+
+#include "VncClient.h"
+#include "IVncSocket.h"
 #include "VncSoupTcpServer.h"
 
 namespace RdkWindowManager {
@@ -35,6 +38,14 @@ namespace RdkWindowManager {
         uint32_t getFrameBufferWidth();
         uint32_t getFrameBufferHeight();
         std::string getFriendlyName();
+        std::shared_ptr<IVncSocket> getVncSocket();
+        void setVncSocket(const std::shared_ptr<IVncSocket>&   vncSocket);
+        void setVncFrameUpdateRequestFlag(bool flag);
+        bool getVncFrameUpdateRequestFlag();
+        void setVncFrameUpdatePixelFormat(VncClient::ClientCaptureFormat pixelFormat);
+        VncClient::ClientCaptureFormat getVncFrameUpdatePixelFormat();
+        void setVncFrameBufferProgressState(bool sendInProgress);
+        bool getVncFrameBufferProgressState();
 
     private:
         VncServer();
@@ -51,9 +62,13 @@ namespace RdkWindowManager {
         uint32_t mWidth;
         uint32_t mHeight;
         std::atomic<bool> mIsRunning;
+        std::atomic<bool> mFrameBufferUpdateInProgress;
         VncSoupTcpServer* mVncSoupTcpServer;
         GMainLoop* mGMainLoop;
         std::thread mGMainLoopThread;
+        std::shared_ptr<IVncSocket> mVncSocket;
+        std::atomic<bool> mReadyToSendFrameBufer;
+        VncClient::ClientCaptureFormat mPixelFormat;
     };
 }
 #endif // RDK_WINDOW_MANAGER_VNCSERVER_H

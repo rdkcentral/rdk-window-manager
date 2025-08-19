@@ -125,6 +125,7 @@ add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER_PORT=5900")
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/VncServer)
 list( APPEND RDK_WINDOW_MANAGER_SOURCES
   src/VncServer/VncServer.cpp
+  src/VncServer/VncFrameBuffer.cpp
   src/VncServer/VncClient.cpp
   src/VncServer/VncBuffer.cpp
   src/VncServer/VncSoupTcpServer.cpp
