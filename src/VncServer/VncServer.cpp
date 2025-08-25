@@ -25,14 +25,16 @@
 #include "secure_wrapper.h"
 
 #define IPTABLE_INPUT_APPLY_RULE    "iptables -I INPUT -p tcp -m tcp --dport 5900 -m conntrack --ctstate NEW,ESTABLISHED -m comment --comment \"VNC (RFC6143)\" -j ACCEPT"
-#define IPTABLE_OUTPUT_APPLY_RULE  "iptables -I OUTPUT -p tcp -m tcp --sport 5900 -m conntrack --ctstate ESTABLISHED -m comment --comment \"VNC (RFC6143)\" -j ACCEPT"
+#define IPTABLE_OUTPUT_APPLY_RULE   "iptables -I OUTPUT -p tcp -m tcp --sport 5900 -m conntrack --ctstate ESTABLISHED -m comment --comment \"VNC (RFC6143)\" -j ACCEPT"
 #define IPTABLE_INPUT_DELETE_RULE   "iptables -D INPUT -p tcp -m tcp --dport 5900 -m conntrack --ctstate NEW,ESTABLISHED -m comment --comment \"VNC (RFC6143)\" -j ACCEPT"
 #define IPTABLE_OUTPUT_DELETE_RULE  "iptables -D OUTPUT -p tcp -m tcp --sport 5900 -m conntrack --ctstate ESTABLISHED -m comment --comment \"VNC (RFC6143)\" -j ACCEPT"
 
-#define VNCSERVER_PORT                  RDK_WINDOW_MANAGER_VNC_SERVER_PORT
-#define VNCSERVER_FRIENDLYNAME          "Friendly name"
-#define VNCSERVER_MAX_CLEANUP_TIME_MS   200 //200ms
-
+#define VNCSERVER_PORT                          RDK_WINDOW_MANAGER_VNC_SERVER_PORT
+#define VNCSERVER_FRIENDLYNAME                  "Friendly name"
+#define VNCSERVER_DEFAULT_WAIT_TIME_MS          200 //200ms
+#define VNCSERVER_MAX_SOUPTCPSERVER_WAIT_LOOP   10  // 10 * 200ms = 2s
+#define VNCSERVER_MAX_SOUPSUBSERVER_WAIT_LOOP   3   // 3 * 200ms = 600mss
+#define VNCSERVER_MAX_CLEANUP_TIME_MS           200 //200ms
 
 std::mutex mVNCServerContextLock;
 
@@ -45,7 +47,9 @@ namespace RdkWindowManager
             mIsRunning(false),
             mFrameBufferUpdateInProgress(false),
             mVncSoupTcpServer(nullptr),
-            mGMainLoop(nullptr)
+            mGMainLoop(nullptr),
+            mReadyToSendFrameBufer(false),
+            mPixelFormat(VncClient::ClientCaptureFormat::InvalidFormat)
     {
         Logger::log(LogLevel::Information, "In VncServer constructor %s", __func__);
     }
@@ -96,6 +100,7 @@ namespace RdkWindowManager
 
     void VncServer::stop()
     {
+        uint8_t waitCounter = 0;
 
         Logger::log(LogLevel::Information, "In stop %s", __func__);
         if(!mIsRunning)
@@ -103,12 +108,31 @@ namespace RdkWindowManager
             Logger::log(LogLevel::Error, "%s: VncServer is already in stop state", __func__);
             return;
         }
+        // If we are sending framebuffer to VNC Client, wait for the g_cancellable_cancel to cancel the operation
+        while((mFrameBufferUpdateInProgress) && (waitCounter < VNCSERVER_MAX_SOUPTCPSERVER_WAIT_LOOP))
+        {
+            Logger::log(LogLevel::Information, "%s:: Check VncSocket state %d waitCounter :%d mFrameBufferUpdateInProgress:%d", __func__,
+                    mVncSocket->state(),
+                    waitCounter,
+                    mFrameBufferUpdateInProgress.load());
+            std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
+            waitCounter++;
+        }
+
         mIsRunning = false;
         mReadyToSendFrameBufer = false;
         mFrameBufferUpdateInProgress = false;
         mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
 
         mVncSoupTcpServer->stop();
+
+        waitCounter = 0;
+        while((mVncSoupTcpServer->state() != IVncSoupSubServer::State::Stopped) && (waitCounter < VNCSERVER_MAX_SOUPSUBSERVER_WAIT_LOOP))
+        {
+            Logger::log(LogLevel::Information, "%s:: Check VncSoupTcpServer state %d waitCounter :%d", __func__, mVncSoupTcpServer->state(), waitCounter);
+            std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
+            waitCounter++;
+        }
 
         g_main_loop_quit(mGMainLoop);
         if (mGMainLoopThread.joinable())

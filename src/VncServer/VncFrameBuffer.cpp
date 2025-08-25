@@ -156,7 +156,7 @@ namespace RdkWindowManager
                 this->sendFrameBufferToVNCClient();
                 this->notifyPixelProcessDone();
             });
-        pixelProcessThread.detach();
+            pixelProcessThread.detach();
         }
     }
 
