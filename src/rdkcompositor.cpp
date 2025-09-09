@@ -1389,13 +1389,11 @@ namespace RdkWindowManager
         {
             mRendererEnabled = enable;
 
-#if 0
             if(enable == false)
             {
-                /* TODO: Westeros clientFirstFrame API to be called here */
+                WstCompositorResetFirstFrame(mWstContext);
                 mFirstFrameRendered = false;
             }
-#endif /* #if 0 */
         }
         return true;
     }
