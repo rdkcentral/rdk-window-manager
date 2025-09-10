@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.0 (2025-09-10)
+
+
+Full set of changes: [`1.7.0...1.8.0`](https://github.com/rdk-e/rdk-window-manager/compare/1.7.0...1.8.0)
+
 ## 1.7.0 (2025-09-04)
 
 
