@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RDK Window Manager
 
 The window manager is responsible for creating Wayland displays,
@@ -138,4 +137,3 @@ Below are the Firebolt shell, surface, and wm APIs available using Wayland & Wes
 =======
 # rdk-window-manager
 Window Manager for RDK video and entertainment devices
->>>>>>> 85b3578 (Initial commit)
