@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # RDK Window Manager
 
 The window manager is responsible for creating Wayland displays,
@@ -134,3 +135,7 @@ Below are the Firebolt shell, surface, and wm APIs available using Wayland & Wes
 - client_disconnected — Sent when an app is disconnected from a Wayland display.
 
 - client_owner — Sent in response to a get_owner request. Returns the owner ID for a given app or client.
+=======
+# rdk-window-manager
+Window Manager for RDK video and entertainment devices
+>>>>>>> 85b3578 (Initial commit)
