@@ -1465,7 +1465,7 @@ namespace RdkWindowManager
         if (gVncServerEnabled && gVncBuffer)
         {
             gVncBuffer->publish();
-            gVncBuffer->draw();
+            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
             gVncBuffer->end();
         }
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
