@@ -61,7 +61,7 @@ namespace RdkWindowManager
             static bool setFocus(const std::string& client);
             static bool getFocused(std::string& client);
             static bool kill(const std::string& client);
-            static bool addKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags);
+            static bool addKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags,const bool& focusOnly, const bool& propagate);
             static bool removeKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags);
             static bool addKeyListener(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::map<std::string, RdkWindowManagerData> &listenerProperties);
             static bool addNativeKeyListener(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::map<std::string, RdkWindowManagerData> &listenerProperties);

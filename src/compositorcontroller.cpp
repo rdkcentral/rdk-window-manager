@@ -68,6 +68,8 @@ namespace RdkWindowManager
         KeyInterceptInfo() : keyCode(-1), flags(0), compositorInfo() {}
         uint32_t keyCode;
         uint32_t flags;
+        bool focusOnly;
+        bool propagate;
         struct CompositorInfo compositorInfo;
     };
 
@@ -259,25 +261,57 @@ namespace RdkWindowManager
     bool interceptKey(uint32_t keycode, uint32_t flags, uint64_t metadata, bool isPressed)
     {
         bool ret = false;
+        bool timeToPropagate = false;
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
             for (int i=0; i<gKeyInterceptInfoMap[keycode].size(); i++)
             {
                 struct KeyInterceptInfo& info = gKeyInterceptInfoMap[keycode][i];
+                bool isFocused = false;
+                bool interceptFlag = false;
+                if( info.compositorInfo.name == gFocusedCompositor.name)
+                {
+                    isFocused = true;
+                }
                 if (info.flags == flags && info.compositorInfo.compositor->getInputEventsEnabled())
                 {
-                    Logger::log(Debug, "Key %d intercepted by client %s", keycode, info.compositorInfo.name.c_str());
-                    if (isPressed)
-                    {
-                        info.compositorInfo.compositor->onKeyPress(keycode, flags, metadata);
-                    }
-                    else
-                    {
-                        info.compositorInfo.compositor->onKeyRelease(keycode, flags, metadata);
-                    }
-                    ret = true;
-                }
-            }
+                    if( (true == info.focusOnly) && (true == isFocused) )
+		    {
+                        //focus-only: send intercept to app if its focused.
+			Logger::log(LogLevel::Information, "Key %d intercepted by client %s for focused App only ", keycode, info.compositorInfo.name.c_str());
+			interceptFlag = true;
+		    }
+		    else if(false == info.focusOnly)
+		    {
+                         //All - send intercept to app even if its not focused.
+			 Logger::log(LogLevel::Information, "Key %d intercepted by client %s for app", keycode, info.compositorInfo.name.c_str());
+			 interceptFlag = true;
+		    }
+		    else if(true == timeToPropagate && true == info.propagate)
+		    {
+                         //Propagete: send intercept to app which comes after focused app though its not focused.
+			 Logger::log(LogLevel::Information, "Key %d intercepted by client %s for app with propagate enable", keycode, info.compositorInfo.name.c_str());
+			 interceptFlag = true;
+		    }
+		    //Start propagate after focused app in the z-order.
+		    if(isFocused)
+		    {
+			    timeToPropagate = true;
+		    }
+		    //good to send key intercept.
+		    if (interceptFlag)
+		    {
+                        if (isPressed)
+                        {
+                            info.compositorInfo.compositor->onKeyPress(keycode, flags, metadata);
+                        }
+                        else
+                        {
+                            info.compositorInfo.compositor->onKeyRelease(keycode, flags, metadata);
+                        }
+                        ret = true;
+                   }
+             }
         }
         return ret;
     }
@@ -622,7 +656,7 @@ namespace RdkWindowManager
         return false;
     }
 
-    bool CompositorController::addKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags)
+    bool CompositorController::addKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, const bool& focusOnly, const bool& propagate)
     {
         //Logger::log(LogLevel::Information,  "key intercept added " << keyCode << " flags " << flags << std::endl;
         CompositorListIterator it;
@@ -631,6 +665,8 @@ namespace RdkWindowManager
             struct KeyInterceptInfo info;
             info.keyCode = keyCode;
             info.flags = flags;
+            info.focusOnly = focusOnly;
+            info.propagate = propagate;
             info.compositorInfo = *it;
             if (gKeyInterceptInfoMap.end() == gKeyInterceptInfoMap.find(keyCode))
             {
