@@ -35,6 +35,10 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+#include "VncServer.h"
+#include "VncFrameBuffer.h"
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
 #define RDK_WINDOW_MANAGER_ANY_KEY 65536
 #define RDK_WINDOW_MANAGER_DEFAULT_INACTIVITY_TIMEOUT_IN_SECONDS 15*60
@@ -145,6 +149,11 @@ namespace RdkWindowManager
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED},
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED}
         };
+
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+    static bool gVncServerEnabled = false;
+    static std::shared_ptr<VncFrameBuffer> gVncBuffer;
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
     std::string standardizeName(const std::string& clientName)
     {
@@ -1546,6 +1555,13 @@ namespace RdkWindowManager
 
         gDeletedCompositors.clear();
 
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        if (gVncServerEnabled && gVncBuffer)
+        {
+            gVncBuffer->begin();
+        }
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
+
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
         {
             bool needsHolePunch = false;
@@ -1562,6 +1578,15 @@ namespace RdkWindowManager
                 reverseIterator->compositor->draw(needsHolePunch, rect, true);
             }
         }
+
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        if (gVncServerEnabled && gVncBuffer)
+        {
+            gVncBuffer->publish();
+            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
+            gVncBuffer->end();
+        }
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         if (gCursor)
         {
@@ -2246,6 +2271,48 @@ namespace RdkWindowManager
             return it->compositor->renderReady();
         }
         return false;
+    }
+
+    bool CompositorController::startVncServer()
+    {
+        bool result = false;
+
+    #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        uint32_t width = 0, height = 0;
+        getScreenResolution(width, height);
+        result = VncServer::getInstance().start(width, height);
+        if (result)
+        {
+            gVncBuffer = std::make_shared<RdkWindowManager::VncFrameBuffer>(width, height);
+            gVncServerEnabled = true;
+            Logger::log(LogLevel::Information, "VNC server started successfully with width %d height %d", width, height);
+        }
+        else
+        {
+            Logger::log(LogLevel::Error, "VNC server failed to start");
+        }
+    #else
+        Logger::log(LogLevel::Warn, "VNC server feature is not enabled, attempt to start VNC server failed");
+    #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
+
+        return result;
+    }
+
+    bool CompositorController::stopVncServer()
+    {
+        bool result = false;
+
+    #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        gVncServerEnabled = false;
+        VncServer::getInstance().stop();
+        gVncBuffer.reset();
+        Logger::log(LogLevel::Information,  "VNC server stopped successfully");
+        result = true;
+    #else
+        Logger::log(LogLevel::Warn, "VNC server feature is not enabled, attempt to stop VNC server failed");
+    #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
+
+        return result;
     }
 }
 

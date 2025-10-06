@@ -148,6 +148,8 @@ namespace RdkWindowManager
             static bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
             static bool enableDisplayRender(const std::string& client, bool enable);
             static bool renderReady(const std::string& client);
+            static bool startVncServer();
+            static bool stopVncServer();
     };
 }
 
