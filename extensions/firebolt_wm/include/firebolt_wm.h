@@ -20,8 +20,14 @@
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
 #include <map>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include "westeros-compositor.h"
 #include "firebolt_wm_protocol_server.h"
+#include "compositorcontroller.h"
+
 
 typedef struct
 {
@@ -30,6 +36,11 @@ typedef struct
     struct wl_display*  display;
     wl_resource*        resource;
 } FireboltWmClientInfo;
+
+struct FireboltWmEventMessage {
+    std::string clientName;
+    std::string eventName;
+};
 
 class FireboltWindowManager
 {
@@ -48,5 +59,37 @@ class FireboltWindowManager
         WstCompositor                *mWstCompositor;
         struct wl_display            *mWlDisplay;
         std::string                   mWstDisplayName;
+
+
+        std::queue<FireboltWmEventMessage> mEventQueue;
+        std::mutex mQueueMutex;
+        std::condition_variable mQueueCV;
+        std::thread mWorkerThread;
+        bool mThreadRunning = false;
+
+        void fireboltWMEventWorkerThread (void);
+
+        void createFireboltWMEventWorker(void);
+        void deleteFireboltWMEventWorker(void);
+
+        bool notify_client_event(const char* clientName,
+                            const std::string& eventName,
+                            void (*fbWindowManagerEventCallback)(wl_resource*, const char*));
+
+        /* Firebolt windowmanager Listener */
+        static std::shared_ptr<RdkWindowManager::FireboltExtensionEventListener> mFireboltWindowManagerEventListener;
+        class FireboltWindowManagerListener : public RdkWindowManager::FireboltExtensionEventListener
+        {
+            public:
+                FireboltWindowManagerListener() = default;
+                ~FireboltWindowManagerListener() = default;
+
+                /* Events listeners */
+                void client_connected(const char* clientName) override;
+                void client_disconnected(const char* clientName) override;
+
+                void postEventToWorker(const char* clientName,const std::string& eventName);
+
+        };
 };
 #endif

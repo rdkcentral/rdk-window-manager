@@ -60,6 +60,8 @@ public:
     virtual bool setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible) = 0;
     virtual bool fireboltSurfaceDestroy(const std::string& client, int surfaceId) = 0;
     virtual bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si) = 0;
+    virtual bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener) = 0;
+    virtual bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener) = 0;
 };
 
 }

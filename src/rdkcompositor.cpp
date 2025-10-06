@@ -1098,9 +1098,9 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information, "sending onBlur event");
                 CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR);
             }
-            mFocused = focused;
-            updateWaylandState();
         }
+        mFocused = focused;
+        updateWaylandState();
     }
 
     bool RdkCompositor::convertToFireboltSurface(int surfaceId, SurfaceType surfaceType)

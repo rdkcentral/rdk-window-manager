@@ -110,6 +110,24 @@ struct firebolt_wm_listener {
 			     struct firebolt_wm *firebolt_wm,
 			     const char *id,
 			     int32_t owner);
+	/**
+	 * sent when an app is connected to a Wayland display
+	 *
+	 *
+	 * @param id app / client id
+	 */
+	void (*client_connected)(void *data,
+				 struct firebolt_wm *firebolt_wm,
+				 const char *id);
+	/**
+	 * sent when an app is disconnected from a Wayland display
+	 *
+	 *
+	 * @param id app / client id
+	 */
+	void (*client_disconnected)(void *data,
+				    struct firebolt_wm *firebolt_wm,
+				    const char *id);
 };
 
 /**
@@ -153,6 +171,14 @@ firebolt_wm_add_listener(struct firebolt_wm *firebolt_wm,
  * @ingroup iface_firebolt_wm
  */
 #define FIREBOLT_WM_CLIENT_OWNER_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_CONNECTED_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_wm
+ */
+#define FIREBOLT_WM_CLIENT_DISCONNECTED_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_wm

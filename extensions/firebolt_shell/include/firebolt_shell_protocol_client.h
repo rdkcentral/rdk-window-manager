@@ -93,6 +93,22 @@ struct firebolt_shell_listener {
 	void (*firebolt_video_surface_id)(void *data,
 					  struct firebolt_shell *firebolt_shell,
 					  const char *video_id);
+	/**
+	 * sent when a display is focused
+	 *
+	 * Notify on_focus event when a display is focused
+	 */
+	void (*on_focus)(void *data,
+			 struct firebolt_shell *firebolt_shell,
+			 const char *client_id);
+	/**
+	 * sent when a display is blurred
+	 *
+	 * Notify on_blur event when a display is blurred
+	 */
+	void (*on_blur)(void *data,
+			struct firebolt_shell *firebolt_shell,
+			const char *client_id);
 };
 
 /**
@@ -112,6 +128,14 @@ firebolt_shell_add_listener(struct firebolt_shell *firebolt_shell,
  * @ingroup iface_firebolt_shell
  */
 #define FIREBOLT_SHELL_FIREBOLT_VIDEO_SURFACE_ID_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_shell
+ */
+#define FIREBOLT_SHELL_ON_FOCUS_SINCE_VERSION 1
+/**
+ * @ingroup iface_firebolt_shell
+ */
+#define FIREBOLT_SHELL_ON_BLUR_SINCE_VERSION 1
 
 /**
  * @ingroup iface_firebolt_shell
@@ -148,7 +172,7 @@ firebolt_shell_destroy(struct firebolt_shell *firebolt_shell)
 /**
  * @ingroup iface_firebolt_shell
  *
- * Create a firebolt_surface wrapper around wl_surfaces  
+ * Create a firebolt_surface wrapper around wl_surfaces
  */
 static inline void
 firebolt_shell_get_firebolt_surface(struct firebolt_shell *firebolt_shell, int32_t surfaceId, uint32_t type)

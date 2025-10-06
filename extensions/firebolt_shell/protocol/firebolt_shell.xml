@@ -11,7 +11,7 @@
             <description summary="surface types">
                 Describes the surface type and passed to the get_firebolt_surface
             </description>
-            <entry name="standard" value="1" summary="a regular surface"/> 
+            <entry name="standard" value="1" summary="a regular surface"/>
             <entry name="video" value="2" summary="a video surface"/>
             <entry name="popup" value="3" summary="Display on top of all other surfaces.  Does not have input focus."/>
             <entry name="notification" value="4" summary="Display on top of all other surfaces.  Receives input focus."/>
@@ -19,7 +19,7 @@
 
         <request name="get_firebolt_surface">
             <description summary="create a firebolt shell surface from a surface">
-                Create a firebolt_surface wrapper around wl_surfaces  
+                Create a firebolt_surface wrapper around wl_surfaces
             </description>
             <arg name="surfaceId" type="int"/>
             <arg name="type" type="uint" enum="firebolt_surface_type"/>
@@ -29,7 +29,21 @@
             <description summary="sent in reply to a get_firebolt_surface request for video surfaces">
                 Returns a video id string if a video surface is requested from the get_firebolt_surface request
             </description>
-            <arg name="video_id" type="string" summary="the video id for identifying the hardware video surface"/> 
+            <arg name="video_id" type="string" summary="the video id for identifying the hardware video surface"/>
+        </event>
+
+        <event name="on_focus">
+            <description summary="sent when a display is focused">
+                Notify on_focus event when a display is focused
+            </description>
+            <arg name="client_id" type="string"/>
+        </event>
+
+        <event name="on_blur">
+            <description summary="sent when a display is blurred">
+                Notify on_blur event when a display is blurred
+            </description>
+            <arg name="client_id" type="string"/>
         </event>
 
     </interface>

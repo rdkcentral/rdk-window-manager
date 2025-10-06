@@ -49,6 +49,9 @@ namespace RdkWindowManager
         int32_t cropWidth;
         int32_t cropHeight;
         int32_t ownerId;
+        uint32_t previousWidth;
+        uint32_t previousHeight;
+        bool isSuspended;
     };
 
     class CompositorControllerImpl;
@@ -172,6 +175,9 @@ namespace RdkWindowManager
             static bool setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible);
             static bool fireboltSurfaceDestroy(const std::string& client, int surfaceId);
             static bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
+            static bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
+            static bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
+            static bool onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName);
     };
 extern bool (*enableVirtualDisplay)(const std::string&, const bool);
 extern bool (*getClientInfo)(const std::string&, ClientInfo&);
@@ -196,6 +202,8 @@ extern bool (*setFireboltSurfaceCrop)(const std::string& client, int surfaceId, 
 extern bool (*setFireboltSurfaceVisibility)(const std::string& client, int surfaceId, bool visible);
 extern bool (*fireboltSurfaceDestroy)(const std::string& client, int surfaceId);
 extern bool (*getSurfaceInfo)(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
+extern bool (*addFireboltExtensionListener)(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
+extern bool (*removeFireboltExtensionListener)(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
 }
 
 #endif //RDK_WINDOW_MANAGER_COMPOSITOR_CONTROLLER_H
