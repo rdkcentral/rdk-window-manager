@@ -683,9 +683,8 @@ namespace RdkWindowManager
     {
         mPositionX = x;
         mPositionY = y;
-
-        mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, x, 0.f);
-        mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, y, 0.f);
+        mMatrix[12] = static_cast<float>(mPositionX);
+        mMatrix[13] = static_cast<float>(mPositionY);
     }
 
     void RdkCompositor::position(int32_t &x, int32_t &y)
