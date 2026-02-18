@@ -31,6 +31,7 @@
 #include "cursor.h"
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <ctime>
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -143,6 +144,7 @@ namespace RdkWindowManager
     KeyRepeatConfig gKeyRepeatConfig;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
+    std::mutex gfbExtensionEventListenerMapMutex;
     const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
@@ -239,6 +241,12 @@ namespace RdkWindowManager
 
     void sendApplicationEvent(std::shared_ptr<RdkWindowManagerEventListener>& listener, const std::string& eventName, const std::string& client)
     { 
+         if (!listener)
+         {
+             Logger::log(LogLevel::Error, "sendApplicationEvent - listener is null!");
+             return;
+         }
+
          if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED) == 0)
          {
                  listener->onApplicationTerminated(client);
@@ -1655,9 +1663,21 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(eventCompositor, it))
         {
-            for (int i=0; i< it->eventListeners.size(); i++)
+            // Copy listeners to avoid iterator invalidation during callbacks
+            std::vector<std::shared_ptr<RdkWindowManagerEventListener>> listenersCopy = it->eventListeners;
+            
+            for (const auto& listener : listenersCopy)
             {
-                sendApplicationEvent(it->eventListeners[i], eventName, it->name);
+                if (listener)
+                {
+                    try {
+                        sendApplicationEvent(listener, eventName, it->name);
+                    }
+                    catch (const std::exception& e) {
+                        Logger::log(LogLevel::Error,
+                            "onEvent - Exception in listener callback: %s", e.what());
+                    }
+                }
             }
             if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0)
             {
@@ -1682,6 +1702,12 @@ namespace RdkWindowManager
 
     void sendFireboltExtensionEvent(const std::shared_ptr<FireboltExtensionEventListener>& listener, const std::string& eventName, const std::string& client)
     {
+        if (!listener)
+        {
+            Logger::log(LogLevel::Error, "sendFireboltExtensionEvent - listener is null!");
+            return;
+        }
+
         Logger::log(LogLevel::Information, "sendFireboltExtensionEvent - client:%s eventName:%s", client.c_str(), eventName.c_str());
         if (eventName.compare(RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS) == 0)
         {
@@ -1705,6 +1731,13 @@ namespace RdkWindowManager
     {
         bool success = false;
 
+        if (fbExtensionName.empty())
+        {
+            Logger::log(LogLevel::Error,
+                "addFireboltExtensionListener: fbExtensionName is empty!");
+            return false;
+        }
+
         if (!listener)
         {
             Logger::log(LogLevel::Error,
@@ -1712,10 +1745,17 @@ namespace RdkWindowManager
         }
         else
         {
-            gfbExtensionEventListenerMap[fbExtensionName] = listener;
-            Logger::log(LogLevel::Information,
-                "addFireboltExtensionListener: Listener is registered for fbExtensionName '%s'", fbExtensionName.c_str());
-            success = true;
+            try {
+                std::lock_guard<std::mutex> lock(gfbExtensionEventListenerMapMutex);
+                gfbExtensionEventListenerMap[fbExtensionName] = listener;
+                Logger::log(LogLevel::Information,
+                    "addFireboltExtensionListener: Listener is registered for fbExtensionName '%s'", fbExtensionName.c_str());
+                success = true;
+            }
+            catch (const std::exception& e) {
+                Logger::log(LogLevel::Error,
+                    "addFireboltExtensionListener: Exception: %s", e.what());
+            }
         }
 
         return success;
@@ -1725,23 +1765,30 @@ namespace RdkWindowManager
     {
         bool success = false;
 
-        auto it = gfbExtensionEventListenerMap.find(fbExtensionName);
-        if (it == gfbExtensionEventListenerMap.end())
-        {
-            Logger::log(LogLevel::Warn,
-                "removeFireboltExtensionListener: no listener found for fbExtensionName '%s'", fbExtensionName.c_str());
+        try {
+            std::lock_guard<std::mutex> lock(gfbExtensionEventListenerMapMutex);
+            auto it = gfbExtensionEventListenerMap.find(fbExtensionName);
+            if (it == gfbExtensionEventListenerMap.end())
+            {
+                Logger::log(LogLevel::Warn,
+                    "removeFireboltExtensionListener: no listener found for fbExtensionName '%s'", fbExtensionName.c_str());
+            }
+            else if (it->second != listener)
+            {
+                Logger::log(LogLevel::Warn,
+                    "removeFireboltExtensionListener: listener mismatch for fbExtensionName '%s'", fbExtensionName.c_str());
+            }
+            else
+            {
+                gfbExtensionEventListenerMap.erase(it);
+                Logger::log(LogLevel::Information,
+                    "removeFireboltExtensionListener: Listener removed for fbExtensionName '%s'", fbExtensionName.c_str());
+                success = true;
+            }
         }
-        else if (it->second != listener)
-        {
-            Logger::log(LogLevel::Warn,
-                "removeFireboltExtensionListener: listener mismatch for fbExtensionName '%s'", fbExtensionName.c_str());
-        }
-        else
-        {
-            gfbExtensionEventListenerMap.erase(it);
-            Logger::log(LogLevel::Information,
-                "removeFireboltExtensionListener: Listener removed for fbExtensionName '%s'", fbExtensionName.c_str());
-            success = true;
+        catch (const std::exception& e) {
+            Logger::log(LogLevel::Error,
+                "removeFireboltExtensionListener: Exception: %s", e.what());
         }
 
         return success;
@@ -1759,19 +1806,37 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information,
                     "onFireboltExtensionEvent - eventName: %s display: %s", eventName.c_str(), it->name.c_str());
 
-                if (gfbExtensionEventListenerMap.empty())
+                // Copy listeners to avoid holding lock during callbacks (prevents deadlock)
+                std::vector<std::shared_ptr<FireboltExtensionEventListener>> listenersCopy;
                 {
-                    Logger::log(LogLevel::Warn, "onFireboltExtensionEvent - No event listeners registered!");
+                    std::lock_guard<std::mutex> lock(gfbExtensionEventListenerMapMutex);
+                    if (gfbExtensionEventListenerMap.empty())
+                    {
+                        Logger::log(LogLevel::Warn, "onFireboltExtensionEvent - No event listeners registered!");
+                    }
+                    else
+                    {
+                        listenersCopy.reserve(gfbExtensionEventListenerMap.size());
+                        for (const auto& iter : gfbExtensionEventListenerMap)
+                        {
+                            listenersCopy.push_back(iter.second);
+                        }
+                    }
                 }
 
-                for (const auto& iter : gfbExtensionEventListenerMap)
+                // Call listeners outside the lock to prevent deadlock
+                for (const auto& listener : listenersCopy)
                 {
-                    const std::shared_ptr<FireboltExtensionEventListener>& listener = iter.second;
-
-                    Logger::log(LogLevel::Information,
-                        "onFireboltExtensionEvent - fbExtensionName: %s eventName: %s display: %s", iter.first.c_str(), eventName.c_str(), it->name.c_str());
-
-                    sendFireboltExtensionEvent(listener, eventName, it->name);
+                    if (listener)
+                    {
+                        try {
+                            sendFireboltExtensionEvent(listener, eventName, it->name);
+                        }
+                        catch (const std::exception& e) {
+                            Logger::log(LogLevel::Error,
+                                "onFireboltExtensionEvent - Exception in listener callback: %s", e.what());
+                        }
+                    }
                 }
 
                 success = true;
