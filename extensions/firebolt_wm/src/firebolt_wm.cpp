@@ -1484,7 +1484,7 @@ extern "C"
         if (NULL != fireboltWmContext)
         {
             /* Unregister eventlListener callback with CompositorController */
-            if (nullptr == FireboltWindowManager::mFireboltWindowManagerEventListener)
+            if (nullptr != FireboltWindowManager::mFireboltWindowManagerEventListener)
             {
                 /* Remove event listener */
                 RdkWindowManager::CompositorController::removeFireboltExtensionListener(
@@ -1495,9 +1495,15 @@ extern "C"
             }
             fireboltWmContext->deleteFireboltWMEventWorker();
 
+            /* Erase from map under lock BEFORE deleting the context object to prevent
+             * use-after-free in postEventToWorker, which reads the map under mContextLock */
+            {
+                std::lock_guard<std::mutex> lock(FireboltWindowManager::mContextLock);
+                f_fireboltWmCompositorList.erase(wstCompositor);
+            }
+
             /* Delete extension context */
             fireboltWmDeleteContext(fireboltWmContext);
-            f_fireboltWmCompositorList.erase(wstCompositor);
         }
         else
         {
