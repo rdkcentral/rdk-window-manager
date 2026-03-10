@@ -1,0 +1,47 @@
+name: RDK WindowManager Build
+
+on:
+  push:
+    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+  pull_request:
+    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  unit-tests:
+    name: Build and run unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [ gcc, clang ]
+        coverage: [ with-coverage, without-coverage ]
+        exclude:
+          - compiler: clang
+            coverage: with-coverage
+          - compiler: clang
+            coverage: without-coverage
+          - compiler: gcc
+            coverage: without-coverage
+
+    steps:
+      - name: Install packages
+        run: >
+          sudo apt update
+          &&
+          sudo apt install -y libwayland-dev doxygen libunwind-dev libgstreamer1.0-dev freeglut3-dev libglew-dev libgbm-dev libdrm-dev rapidjson-doc rapidjson-dev cmake
+          &&
+          sudo apt install -y meson graphviz xsltproc xmlto wayland-protocols libbison-dev libexpat1-dev libxml2-dev autoconf automake libtool pkg-config libxau-dev libffi-dev libegl1-mesa-dev mesa-utils libcurl4-openssl-dev libjpeg-dev libpng-dev libc6-dev
+          &&
+          python3 -m pip install --upgrade meson
+          
+      - name: Checkout rdk-window-manger
+        uses: actions/checkout@v4
+        with:
+          path: rdk-window-manager
+
+      - name: Install the packages
+        run: |
+           cat /etc/os-release
+           bash $GITHUB_WORKSPACE/rdk-window-manager/scripts/build_rdkwindowmanager.sh ubuntu
