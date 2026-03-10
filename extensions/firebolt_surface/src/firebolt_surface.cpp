@@ -112,6 +112,7 @@ std::string FireboltSurface::getFireboltSurfaceClientName(wl_resource *resource)
     FireboltSurface *fbSurfaceCtx = reinterpret_cast<FireboltSurface*>(wl_resource_get_user_data(resource));
     if ((NULL != fbSurfaceCtx) && (NULL != fbSurfaceCtx->mWstCompositor))
     {
+        std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
         FireboltSurface::ClientListMap::iterator it = fbSurfaceCtx->mClientListMap.find(resource);
         if (it == fbSurfaceCtx->mClientListMap.end()) 
         {
@@ -328,6 +329,13 @@ static void firebolt_surface_set_name(struct wl_client *client, struct wl_resour
         std::string clientName = fbSurfaceCtx->getFireboltSurfaceClientName(resource);
         if (!clientName.empty())
         {
+            if (NULL == name)
+            {
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
+                        " firebolt_surface@.set_name: client@%p resource@%p surfaceId:%d - name is NULL!",
+                        client, resource, surfaceId);
+                goto ret_fail;
+            }
             surfaceName.assign(name);
             if (!RdkWindowManager::CompositorController::setFireboltSurfaceName(clientName, surfaceId, surfaceName))
             {
