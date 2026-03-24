@@ -40,7 +40,7 @@ if [ ! -d "westeros" ]; then
     git clone https://code.rdkcentral.com/r/components/opensource/westeros
     cd westeros
     if [ -f "${GITHUB_WORKSPACE}/scripts/westeros_ubuntu.patch" ]; then
-        git apply ${GITHUB_WORKSPACE}/scripts/westeros_ubuntu.patch
+        git apply "${GITHUB_WORKSPACE}/scripts/westeros_ubuntu.patch"
     fi
 else
     cd westeros
