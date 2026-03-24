@@ -1,0 +1,26 @@
+name: Build Component in Native Environment
+
+on:
+  push:
+    branches: [ main, 'sprint/**', 'release/**', master, develop ]
+  pull_request:
+    branches: [ main, 'sprint/**', 'release/**', master, develop ]
+
+jobs:
+  build-rdk-window-manager-on-pr:
+    name: Build rdk-window-manager component in github rdkcentral
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+   
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sh -x build_dependencies.sh
+
+      - name: Native build
+        run: |
+          sh -x cov_build.sh
