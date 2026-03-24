@@ -10,7 +10,8 @@ cd ${GITHUB_WORKSPACE}
 # Install Dependencies and packages
 
 apt update
-apt-get install -q -y cmake ninja-build git wget autoconf automake libtool pkg-config libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libwayland-dev wayland-protocols libxkbcommon-dev libglib2.0-dev libsoup2.4-dev libboost-dev libjpeg-dev libpng-dev zlib1g-dev libsystemd-dev libexpat1-dev libffi-dev libxml2-dev meson xsltproc doxygen xutils-dev
+
+apt-get install -q -y cmake ninja-build git wget autoconf automake libtool pkg-config libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libwayland-dev wayland-protocols libxkbcommon-dev libglib2.0-dev libsoup2.4-dev libboost-dev libjpeg-dev libpng-dev zlib1g-dev libsystemd-dev libexpat1-dev libffi-dev libxml2-dev meson xsltproc doxygen graphviz xutils-dev
 
 ############################
 # Build Westeros
