@@ -37,7 +37,7 @@ cd thirdparty
 if [ ! -d "westeros" ]; then
     echo "Clone Westeros code"
     echo "=================================================================="
-    git clone --branch main --depth 1 https://code.rdkcentral.com/r/components/opensource/westeros
+    git clone --depth 1 https://code.rdkcentral.com/r/components/opensource/westeros
     cd westeros
     if [ -f "${GITHUB_WORKSPACE}/scripts/westeros_ubuntu.patch" ]; then
         git apply "${GITHUB_WORKSPACE}/scripts/westeros_ubuntu.patch"
