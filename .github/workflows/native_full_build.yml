@@ -19,8 +19,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sh -x build_dependencies.sh
+          bash -x build_dependencies.sh
 
       - name: Native build
         run: |
-          sh -x cov_build.sh
+          bash -x cov_build.sh
