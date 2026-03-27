@@ -107,16 +107,16 @@ index 2e5f3cb..1ed7dee 100644
  	$(call setenv) && \
 +	cd drm &&  mkdir -p m4 cfg && \
 +	autoreconf --install && \
-+	./configure && \
-+	make && sudo make install
++	./configure --prefix $(WID) && \
++	make && make install
 +
 +westeros-essos:
 +	$(call setenv) && \
 +        cd essos &&  mkdir -p m4 cfg && \
 +        autoreconf --install && \
-+        ./configure && \
++	 ./configure --prefix $(WID) --libdir $(WID)/lib --includedir $(WID)/include && \
 +        make CXXFLAGS="-I$(WID)/include -I$(WID)/../../simpleshell/protocol" LDFLAGS="-L$(WID)/lib" && \
-+        sudo make install
++        make install
 +
 +westeros-core:
 +	$(call setenv) &&  mkdir -p m4 cfg && \
