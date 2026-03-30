@@ -45,6 +45,7 @@
 #define RDK_WINDOW_MANAGER_WILDCARD_KEY_CODE 255
 #define RDK_WINDOW_MANAGER_WATERMARK_ID 65536
 
+
 namespace RdkWindowManager
 {
     struct KeyListenerInfo
