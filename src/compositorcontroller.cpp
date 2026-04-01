@@ -32,6 +32,7 @@
 #include <iostream>
 #include <map>
 #include <ctime>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -219,6 +220,11 @@ namespace RdkWindowManager
                 return true;
             }
         }
+
+        // Test coverity workflow
+        uint8_t* testBuf;
+        testBuf = (uint8_t*)calloc(16, sizeof(uint8_t));
+        (void)testBuf;
 
         for (auto it = gTopmostCompositorList.begin(); it != gTopmostCompositorList.end(); ++it)
         {
