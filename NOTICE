@@ -18,3 +18,6 @@ Licensed under the MIT License
 The mocks area uses definitions etc. from wayland which are:
 Copyright (c) 2008 Kristian Høgsberg
 Licensed under the MIT License
+
+Copyright (C) 2012 Raphael Kubo da Costa <rakuco@webkit.org>
+Licensed under the BSD-2 License

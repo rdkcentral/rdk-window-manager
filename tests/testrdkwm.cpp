@@ -5785,6 +5785,8 @@ static int os_create_anonymous_file(off_t size)
     static const char templateFile[] = "/wm-shared-XXXXXX";
     const char *path = NULL;
     char *name = NULL;
+    size_t pathLen = 0;
+    size_t nameLen = 0;
     int fd = -1;
     int result = -1;
 
@@ -5795,15 +5797,29 @@ static int os_create_anonymous_file(off_t size)
         goto exit;
     }
 
-    name = (char*)malloc(strlen(path) + sizeof(templateFile));
+    pathLen = strlen(path);
+    if (pathLen > (SIZE_MAX - sizeof(templateFile)))
+    {
+        RDKWM_TEST_ERROR(("XDG_RUNTIME_DIR path length overflow"));
+        goto exit;
+    }
+
+    nameLen = pathLen + sizeof(templateFile);
+    name = (char*)malloc(nameLen);
     if (!name)
     {
         RDKWM_TEST_ERROR(("Error allocating memory for temporary file name"));
         goto exit;
     }
 
-    strcpy(name, path);
-    strcat(name, templateFile);
+    {
+        int rc = snprintf(name, nameLen, "%s%s", path, templateFile);
+        if ((rc < 0) || (rc >= (int)nameLen))
+        {
+            RDKWM_TEST_ERROR(("Temporary file name generation failed"));
+            goto exit;
+        }
+    }
 
     fd = create_tmpfile_cloexec(name);
     if (fd < 0)
@@ -5822,7 +5838,7 @@ static int os_create_anonymous_file(off_t size)
 exit:
     if (name)
         free(name);
-    if (result == -1 && fd > 0)
+    if (result == -1 && fd >= 0)
         close(fd);
     return (result == 0) ? fd : -1;
 }
