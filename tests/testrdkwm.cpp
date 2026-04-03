@@ -5812,10 +5812,13 @@ static int os_create_anonymous_file(off_t size)
         goto exit;
     }
 
-    if (snprintf(name, nameLen, "%s%s", path, templateFile) >= (int)nameLen)
     {
-        RDKWM_TEST_ERROR(("Temporary file name generation failed"));
-        goto exit;
+        int rc = snprintf(name, nameLen, "%s%s", path, templateFile);
+        if ((rc < 0) || (rc >= (int)nameLen))
+        {
+            RDKWM_TEST_ERROR(("Temporary file name generation failed"));
+            goto exit;
+        }
     }
 
     fd = create_tmpfile_cloexec(name);
