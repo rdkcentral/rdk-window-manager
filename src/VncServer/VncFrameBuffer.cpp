@@ -283,11 +283,11 @@ namespace RdkWindowManager
             {
                 std::memcpy(updateBuffer + i * 4, &pixel, 4);
             }
-            // coverity[DEADCODE : FALSE]
-            // Note: Currently unreachable (only 8 and 32 bit formats supported)
-            // Kept for future 16-bit format support (e.g., RGB_5_6_5)
             else if (bitsPerPixel == 16)
             {
+                // Note: Currently unreachable (only 8 and 32 bit formats supported)
+                // Kept for future 16-bit format support (e.g., RGB_5_6_5)
+                /* coverity[dead_error_begin] */
                 uint16_t outPixel = static_cast<uint16_t>(pixel);
                 std::memcpy(updateBuffer + i * 2, &outPixel, 2);
             }
