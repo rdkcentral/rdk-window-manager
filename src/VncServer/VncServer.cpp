@@ -149,8 +149,21 @@ namespace RdkWindowManager
 
     VncServer::~VncServer()
     {
-        Logger::log(LogLevel::Information, "In destructor %s", __func__);
-        stop();
+        try
+        {
+            Logger::log(LogLevel::Information, "In destructor %s", __func__);
+            stop();
+        }
+        catch (const std::exception& e)
+        {
+            // Never let exceptions escape from destructor - would cause std::terminate()
+            Logger::log(LogLevel::Error, "Exception in ~VncServer: %s", e.what());
+        }
+        catch (...)
+        {
+            // Catch all other exceptions
+            Logger::log(LogLevel::Error, "Unknown exception in ~VncServer");
+        }
     }
 
     bool VncServer::applyIptableRule()
