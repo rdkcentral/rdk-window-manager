@@ -19,6 +19,7 @@
 
 #ifndef FIREBOLT_WM_H
 #define FIREBOLT_WM_H
+#include <atomic>
 #include <map>
 #include <queue>
 #include <condition_variable>
@@ -65,7 +66,7 @@ class FireboltWindowManager
         std::mutex mQueueMutex;
         std::condition_variable mQueueCV;
         std::thread mWorkerThread;
-        bool mThreadRunning = false;
+        std::atomic<bool> mThreadRunning{false};
 
         void fireboltWMEventWorkerThread (void);
 

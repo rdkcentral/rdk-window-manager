@@ -282,7 +282,7 @@ namespace RdkWindowManager
     {
         bool ret = false;
 
-	Logger::log(Debug, "interceptKey called Keycode - %d, flags - %d, metadata -%d, isPressed- %d", keycode, flags, metadata, isPressed);
+	Logger::log(Debug, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
 	    gKeyInterceptedMap.clear();

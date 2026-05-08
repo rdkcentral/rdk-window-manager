@@ -93,6 +93,12 @@ namespace RdkWindowManager
         else
         {
             Logger::log(LogLevel::Error, "%s: VncSoupTcpServer start failed", __func__);
+            // Clean up resources on failure
+            delete mVncSoupTcpServer;
+            mVncSoupTcpServer = nullptr;
+            g_main_loop_unref(mGMainLoop);
+            mGMainLoop = nullptr;
+            deleteIptableRule();
         }
 
         return status;
@@ -103,20 +109,27 @@ namespace RdkWindowManager
         uint8_t waitCounter = 0;
 
         Logger::log(LogLevel::Information, "In stop %s", __func__);
-        if(!mIsRunning)
+        
+         // Clean up based on actual resource ownership, not just mIsRunning
+        if(!mIsRunning && !mVncSoupTcpServer && !mGMainLoop)
         {
-            Logger::log(LogLevel::Error, "%s: VncServer is already in stop state", __func__);
+            Logger::log(LogLevel::Information, "%s: VncServer is already stopped and all resources cleaned", __func__);
             return;
         }
-        // If we are sending framebuffer to VNC Client, wait for the g_cancellable_cancel to cancel the operation
-        while((mFrameBufferUpdateInProgress) && (waitCounter < VNCSERVER_MAX_SOUPTCPSERVER_WAIT_LOOP))
+        
+        // Only wait for framebuffer if server was actually running
+        if(mIsRunning)
         {
-            Logger::log(LogLevel::Information, "%s:: Check VncSocket state %d waitCounter :%d mFrameBufferUpdateInProgress:%d", __func__,
-                    mVncSocket->state(),
-                    waitCounter,
-                    mFrameBufferUpdateInProgress.load());
-            std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
-            waitCounter++;
+            // If we are sending framebuffer to VNC Client, wait for the g_cancellable_cancel to cancel the operation
+            while((mFrameBufferUpdateInProgress) && (waitCounter < VNCSERVER_MAX_SOUPTCPSERVER_WAIT_LOOP))
+            {
+                Logger::log(LogLevel::Information, "%s:: Check VncSocket state %d waitCounter :%d mFrameBufferUpdateInProgress:%d", __func__,
+                        mVncSocket->state(),
+                        waitCounter,
+                        mFrameBufferUpdateInProgress.load());
+                std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
+                waitCounter++;
+            }
         }
 
         mIsRunning = false;
@@ -124,33 +137,57 @@ namespace RdkWindowManager
         mFrameBufferUpdateInProgress = false;
         mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
 
-        mVncSoupTcpServer->stop();
-
-        waitCounter = 0;
-        while((mVncSoupTcpServer->state() != IVncSoupSubServer::State::Stopped) && (waitCounter < VNCSERVER_MAX_SOUPSUBSERVER_WAIT_LOOP))
+        // Clean up VncSoupTcpServer if it exists
+        if(mVncSoupTcpServer)
         {
-            Logger::log(LogLevel::Information, "%s:: Check VncSoupTcpServer state %d waitCounter :%d", __func__, mVncSoupTcpServer->state(), waitCounter);
-            std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
-            waitCounter++;
+            mVncSoupTcpServer->stop();
+
+            waitCounter = 0;
+            while((mVncSoupTcpServer->state() != IVncSoupSubServer::State::Stopped) && (waitCounter < VNCSERVER_MAX_SOUPSUBSERVER_WAIT_LOOP))
+            {
+                Logger::log(LogLevel::Information, "%s:: Check VncSoupTcpServer state %d waitCounter :%d", __func__, mVncSoupTcpServer->state(), waitCounter);
+                std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_DEFAULT_WAIT_TIME_MS));
+                waitCounter++;
+            }
+            
+            delete mVncSoupTcpServer;
+            mVncSoupTcpServer = nullptr;
         }
 
-        g_main_loop_quit(mGMainLoop);
-        if (mGMainLoopThread.joinable())
+        // Clean up GMainLoop if it exists
+        if(mGMainLoop)
         {
-            mGMainLoopThread.join();
+            g_main_loop_quit(mGMainLoop);
+            if (mGMainLoopThread.joinable())
+            {
+                mGMainLoopThread.join();
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_MAX_CLEANUP_TIME_MS)); // Give some time to clean GLib
+            g_main_loop_unref(mGMainLoop);
+            mGMainLoop = nullptr;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(VNCSERVER_MAX_CLEANUP_TIME_MS)); // Give some time to clean GLib
-        g_main_loop_unref(mGMainLoop);
 
+        // Always try to delete iptables rules (idempotent operation)
         deleteIptableRule();
-
-        delete mVncSoupTcpServer;
     }
 
     VncServer::~VncServer()
     {
-        Logger::log(LogLevel::Information, "In destructor %s", __func__);
-        stop();
+        try
+        {
+            Logger::log(LogLevel::Information, "In destructor %s", __func__);
+            stop();
+        }
+        catch (const std::exception& e)
+        {
+            // Never let exceptions escape from destructor - would cause std::terminate()
+            Logger::log(LogLevel::Error, "Exception in ~VncServer: %s", e.what());
+        }
+        catch (...)
+        {
+            // Catch all other exceptions
+            Logger::log(LogLevel::Error, "Unknown exception in ~VncServer");
+        }
     }
 
     bool VncServer::applyIptableRule()

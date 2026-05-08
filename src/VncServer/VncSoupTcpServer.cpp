@@ -51,16 +51,29 @@ VncSoupTcpServer::VncSoupTcpServer(int port)
 /* Destructs the object, stopping the server if not already. */
 VncSoupTcpServer::~VncSoupTcpServer()
 {
-    Logger::log(LogLevel::Information, "destructing the vnc tcp server");
-
-    // log a warning if failed to stopped before destruction
-    if ((mState != State::Stopped) && (mState != State::Stopping))
+    try
     {
-        Logger::log(LogLevel::Information, "destroying VncSoupTcpServer in non-Stopped state ('%s')",
-                  toString(mState).c_str());
+        Logger::log(LogLevel::Information, "destructing the vnc tcp server");
 
-        // ensure the server is at least stopping
-        stop();
+        // log a warning if failed to stopped before destruction
+        if ((mState != State::Stopped) && (mState != State::Stopping))
+        {
+            Logger::log(LogLevel::Information, "destroying VncSoupTcpServer in non-Stopped state ('%s')",
+                      toString(mState).c_str());
+
+            // ensure the server is at least stopping
+            stop();
+        }
+    }
+    catch (const std::exception& e)
+    {
+        // Never let exceptions escape from destructor - would cause std::terminate()
+        Logger::log(LogLevel::Error, "Exception in ~VncSoupTcpServer: %s", e.what());
+    }
+    catch (...)
+    {
+        // Catch all other exceptions
+        Logger::log(LogLevel::Error, "Unknown exception in ~VncSoupTcpServer");
     }
 
     // close all client connections - we may have to do this if timed-out

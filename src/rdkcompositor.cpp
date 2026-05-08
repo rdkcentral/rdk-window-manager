@@ -841,7 +841,10 @@ namespace RdkWindowManager
                 std::string displaySocket = std::string(runtimeDir) + "/" + mDisplayName;
 
                 Logger::log(LogLevel::Information,"change owner of %s with ownerId : %d", displaySocket.c_str(), ownerId);
-                if (0 != chown(displaySocket.c_str(), ownerId, (groupId>0)?groupId:-1))
+                // POSIX standard: gid value of -1 means "do not change group ownership"
+                // Coverity flags this as INTEGER_OVERFLOW, but it's documented behavior
+                // coverity[INTEGER_OVERFLOW : FALSE]
+                if (0 != chown(displaySocket.c_str(), ownerId, (groupId>0)?groupId:static_cast<gid_t>(-1)))
                 {
                     Logger::log(LogLevel::Error,"failed to change ownership for ownerId : %d errno: %s", ownerId, strerror(errno));
                 }
