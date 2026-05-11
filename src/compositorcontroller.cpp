@@ -32,6 +32,7 @@
 #include <iostream>
 #include <map>
 #include <ctime>
+#include <mutex>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -143,6 +144,7 @@ namespace RdkWindowManager
     KeyRepeatConfig gKeyRepeatConfig;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
+    std::mutex gFireboltExtensionListenerMapMutex;
     const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
@@ -1712,6 +1714,7 @@ namespace RdkWindowManager
         }
         else
         {
+            std::lock_guard<std::mutex> lock(gFireboltExtensionListenerMapMutex);
             gfbExtensionEventListenerMap[fbExtensionName] = listener;
             Logger::log(LogLevel::Information,
                 "addFireboltExtensionListener: Listener is registered for fbExtensionName '%s'", fbExtensionName.c_str());
@@ -1725,6 +1728,7 @@ namespace RdkWindowManager
     {
         bool success = false;
 
+        std::lock_guard<std::mutex> lock(gFireboltExtensionListenerMapMutex);
         auto it = gfbExtensionEventListenerMap.find(fbExtensionName);
         if (it == gfbExtensionEventListenerMap.end())
         {
@@ -1759,17 +1763,29 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information,
                     "onFireboltExtensionEvent - eventName: %s display: %s", eventName.c_str(), it->name.c_str());
 
-                if (gfbExtensionEventListenerMap.empty())
+                std::vector<std::pair<std::string, std::shared_ptr<FireboltExtensionEventListener>>> listeners;
                 {
-                    Logger::log(LogLevel::Warn, "onFireboltExtensionEvent - No event listeners registered!");
+                    std::lock_guard<std::mutex> lock(gFireboltExtensionListenerMapMutex);
+                    if (gfbExtensionEventListenerMap.empty())
+                    {
+                        Logger::log(LogLevel::Warn, "onFireboltExtensionEvent - No event listeners registered!");
+                    }
+                    else
+                    {
+                        listeners.reserve(gfbExtensionEventListenerMap.size());
+                        for (const auto& entry : gfbExtensionEventListenerMap)
+                        {
+                            listeners.emplace_back(entry.first, entry.second);
+                        }
+                    }
                 }
 
-                for (const auto& iter : gfbExtensionEventListenerMap)
+                for (const auto& entry : listeners)
                 {
-                    const std::shared_ptr<FireboltExtensionEventListener>& listener = iter.second;
+                    const std::shared_ptr<FireboltExtensionEventListener>& listener = entry.second;
 
                     Logger::log(LogLevel::Information,
-                        "onFireboltExtensionEvent - fbExtensionName: %s eventName: %s display: %s", iter.first.c_str(), eventName.c_str(), it->name.c_str());
+                        "onFireboltExtensionEvent - fbExtensionName: %s eventName: %s display: %s", entry.first.c_str(), eventName.c_str(), it->name.c_str());
 
                     sendFireboltExtensionEvent(listener, eventName, it->name);
                 }

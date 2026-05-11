@@ -584,7 +584,7 @@ extern "C"
         if (NULL != fireboltShellContext)
         {
             /* Unregister eventlListener callback with CompositorController */
-            if (nullptr == FireboltShell::mFireboltShellEventListener)
+            if (nullptr != FireboltShell::mFireboltShellEventListener)
             {
                 /* Remove event listener */
                 RdkWindowManager::CompositorController::removeFireboltExtensionListener(
