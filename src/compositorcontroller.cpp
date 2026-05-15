@@ -2128,8 +2128,10 @@ namespace RdkWindowManager
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
+        scaleToFit(client, ci.x, ci.y, ci.width, ci.height);
         c->setSize(ci.width, ci.height);
-        c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
+        printf("madana crop commented \n"); fflush(stdout);
+        //c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
         if (!(c->setOwner(ci.ownerId, -1)))
         {

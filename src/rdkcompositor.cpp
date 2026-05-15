@@ -21,6 +21,7 @@
 #include "compositorcontroller.h"
 
 #include <iostream>
+#include <fstream>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -511,6 +512,11 @@ namespace RdkWindowManager
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
+        std::ifstream filer("/tmp/rdkwindowmanagerresize");
+        if (filer.good())
+        {
+            WstCompositorSetOutputSize(mWstContext, mWidth, mHeight);
+        }
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
         if (mHolePunch)
@@ -730,9 +736,13 @@ namespace RdkWindowManager
         {
             mSizeChangeRequestPresent = true;
             WstCompositorSetOutputSize(mWstContext, width, height);
+            printf("MADANA CHANGING OUTPUT SIZE [%d] [%d] \n", width, height);
+            fflush(stdout);
         }
         mWidth = width;
         mHeight = height;
+        printf("MADANA CHANGING OUTPUT SIZE V [%d] [%d] \n", mWidth, mHeight);
+        fflush(stdout);
     }
 
     void RdkCompositor::size(uint32_t &width, uint32_t &height)
