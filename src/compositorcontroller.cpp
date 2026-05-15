@@ -2129,7 +2129,7 @@ namespace RdkWindowManager
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
         c->setSize(ci.width, ci.height);
-        c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
+        //c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
         if (!(c->setOwner(ci.ownerId, -1)))
         {
