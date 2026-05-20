@@ -512,11 +512,6 @@ namespace RdkWindowManager
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
-        std::ifstream filer("/tmp/rdkwindowmanagerresize");
-        if (filer.good())
-        {
-            WstCompositorSetOutputSize(mWstContext, mWidth, mHeight);
-        }
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
         if (mHolePunch)
