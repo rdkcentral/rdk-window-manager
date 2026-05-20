@@ -2128,7 +2128,11 @@ namespace RdkWindowManager
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
-        scaleToFit(client, ci.x, ci.y, ci.width, ci.height);
+        uint32_t screenWidth = 0, screenHeight = 0;
+        RdkWindowManager::EssosInstance::instance()->resolution(screenWidth, screenHeight);
+        double scaleX = (double)ci.width / (double)screenWidth;
+        double scaleY = (double)ci.height / (double)screenHeight;
+        it->compositor->setScale(scaleX, scaleY);
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
