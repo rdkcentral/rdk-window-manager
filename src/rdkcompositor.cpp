@@ -23,7 +23,6 @@
 #include <iostream>
 #include <string.h>
 #include <signal.h>
-#include <fstream>
 #include <unistd.h>
 #include "linuxkeys.h"
 #include "rdkwindowmanager.h"
