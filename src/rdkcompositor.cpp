@@ -681,6 +681,13 @@ namespace RdkWindowManager
 
     void RdkCompositor::setPosition(int32_t x, int32_t y)
     {
+        Logger::log(LogLevel::Information,
+                "MADAN RdkCompositor::setPosition display:%s old{%d,%d} new{%d,%d}",
+                    mDisplayName.c_str(),
+                    mPositionX,
+                    mPositionY,
+                    x,
+                    y);
         mPositionX = x;
         mPositionY = y;
         mMatrix[12] = static_cast<float>(mPositionX);
@@ -706,6 +713,8 @@ namespace RdkWindowManager
 
     void RdkCompositor::setScale(double scaleX, double scaleY)
     {
+        double oldScaleX = mScaleX;
+        double oldScaleY = mScaleY;
         if (scaleX >= 0)
         {
             mScaleX = scaleX;
@@ -717,10 +726,23 @@ namespace RdkWindowManager
 
         mMatrix[0] = 1 * mScaleX;
         mMatrix[5] = 1 * mScaleY;
+        Logger::log(LogLevel::Information,
+                "MADAN RdkCompositor::setScale display:%s old{%f,%f} req{%f,%f} applied{%f,%f}",
+                    mDisplayName.c_str(),
+                    oldScaleX,
+                    oldScaleY,
+                    scaleX,
+                    scaleY,
+                    mScaleX,
+                    mScaleY);
     }
 
     void RdkCompositor::setSize(uint32_t width, uint32_t height)
     {
+        uint32_t requestedWidth = width;
+        uint32_t requestedHeight = height;
+        uint32_t oldWidth = mWidth;
+        uint32_t oldHeight = mHeight;
         if (gForce720)
         {
             width = 1280;
@@ -730,6 +752,30 @@ namespace RdkWindowManager
         {
             mSizeChangeRequestPresent = true;
             WstCompositorSetOutputSize(mWstContext, width, height);
+            Logger::log(LogLevel::Information,
+                        "MADAN RdkCompositor::setSize display:%s output resize old{%u,%u} req{%u,%u} applied{%u,%u} virtual:%d",
+                        mDisplayName.c_str(),
+                        oldWidth,
+                        oldHeight,
+                        requestedWidth,
+                        requestedHeight,
+                        width,
+                        height,
+                        mVirtualDisplayEnabled ? 1 : 0);
+        }
+        else
+        {
+            Logger::log(LogLevel::Information,
+                        "MADAN RdkCompositor::setSize display:%s no output resize old{%u,%u} req{%u,%u} applied{%u,%u} virtual:%d wst:%d",
+                        mDisplayName.c_str(),
+                        oldWidth,
+                        oldHeight,
+                        requestedWidth,
+                        requestedHeight,
+                        width,
+                        height,
+                        mVirtualDisplayEnabled ? 1 : 0,
+                        (mWstContext != NULL) ? 1 : 0);
         }
         mWidth = width;
         mHeight = height;
