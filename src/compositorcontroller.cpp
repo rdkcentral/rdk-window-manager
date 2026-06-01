@@ -2125,17 +2125,50 @@ namespace RdkWindowManager
             return false;
         auto c = it->compositor;
 
+        Logger::log(LogLevel::Information,
+                "MADAN setClientInfo request client:%s pos{%d,%d} size{%u,%u} vis:%u z:%u opacity:%f crop{%d,%d,%d,%d}",
+                    client.c_str(),
+                    ci.x,
+                    ci.y,
+                    ci.width,
+                    ci.height,
+                    ci.visible,
+                    ci.zorder,
+                    ci.opacity,
+                    ci.cropX,
+                    ci.cropY,
+                    ci.cropWidth,
+                    ci.cropHeight);
+
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
-        uint32_t screenWidth = 0, screenHeight = 0;
-        RdkWindowManager::EssosInstance::instance()->resolution(screenWidth, screenHeight);
-        double scaleX = (double)ci.width / (double)screenWidth;
-        double scaleY = (double)ci.height / (double)screenHeight;
-        it->compositor->setScale(scaleX, scaleY);
+        // Client info already carries the target output size via ci.width/ci.height.
+        // Keep compositor scale at identity to avoid applying size and scale together.
+        it->compositor->setScale(1.0, 1.0);
         c->setSize(ci.width, ci.height);
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
+
+        int32_t appliedX = 0;
+        int32_t appliedY = 0;
+        uint32_t appliedWidth = 0;
+        uint32_t appliedHeight = 0;
+        double appliedScaleX = 0.0;
+        double appliedScaleY = 0.0;
+        c->position(appliedX, appliedY);
+        c->size(appliedWidth, appliedHeight);
+        c->scale(appliedScaleX, appliedScaleY);
+        Logger::log(LogLevel::Information,
+                "MADAN setClientInfo applied client:%s pos{%d,%d} size{%u,%u} scale{%f,%f}",
+                    client.c_str(),
+                    appliedX,
+                    appliedY,
+                    appliedWidth,
+                    appliedHeight,
+                    appliedScaleX,
+                    appliedScaleY);
+
         if (!(c->setOwner(ci.ownerId, -1)))
         {
             Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());

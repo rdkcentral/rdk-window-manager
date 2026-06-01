@@ -377,6 +377,32 @@ static void firebolt_wm_set_properties(struct wl_client *client,
         clientInfo.cropY      = wl_fixed_to_int(crop_y);
         clientInfo.cropWidth  = wl_fixed_to_int(crop_width);
         clientInfo.cropHeight = wl_fixed_to_int(crop_height);
+
+        if ((render_width > 0) || (render_height > 0))
+        {
+            /* Enable Virtual Display */
+            bVirtualDisplay = true;
+        }
+        else
+        {
+            /* Disable Virtual Display */
+            bVirtualDisplay = false;
+        }
+
+        if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, bVirtualDisplay))
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    "MADAN firebolt_wm set_properties enableVirtualDisplay id:%s virtualFlag:%d render{%u,%u} - Success",
+                    id, bVirtualDisplay, render_width, render_height);
+        }
+
+        if (RdkWindowManager::CompositorController::setVirtualResolution(id, render_width, render_height))
+        {
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    "MADAN firebolt_wm set_properties setVirtualResolution id:%s render{%u,%u} - Success",
+                    id, render_width, render_height);
+        }
+
         if (!RdkWindowManager::CompositorController::setClientInfo(id, clientInfo))
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -399,30 +425,19 @@ static void firebolt_wm_set_properties(struct wl_client *client,
                     clientInfo.opacity, clientInfo.zorder, clientInfo.visible, clientInfo.cropX,
                     clientInfo.cropY, clientInfo.cropWidth, clientInfo.cropHeight);
 
-            if ((render_width > 0) || (render_height > 0))
-            {
-                /* Enable Virtual Display */
-                bVirtualDisplay = true;
-            }
-            else
-            {
-                /* Disable Virtual Display */
-                bVirtualDisplay = false;
-            }
-            /* Set the client Virtual Display */
-            if (RdkWindowManager::CompositorController::enableVirtualDisplay(id, bVirtualDisplay))
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.set_properties: enableVirtualDisplay id:%s  virtualFlag:%d - Success", id, bVirtualDisplay);
-            }
-
-            /* Set the client virtual display size */
-            if (RdkWindowManager::CompositorController::setVirtualResolution(id, render_width, render_height))
-            {
-                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
-                        " firebolt_wm@.set_properties: setVirtualResolution id:%s" \
-                        " client display{width:%u height:%u} - Success", id, render_width, render_height);
-            }
+            RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+                    "MADAN firebolt_wm set_properties applied id:%s surface{%d,%d,%u,%u} render{%u,%u} crop{%d,%d,%d,%d}",
+                    id,
+                    x,
+                    y,
+                    width,
+                    height,
+                    render_width,
+                    render_height,
+                    clientInfo.cropX,
+                    clientInfo.cropY,
+                    clientInfo.cropWidth,
+                    clientInfo.cropHeight);
         }
     }
     else
