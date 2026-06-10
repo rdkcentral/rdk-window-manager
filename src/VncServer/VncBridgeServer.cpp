@@ -191,14 +191,16 @@ void VncBridgeServer::acceptLoop()
 
         Logger::log(LogLevel::Information, "%s: VNCServer2 client connected fd=%d", __func__, clientFd);
 
-        // If there is already a client, close the old one
+        // Close the old client fd if one was still registered.
         int old = mClientFd.exchange(clientFd);
         if (old >= 0)
-        {
             ::close(old);
-            if (mClientThread.joinable())
-                mClientThread.join();
-        }
+
+        // Always join the previous client thread before spawning a new one.
+        // The old fd may already have been cleared by clientLoop itself
+        // (via compare_exchange_strong) while mClientThread is still joinable.
+        if (mClientThread.joinable())
+            mClientThread.join();
 
         mClientThread = std::thread(&VncBridgeServer::clientLoop, this, clientFd);
     }
