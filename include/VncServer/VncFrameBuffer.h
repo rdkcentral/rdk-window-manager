@@ -36,6 +36,13 @@ namespace RdkWindowManager {
         void end();
         void draw();
         void publish();
+
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        /// Called from publish() when VncBridgeServer has a pending frame request.
+        /// Reads GPU pixels and forwards them to the bridge server.
+        void captureForBridge();
+#endif
+
     private:
         bool sendFrameBufferToVNCClient();
         bool initVncFrameBuffer();
