@@ -60,6 +60,28 @@ namespace RdkWindowManager
         return instance;
     }
 
+    void VncServer::initializeContext(uint32_t width, uint32_t height)
+    {
+        std::lock_guard<std::mutex> contextLock(mVNCServerContextLock);
+
+        mWidth = width;
+        mHeight = height;
+        mReadyToSendFrameBufer = false;
+        mFrameBufferUpdateInProgress = false;
+        mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
+        mVncSocket.reset();
+    }
+
+    void VncServer::resetContext()
+    {
+        std::lock_guard<std::mutex> contextLock(mVNCServerContextLock);
+
+        mReadyToSendFrameBufer = false;
+        mFrameBufferUpdateInProgress = false;
+        mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
+        mVncSocket.reset();
+    }
+
     bool VncServer::start(uint32_t width, uint32_t height)
     {
         bool status = false;

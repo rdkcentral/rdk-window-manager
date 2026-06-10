@@ -400,7 +400,12 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            bool clearVideoRegion = (fireboltSurface->surfaceType == SurfaceType::Video);
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+                            // In bridge mode, attempt to compose video surfaces into the capture path.
+                            clearVideoRegion = false;
+#endif
+                            if (clearVideoRegion)
                             {
                                 GLenum error;
                                 glEnable( GL_SCISSOR_TEST );
@@ -563,7 +568,12 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            bool clearVideoRegion = (fireboltSurface->surfaceType == SurfaceType::Video);
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+                            // In bridge mode, attempt to compose video surfaces into the capture path.
+                            clearVideoRegion = false;
+#endif
+                            if (clearVideoRegion)
                             {
                                     GLenum error;
                                     glEnable( GL_SCISSOR_TEST );

@@ -38,6 +38,7 @@
 #include <sys/shm.h>
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
 #include "VncServer.h"
+#include "VncServer/VncServerFactory.h"
 #include "VncFrameBuffer.h"
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
@@ -2296,7 +2297,7 @@ namespace RdkWindowManager
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         uint32_t width = 0, height = 0;
         getScreenResolution(width, height);
-        result = VncServer::getInstance().start(width, height);
+        result = VncServerFactory::getInstance().initializeVncServer(width, height);
         if (result)
         {
             gVncBuffer = std::make_shared<RdkWindowManager::VncFrameBuffer>(width, height);
@@ -2320,7 +2321,7 @@ namespace RdkWindowManager
 
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         gVncServerEnabled = false;
-        VncServer::getInstance().stop();
+        VncServerFactory::getInstance().stopVncServer();
         gVncBuffer.reset();
         Logger::log(LogLevel::Information,  "VNC server stopped successfully");
         result = true;

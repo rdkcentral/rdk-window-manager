@@ -27,6 +27,10 @@
 #include "logger.h"
 #include "MemFd.h"
 
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+#include "VncBridgeServer.h"
+#endif
+
 #define ROUND_UP(N, S)      ((((N) + (S) - 1) / (S)) * (S))
 std::mutex mVNCFrameBufferContextLock;
 
@@ -138,6 +142,15 @@ namespace RdkWindowManager
 
     void VncFrameBuffer::publish()
     {
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        if (VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
+        {
+            captureForBridge();
+            // Do not fall through – the VNCServer2 bridge handles its own response.
+            return;
+        }
+#endif
+
         if (VncServer::getInstance().getVncFrameUpdateRequestFlag())
         {
             if (VncServer::getInstance().getVncFrameBufferProgressState())
@@ -337,6 +350,26 @@ namespace RdkWindowManager
 
         return status;
     }
+
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+    void VncFrameBuffer::captureForBridge()
+    {
+        if (!VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
+            return;
+
+        Logger::log(LogLevel::Information, "%s: capturing frame for VncBridgeServer", __func__);
+
+        if (!readPixel())
+        {
+            Logger::log(LogLevel::Error, "%s: readPixel failed", __func__);
+            // deliverFrame with null data signals failure via mFrameResult
+            VncBridgeServer::getInstance().deliverFrame(nullptr, 0, 0);
+            return;
+        }
+
+        VncBridgeServer::getInstance().deliverFrame(mRGBAData.data(), mWidth, mHeight);
+    }
+#endif
 
 }
 
