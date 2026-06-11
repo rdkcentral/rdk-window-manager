@@ -360,8 +360,6 @@ void VncBridgeServer::handleSetBuffer(int clientFd,
 void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
                                                const std::vector<uint8_t>& payload)
 {
-    constexpr auto kFrameWaitTimeout = std::chrono::seconds(2);
-
     if (payload.size() < sizeof(VncBridgeProtocol::FrameUpdateReq))
     {
         sendError(clientFd, EINVAL, "FrameUpdateReq payload too short");
@@ -396,15 +394,10 @@ void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
     // Notify the GL thread that a VNC frame update is needed
     VncServer::getInstance().setVncFrameUpdateRequestFlag(true);
 
-    // Block until the GL thread delivers the frame, but never indefinitely.
+    // Block until the GL thread delivers the frame.
     {
         std::unique_lock<std::mutex> lock(mFrameMutex);
-        if (!mFrameCv.wait_for(lock, kFrameWaitTimeout, [this]{ return mFrameReady; }))
-        {
-            Logger::log(LogLevel::Warn, "%s: frame delivery timed out", __func__);
-            mFrameResult = -ETIMEDOUT;
-            mFrameReady = true;
-        }
+        mFrameCv.wait(lock, [this]{ return mFrameReady; });
     }
     mFrameUpdatePending.store(false);
     VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
@@ -417,8 +410,6 @@ void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
 void VncBridgeServer::handleScreenshotRequest(int clientFd,
                                               const std::vector<uint8_t>& payload)
 {
-    constexpr auto kScreenshotWaitTimeout = std::chrono::seconds(2);
-
     if (payload.size() < sizeof(VncBridgeProtocol::ScreenshotReq))
     {
         sendError(clientFd, EINVAL, "ScreenshotReq payload too short");
@@ -459,12 +450,7 @@ void VncBridgeServer::handleScreenshotRequest(int clientFd,
 
     {
         std::unique_lock<std::mutex> lock(mFrameMutex);
-        if (!mFrameCv.wait_for(lock, kScreenshotWaitTimeout, [this]{ return mFrameReady; }))
-        {
-            Logger::log(LogLevel::Warn, "%s: screenshot frame delivery timed out", __func__);
-            mFrameResult = -ETIMEDOUT;
-            mFrameReady = true;
-        }
+        mFrameCv.wait(lock, [this]{ return mFrameReady; });
     }
     mFrameUpdatePending.store(false);
     VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
@@ -529,61 +515,94 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
     if (!mFrameUpdatePending.load())
         return;
 
-    std::lock_guard<std::mutex> bufLock(mBufferMutex);
-    if (mBridgeMemPtr == nullptr)
+    size_t frameOffset = 0;
+    size_t frameMaxSize = 0;
+    uint32_t frameFormat = static_cast<uint32_t>(VncClient::ClientCaptureFormat::BGR0_8_8_8_8);
     {
         std::lock_guard<std::mutex> frameLock(mFrameMutex);
-        mFrameResult = -ENOMEM;
-        mFrameReady  = true;
-        mFrameCv.notify_all();
-        return;
+        frameOffset = mFrameOffset;
+        frameMaxSize = mFrameMaxSize;
+        frameFormat = mFrameFormat;
     }
 
-    uint8_t* dest     = mBridgeMemPtr + mFrameOffset;
-    size_t   maxBytes = mBridgeMemSize > mFrameOffset
-                        ? mBridgeMemSize - mFrameOffset
-                        : 0;
+    int64_t frameResult = -EIO;
+    const uint32_t pixels = width * height;
+    const size_t requiredBytes = static_cast<size_t>(pixels) * 4;
 
-    // Respect the maxSize hint from the client
-    if (mFrameMaxSize > 0 && mFrameMaxSize < maxBytes)
-        maxBytes = mFrameMaxSize;
-
-    // Convert RGBA → BGR0 (the format reported in GetDetails / default capture format)
-    const uint32_t pixels        = width * height;
-    const size_t   requiredBytes = pixels * 4;
-
-    if (requiredBytes > maxBytes)
     {
-        Logger::log(LogLevel::Error, "%s: bridge buffer too small (%zu < %zu)",
-                    __func__, maxBytes, requiredBytes);
-        std::lock_guard<std::mutex> frameLock(mFrameMutex);
-        mFrameResult = -ENOBUFS;
-        mFrameReady  = true;
-        mFrameCv.notify_all();
-        return;
-    }
-
-    // RGBA → BGR0 conversion + vertical flip (OpenGL origin is bottom-left)
-    const int rowStride = static_cast<int>(width) * 4;
-    for (uint32_t y = 0; y < height; ++y)
-    {
-        uint32_t        srcRow  = (height - 1 - y);   // flip vertically
-        const uint8_t*  srcPtr  = rgbaData + srcRow * rowStride;
-        uint8_t*        dstPtr  = dest + y * rowStride;
-        for (uint32_t x = 0; x < width; ++x)
+        std::lock_guard<std::mutex> bufLock(mBufferMutex);
+        if (nullptr == mBridgeMemPtr)
         {
-            dstPtr[0] = srcPtr[2]; // B
-            dstPtr[1] = srcPtr[1]; // G
-            dstPtr[2] = srcPtr[0]; // R
-            dstPtr[3] = 0;         // 0
-            srcPtr += 4;
-            dstPtr += 4;
+            frameResult = -ENOMEM;
+        }
+        else
+        {
+            uint8_t* dest = mBridgeMemPtr + frameOffset;
+            size_t maxBytes = mBridgeMemSize > frameOffset
+                              ? mBridgeMemSize - frameOffset
+                              : 0;
+
+            // Respect the maxSize hint from the client.
+            if ((frameMaxSize > 0) && (frameMaxSize < maxBytes))
+                maxBytes = frameMaxSize;
+
+            if (requiredBytes > maxBytes)
+            {
+                Logger::log(LogLevel::Error, "%s: bridge buffer too small (%zu < %zu)",
+                            __func__, maxBytes, requiredBytes);
+                frameResult = -ENOBUFS;
+            }
+            else
+            {
+                const int rowStride = static_cast<int>(width) * 4;
+                const auto requestedFormat = static_cast<VncClient::ClientCaptureFormat>(frameFormat);
+
+                // Convert with vertical flip (OpenGL origin is bottom-left).
+                if (VncClient::ClientCaptureFormat::RGB0_8_8_8_8 == requestedFormat)
+                {
+                    for (uint32_t y = 0; y < height; ++y)
+                    {
+                        const uint32_t srcRow = (height - 1 - y);
+                        const uint8_t* srcPtr = rgbaData + srcRow * rowStride;
+                        uint8_t* dstPtr = dest + y * rowStride;
+                        for (uint32_t x = 0; x < width; ++x)
+                        {
+                            dstPtr[0] = srcPtr[0]; // R
+                            dstPtr[1] = srcPtr[1]; // G
+                            dstPtr[2] = srcPtr[2]; // B
+                            dstPtr[3] = 0;
+                            srcPtr += 4;
+                            dstPtr += 4;
+                        }
+                    }
+                }
+                else
+                {
+                    for (uint32_t y = 0; y < height; ++y)
+                    {
+                        const uint32_t srcRow = (height - 1 - y);
+                        const uint8_t* srcPtr = rgbaData + srcRow * rowStride;
+                        uint8_t* dstPtr = dest + y * rowStride;
+                        for (uint32_t x = 0; x < width; ++x)
+                        {
+                            dstPtr[0] = srcPtr[2]; // B
+                            dstPtr[1] = srcPtr[1]; // G
+                            dstPtr[2] = srcPtr[0]; // R
+                            dstPtr[3] = 0;
+                            srcPtr += 4;
+                            dstPtr += 4;
+                        }
+                    }
+                }
+
+                frameResult = static_cast<int64_t>(requiredBytes);
+            }
         }
     }
 
     {
         std::lock_guard<std::mutex> frameLock(mFrameMutex);
-        mFrameResult = static_cast<int64_t>(requiredBytes);
+        mFrameResult = frameResult;
         mFrameReady  = true;
     }
     mFrameCv.notify_all();
@@ -591,6 +610,9 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
     // Emit periodic frame-flow telemetry at INFO level without per-frame log spam.
     static uint64_t sFrameCount = 0;
     static auto sWindowStart = std::chrono::steady_clock::now();
+    if (frameResult <= 0)
+        return;
+
     ++sFrameCount;
 
     const auto now = std::chrono::steady_clock::now();
