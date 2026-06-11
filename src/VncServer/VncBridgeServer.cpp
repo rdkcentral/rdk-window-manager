@@ -360,6 +360,8 @@ void VncBridgeServer::handleSetBuffer(int clientFd,
 void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
                                                const std::vector<uint8_t>& payload)
 {
+    constexpr auto kFrameWaitTimeout = std::chrono::seconds(2);
+
     if (payload.size() < sizeof(VncBridgeProtocol::FrameUpdateReq))
     {
         sendError(clientFd, EINVAL, "FrameUpdateReq payload too short");
@@ -394,12 +396,18 @@ void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
     // Notify the GL thread that a VNC frame update is needed
     VncServer::getInstance().setVncFrameUpdateRequestFlag(true);
 
-    // Block until the GL thread delivers the frame
+    // Block until the GL thread delivers the frame, but never indefinitely.
     {
         std::unique_lock<std::mutex> lock(mFrameMutex);
-        mFrameCv.wait(lock, [this]{ return mFrameReady; });
+        if (!mFrameCv.wait_for(lock, kFrameWaitTimeout, [this]{ return mFrameReady; }))
+        {
+            Logger::log(LogLevel::Warn, "%s: frame delivery timed out", __func__);
+            mFrameResult = -ETIMEDOUT;
+            mFrameReady = true;
+        }
     }
     mFrameUpdatePending.store(false);
+    VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
 
     VncBridgeProtocol::FrameUpdateResp resp;
     resp.bytesWritten = mFrameResult;
@@ -409,6 +417,8 @@ void VncBridgeServer::handleFrameUpdateRequest(int clientFd,
 void VncBridgeServer::handleScreenshotRequest(int clientFd,
                                               const std::vector<uint8_t>& payload)
 {
+    constexpr auto kScreenshotWaitTimeout = std::chrono::seconds(2);
+
     if (payload.size() < sizeof(VncBridgeProtocol::ScreenshotReq))
     {
         sendError(clientFd, EINVAL, "ScreenshotReq payload too short");
@@ -449,9 +459,15 @@ void VncBridgeServer::handleScreenshotRequest(int clientFd,
 
     {
         std::unique_lock<std::mutex> lock(mFrameMutex);
-        mFrameCv.wait(lock, [this]{ return mFrameReady; });
+        if (!mFrameCv.wait_for(lock, kScreenshotWaitTimeout, [this]{ return mFrameReady; }))
+        {
+            Logger::log(LogLevel::Warn, "%s: screenshot frame delivery timed out", __func__);
+            mFrameResult = -ETIMEDOUT;
+            mFrameReady = true;
+        }
     }
     mFrameUpdatePending.store(false);
+    VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
 
     if (mFrameResult <= 0)
     {
@@ -571,8 +587,25 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
         mFrameReady  = true;
     }
     mFrameCv.notify_all();
-    Logger::log(LogLevel::Information, "%s: delivered %u×%u frame (%zu bytes)",
-                __func__, width, height, requiredBytes);
+
+    // Emit periodic frame-flow telemetry at INFO level without per-frame log spam.
+    static uint64_t sFrameCount = 0;
+    static auto sWindowStart = std::chrono::steady_clock::now();
+    ++sFrameCount;
+
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - sWindowStart);
+    if (elapsed >= std::chrono::seconds(10))
+    {
+        const double fps = static_cast<double>(sFrameCount) / static_cast<double>(elapsed.count());
+        Logger::log(LogLevel::Information,
+                    "%s: bridge flow %ux%u, frames=%llu, fps=%.2f",
+                    __func__, width, height,
+                    static_cast<unsigned long long>(sFrameCount), fps);
+        sFrameCount = 0;
+        sWindowStart = now;
+    }
+
 }
 
 // ── Low-level I/O ─────────────────────────────────────────────────────────────

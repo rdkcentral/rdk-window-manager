@@ -49,7 +49,7 @@ namespace RdkWindowManager
             mVncSoupTcpServer(nullptr),
             mGMainLoop(nullptr),
             mReadyToSendFrameBufer(false),
-            mPixelFormat(VncClient::ClientCaptureFormat::InvalidFormat)
+                        mPixelFormat(VncClient::ClientCaptureFormat::BGR0_8_8_8_8)
     {
         Logger::log(LogLevel::Information, "In VncServer constructor %s", __func__);
     }
@@ -68,7 +68,7 @@ namespace RdkWindowManager
         mHeight = height;
         mReadyToSendFrameBufer = false;
         mFrameBufferUpdateInProgress = false;
-        mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
+        mPixelFormat = VncClient::ClientCaptureFormat::BGR0_8_8_8_8;
         mVncSocket.reset();
     }
 
@@ -78,7 +78,7 @@ namespace RdkWindowManager
 
         mReadyToSendFrameBufer = false;
         mFrameBufferUpdateInProgress = false;
-        mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
+        mPixelFormat = VncClient::ClientCaptureFormat::BGR0_8_8_8_8;
         mVncSocket.reset();
     }
 
@@ -157,7 +157,7 @@ namespace RdkWindowManager
         mIsRunning = false;
         mReadyToSendFrameBufer = false;
         mFrameBufferUpdateInProgress = false;
-        mPixelFormat = VncClient::ClientCaptureFormat::InvalidFormat;
+        mPixelFormat = VncClient::ClientCaptureFormat::BGR0_8_8_8_8;
 
         // Clean up VncSoupTcpServer if it exists
         if(mVncSoupTcpServer)
@@ -273,6 +273,7 @@ namespace RdkWindowManager
 
     std::shared_ptr<IVncSocket> VncServer::getVncSocket()
     {
+        std::lock_guard<std::mutex> contextLock(mVNCServerContextLock);
         return mVncSocket;
     }
 
@@ -291,7 +292,6 @@ namespace RdkWindowManager
         if(mReadyToSendFrameBufer != flag)
         {
             mReadyToSendFrameBufer = flag;
-            Logger::log(LogLevel::Information, " %s mReadyToSendFrameBufer %d", __func__, flag);
         }
     }
 
@@ -321,7 +321,6 @@ namespace RdkWindowManager
         if (sendInProgress != mFrameBufferUpdateInProgress)
         {
             mFrameBufferUpdateInProgress = sendInProgress;
-            Logger::log(LogLevel::Information, " %s mFrameBufferUpdateInProgress - %d", __func__, mFrameBufferUpdateInProgress.load());
         }
     }
 

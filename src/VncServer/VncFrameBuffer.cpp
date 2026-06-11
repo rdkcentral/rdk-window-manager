@@ -44,7 +44,7 @@ namespace RdkWindowManager
           mOpacity(1.0),
           mVncFrameBufferPtr(nullptr),
           mVncFrameBufferSize(0),
-          mRGBAData(width * height * 4)
+                    mRGBAData(width * height * 4)
     {
         Logger::log(LogLevel::Information, "In %s Constructor width: %d height: %d", __func__, width, height);
         mFrameBuffer = std::make_shared<FrameBuffer>(mWidth, mHeight);
@@ -149,13 +149,23 @@ namespace RdkWindowManager
             // Do not fall through – the VNCServer2 bridge handles its own response.
             return;
         }
+
+        // In VNCServer2 bridge mode, internal socket-based frame publishing is not used.
+        // Avoid falling into sendFrameBufferToVNCClient() on stale update flags.
+        if (VncBridgeServer::getInstance().isRunning())
+        {
+            VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
+            return;
+        }
 #endif
 
         if (VncServer::getInstance().getVncFrameUpdateRequestFlag())
         {
             if (VncServer::getInstance().getVncFrameBufferProgressState())
             {
-                Logger::log(LogLevel::Information, "%s is in progress SKIP VncSocket state %d", __func__, VncServer::getInstance().getVncSocket()->state());
+                auto socket = VncServer::getInstance().getVncSocket();
+                int socketState = (nullptr != socket) ? static_cast<int>(socket->state()) : -1;
+                Logger::log(LogLevel::Information, "%s is in progress SKIP VncSocket state %d", __func__, socketState);
                 return;
             }
             if (!readPixel())
@@ -175,7 +185,6 @@ namespace RdkWindowManager
 
     void VncFrameBuffer::notifyPixelProcessDone()
     {
-        Logger::log(LogLevel::Information, "%s - All processing done!", __func__);
         mPixelsProcessingInProgress = false;
     }
 
@@ -186,14 +195,12 @@ namespace RdkWindowManager
         const size_t frameOffset = (headerSize + 63) & ~63; // align to a 64-byte align address
         const size_t headerOffset = frameOffset - headerSize;
         uint32_t frameWritten = 0;
+        static bool frameSkipLogged = false;
 
         if (VncServer::getInstance().getVncFrameBufferProgressState())
         {
-            Logger::log(LogLevel::Information, "%s is in progress SKIP VncSocket state %d", __func__, VncServer::getInstance().getVncSocket()->state());
             return status;
         }
-
-        Logger::log(LogLevel::Information, "%s calculated offsets : headerSize %zu : frameOffset %zu : headerOffset %zu", __func__, headerSize, frameOffset, headerOffset);
 
         std::lock_guard<std::mutex> contextLock(mVNCFrameBufferContextLock);
         VncServer::getInstance().setVncFrameBufferProgressState(true);
@@ -210,7 +217,24 @@ namespace RdkWindowManager
         frameWritten = readAndConvertPixelData(frameOffset);
         if(frameWritten == 0)
         {
-            Logger::log(LogLevel::Error, "%s frameWritten is zero, Nothing to send SKIP", __func__);
+            if (false == frameSkipLogged)
+            {
+                Logger::log(LogLevel::Warn, "%s frameWritten is zero, Nothing to send SKIP", __func__);
+                frameSkipLogged = true;
+            }
+            VncServer::getInstance().setVncFrameBufferProgressState(false);
+            return status;
+        }
+        else
+        {
+            // Reset one-time warning when frame production recovers.
+            frameSkipLogged = false;
+        }
+
+        auto socket = VncServer::getInstance().getVncSocket();
+        if ((nullptr == socket) || (IVncSocket::State::Open != socket->state()))
+        {
+            Logger::log(LogLevel::Warn, "%s: VNC socket unavailable while sending frame", __func__);
             VncServer::getInstance().setVncFrameBufferProgressState(false);
             return status;
         }
@@ -218,9 +242,7 @@ namespace RdkWindowManager
         GBytes *data = g_bytes_new_with_free_func(  mVncFrameBufferPtr + headerOffset,
                                                     headerSize + frameWritten,
                                                     &VncFrameBuffer::onVncFrameSent, this);
-        VncServer::getInstance().getVncSocket()->write(data);
-
-        Logger::log(LogLevel::Information, "%s frameWritten %d", __func__, frameWritten);
+        socket->write(data);
 
         status = true;
         return status;
@@ -228,7 +250,6 @@ namespace RdkWindowManager
 
     void VncFrameBuffer::onVncFrameSent(gpointer userData)
     {
-        Logger::log(LogLevel::Information, "In %s", __func__);
         auto self = reinterpret_cast<VncFrameBuffer*>(userData);
         // Free is skipped here as the same buffer will be reused again
         VncServer::getInstance().setVncFrameBufferProgressState(false);
@@ -247,8 +268,6 @@ namespace RdkWindowManager
         uint8_t bitsPerPixel = 0;
         uint8_t* updateBuffer = nullptr;
 
-        Logger::log(LogLevel::Information, "%s: PixelFormat :%d", __func__, VncServer::getInstance().getVncFrameUpdatePixelFormat());
-
         switch(VncServer::getInstance().getVncFrameUpdatePixelFormat())
         {
             case VncClient::ClientCaptureFormat::RGB_2_2_2:
@@ -257,6 +276,13 @@ namespace RdkWindowManager
                 greenShift = 2;
                 blueShift = 0;
                 bitsPerPixel = 8;
+                break;
+            case VncClient::ClientCaptureFormat::RGB0_8_8_8_8:
+                redMax = greenMax = blueMax = 255;
+                redShift = 0;
+                greenShift = 8;
+                blueShift = 16;
+                bitsPerPixel = 32;
                 break;
             case VncClient::ClientCaptureFormat::BGR0_8_8_8_8:
                 redMax = greenMax = blueMax = 255;
@@ -308,8 +334,6 @@ namespace RdkWindowManager
             }
         }
 
-        Logger::log(LogLevel::Information, "%s: W:%d H:%d BPP:%d FW:%d", __func__, mWidth, mHeight, (bitsPerPixel/8), noOfPixelBytes);
-
         int rowStride = mWidth * (bitsPerPixel/8); // Length of the complete row
         std::vector<unsigned char> tempRow(rowStride);
         // Exchange the top row image data with the bottom row
@@ -323,7 +347,7 @@ namespace RdkWindowManager
             std::memcpy(rowBottom, tempRow.data(), rowStride);
         }
 
-        Logger::log(LogLevel::Information, "%s: Image Flipping Done!", __func__);
+        Logger::log(LogLevel::Debug, "%s: Image Flipping Done!", __func__);
         return noOfPixelBytes;
     }
 
@@ -336,18 +360,64 @@ namespace RdkWindowManager
             Logger::log(LogLevel::Error, "%s: glCheckFramebufferStatus() = %X", __func__, valid);
         }
 
-        Logger::log(LogLevel::Information, "%s: Read pixels start", __func__);
         std::lock_guard<std::mutex> contextLock(mVNCFrameBufferContextLock);
 
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        if (VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
+        {
+            GLint viewport[4] = {0, 0, 0, 0};
+            glGetIntegerv(GL_VIEWPORT, viewport);
+
+            const uint32_t sourceWidth = static_cast<uint32_t>(viewport[2]);
+            const uint32_t sourceHeight = static_cast<uint32_t>(viewport[3]);
+
+            if ((0 == sourceWidth) || (0 == sourceHeight))
+            {
+                Logger::log(LogLevel::Error, "%s: invalid viewport size for bridge capture %u x %u", __func__, sourceWidth, sourceHeight);
+                return false;
+            }
+
+            if ((sourceWidth == mWidth) && (sourceHeight == mHeight))
+            {
+                glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
+            }
+            else
+            {
+                std::vector<uint8_t> sourcePixels(sourceWidth * sourceHeight * 4);
+                glReadPixels(0, 0, sourceWidth, sourceHeight, GL_RGBA, GL_UNSIGNED_BYTE, sourcePixels.data());
+
+                for (uint32_t y = 0; y < mHeight; ++y)
+                {
+                    const uint32_t srcY = (y * sourceHeight) / mHeight;
+                    for (uint32_t x = 0; x < mWidth; ++x)
+                    {
+                        const uint32_t srcX = (x * sourceWidth) / mWidth;
+
+                        const size_t sourceIndex = (static_cast<size_t>(srcY) * sourceWidth + srcX) * 4;
+                        const size_t destIndex = (static_cast<size_t>(y) * mWidth + x) * 4;
+
+                        mRGBAData[destIndex + 0] = sourcePixels[sourceIndex + 0];
+                        mRGBAData[destIndex + 1] = sourcePixels[sourceIndex + 1];
+                        mRGBAData[destIndex + 2] = sourcePixels[sourceIndex + 2];
+                        mRGBAData[destIndex + 3] = sourcePixels[sourceIndex + 3];
+                    }
+                }
+            }
+        }
+        else
+        {
+            glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
+        }
+#else
         glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
+#endif
+
         GLenum error = glGetError();
         if (error != GL_NO_ERROR)
         {
             Logger::log(LogLevel::Error, "%s: glGetError() = %X\n", __func__, error);
             status = false;
         }
-        Logger::log(LogLevel::Information, "%s: Read pixels done", __func__);
-
         return status;
     }
 
@@ -356,8 +426,6 @@ namespace RdkWindowManager
     {
         if (!VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
             return;
-
-        Logger::log(LogLevel::Information, "%s: capturing frame for VncBridgeServer", __func__);
 
         if (!readPixel())
         {

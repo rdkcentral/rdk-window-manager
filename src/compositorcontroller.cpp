@@ -1559,10 +1559,12 @@ namespace RdkWindowManager
         gDeletedCompositors.clear();
 
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
         if (gVncServerEnabled && gVncBuffer)
         {
             gVncBuffer->begin();
         }
+#endif
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
@@ -1586,8 +1588,10 @@ namespace RdkWindowManager
         if (gVncServerEnabled && gVncBuffer)
         {
             gVncBuffer->publish();
+#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
             // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
             gVncBuffer->end();
+#endif
         }
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
@@ -2296,7 +2300,13 @@ namespace RdkWindowManager
 
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         uint32_t width = 0, height = 0;
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        // Match appsserviced capture dimensions in VNCServer2 bridge mode.
+        width = 960;
+        height = 540;
+#else
         getScreenResolution(width, height);
+#endif
         result = VncServerFactory::getInstance().initializeVncServer(width, height);
         if (result)
         {
