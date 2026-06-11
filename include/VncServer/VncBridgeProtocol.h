@@ -20,7 +20,7 @@
 // VncBridgeProtocol.h
 //
 // Plain binary framing protocol used between rdk-window-manager (server) and
-// VNCServer2/appsservice-vncd (client) when built with ENABLE_RDKWINDOWMANAGER_VNCSERVER2.
+// VNCServer2 (client) when built with ENABLE_RDKWINDOWMANAGER_VNCSERVER2.
 //
 // The matching definitions on the VNCServer2 side are in:
 //   appinfrastructure/RDK/AppManager/Tools/VncServer2/source/VncRdkWmBridgeConn.cpp

@@ -2301,7 +2301,7 @@ namespace RdkWindowManager
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         uint32_t width = 0, height = 0;
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
-        // Match appsserviced capture dimensions in VNCServer2 bridge mode.
+        // Match capture dimensions in VNCServer2 bridge mode.
         width = 960;
         height = 540;
 #else

@@ -20,8 +20,6 @@
 // VncBridgeServer.h
 //
 // Plain-socket (no DBus) bridge server used when ENABLE_RDKWINDOWMANAGER_VNCSERVER2 is set.
-// VNCServer2 (appsservice-vncd) connects to this server to get screen details, set a shared
-// frame buffer and request frame / screenshot captures.
 //
 // The server listens on abstract Unix socket:  \0/tmp/rdkwindowmanager-vnc-bridge
 
