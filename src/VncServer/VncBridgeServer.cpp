@@ -93,7 +93,7 @@ bool VncBridgeServer::start()
     addr.sun_family = AF_UNIX;
     // Abstract socket: sun_path[0] = '\0', rest is the name
     ::strncpy(addr.sun_path + 1, BRIDGE_SOCKET_PATH, sizeof(addr.sun_path) - 2);
-    socklen_t addrLen = static_cast<socklen_t>(offsetof(struct sockaddr_un, sun_path) + 1 + ::strlen(BRIDGE_SOCKET_PATH)); // offsetof + '\0' + name
+    socklen_t addrLen = 1 + 1 + ::strlen(BRIDGE_SOCKET_PATH); // offsetof + '\0' + name
 
     if (::bind(mListenFd, reinterpret_cast<struct sockaddr*>(&addr), addrLen) < 0)
     {
