@@ -38,7 +38,7 @@
 #include <sys/shm.h>
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
 #include "VncServer.h"
-#include "VncServer/VncServerFactory.h"
+#include "src/VncServer/VncServerFactory.h"
 #include "VncFrameBuffer.h"
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
