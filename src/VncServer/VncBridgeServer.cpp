@@ -26,13 +26,16 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#include <chrono>
+#include <cstddef>
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
 #include <cassert>
-
 // Abstract Unix socket path (the leading '\0' makes it abstract)
 #define BRIDGE_SOCKET_PATH  "/tmp/rdkwindowmanager-vnc-bridge"
 
