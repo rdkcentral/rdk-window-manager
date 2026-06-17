@@ -669,10 +669,16 @@ bool VncBridgeServer::sendMsg(int fd, uint32_t type,
         ::memcpy(CMSG_DATA(cmsg), &passFd, sizeof(int));
     }
 
+    const size_t expected = sizeof(hdr) + payloadLen;
     ssize_t ret = ::sendmsg(fd, &msg, MSG_NOSIGNAL);
     if (ret < 0)
     {
         Logger::log(LogLevel::Error, "%s: sendmsg failed: %s", __func__, ::strerror(errno));
+        return false;
+    }
+    if (static_cast<size_t>(ret) != expected)
+    {
+        Logger::log(LogLevel::Error, "%s: sendmsg short write (%zd/%zu)", __func__, ret, expected);
         return false;
     }
     return true;
