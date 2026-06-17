@@ -2302,8 +2302,10 @@ namespace RdkWindowManager
         uint32_t width = 0, height = 0;
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
         // Match capture dimensions in VNCServer2 bridge mode.
-        width = 960;
-        height = 540;
+        constexpr uint32_t kVncBridgeCaptureWidth = 960;
+        constexpr uint32_t kVncBridgeCaptureHeight = 540;
+        width = kVncBridgeCaptureWidth;
+        height = kVncBridgeCaptureHeight;
 #else
         getScreenResolution(width, height);
 #endif
