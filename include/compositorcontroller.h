@@ -150,6 +150,8 @@ namespace RdkWindowManager
             static bool renderReady(const std::string& client);
             static bool startVncServer();
             static bool stopVncServer();
+            static bool setAlias(const std::string& clientId, const std::string& alias);
+            static std::string getDisplayNameFromAlias(const std::string& alias);
     };
 }
 

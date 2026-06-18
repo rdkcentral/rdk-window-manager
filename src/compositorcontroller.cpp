@@ -123,6 +123,8 @@ namespace RdkWindowManager
     CompositorInfo gFocusedCompositor;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
+    std::map<std::string, std::string> gClientAliasMap;
+    std::mutex gClientAliasMapMutex;
 
     static std::map<uint32_t, std::vector<KeyInterceptInfo>> gKeyInterceptInfoMap;
     std::map<std::string, bool> gKeyInterceptedMap;
@@ -708,6 +710,11 @@ namespace RdkWindowManager
                 }
             }
 
+            {
+                std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+                gClientAliasMap.erase(clientDisplayName);
+            }
+
             // cleanup key listeners
             for (std::map<uint32_t, std::vector<KeyListenerInfo>>::iterator iter = it->keyListenerInfo.begin(); iter != it->keyListenerInfo.end(); iter++)
             {
@@ -1085,6 +1092,43 @@ namespace RdkWindowManager
             clients.push_back(clientName);
         }
         return true;
+    }
+
+    bool CompositorController::setAlias(const std::string& clientId, const std::string& alias)
+    {
+        CompositorListIterator it;
+        if (!getCompositorInfo(clientId, it))
+        {
+            Logger::log(LogLevel::Error, "Client '%s' not found. Cannot set alias", clientId.c_str());
+            return false;
+        }
+
+        const std::string standardizedClientId = standardizeName(clientId);
+        {
+            std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+            gClientAliasMap[standardizedClientId] = alias;
+        }
+
+        return true;
+    }
+
+    std::string CompositorController::getDisplayNameFromAlias(const std::string& alias)
+    {
+        if (alias.empty())
+        {
+            return "";
+        }
+
+        std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+        for (const auto& clientAliasEntry : gClientAliasMap)
+        {
+            if (clientAliasEntry.second == alias)
+            {
+                return clientAliasEntry.first;
+            }
+        }
+
+        return "";
     }
 
     bool CompositorController::getZOrder(const std::string& client, int32_t &zorder)
