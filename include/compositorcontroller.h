@@ -103,6 +103,8 @@ namespace RdkWindowManager
             static bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName);
+            static int addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener);
+            static bool removeExtensionEventListener(int listenerTag);
             static void enableInactivityReporting(const bool enable);
             static void setInactivityInterval(const double minutes);
             static void resetInactivityTime();
@@ -152,6 +154,7 @@ namespace RdkWindowManager
             static bool stopVncServer();
             static bool setAlias(const std::string& clientId, const std::string& alias);
             static std::string getDisplayNameFromAlias(const std::string& alias);
+            static std::string getAliasFromDisplayName(const std::string& clientId);
     };
 }
 

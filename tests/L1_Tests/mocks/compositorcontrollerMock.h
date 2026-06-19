@@ -50,5 +50,7 @@ public:
     MOCK_METHOD(bool, getSurfaceInfo, (const std::string& client, int surfaceId, FireboltSurfaceInfo& si),(override));
     MOCK_METHOD(bool, addFireboltExtensionListener, (const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener),(override));
     MOCK_METHOD(bool, removeFireboltExtensionListener, (const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener),(override));
+    MOCK_METHOD(int, addExtensionEventListener, (std::shared_ptr<ExtensionEventListener> listener),(override));
+    MOCK_METHOD(bool, removeExtensionEventListener, (int listenerTag),(override));
 };
 }
