@@ -87,7 +87,9 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information,  "The display name is: %s", mDisplayName.c_str());
                 
                 /* Load Westeros extensions for WM firebolt interfaces */
-                loadfireboltExtensions(mWstContext);           
+                loadfireboltExtensions(mWstContext);
+                /* Load additional extensions listed in the JSON manifest */
+                loadAdditionalExtensions(mWstContext);
 
                 if (!error && !WstCompositorStart(mWstContext))
                 {

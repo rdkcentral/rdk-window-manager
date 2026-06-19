@@ -19,6 +19,7 @@
 
 #include "rdkcompositor.h"
 #include "compositorcontroller.h"
+#include "rdkwindowmanagerjson.h"
 
 #include <iostream>
 #include <string.h>
@@ -244,6 +245,56 @@ namespace RdkWindowManager
         {
             success = false;
         }
+
+        return success;
+    }
+
+    bool RdkCompositor::loadAdditionalExtensions(WstCompositor *compositor)
+    {
+        Logger::log(LogLevel::Information,  "loadAdditionalExtensions WstCompositor:%p", compositor);
+        bool success = true;
+
+#ifdef RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG
+        if (compositor)
+        {
+            rapidjson::Document document;
+            const char* configPath = RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG;
+            if (!RdkWindowManagerJson::readJsonFile(configPath, document))
+            {
+                Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to read config file: %s", configPath);
+                return true; // non-fatal: file may not exist on all platforms
+            }
+
+            if (!document.IsObject() || !document.HasMember("extensions") || !document["extensions"].IsArray())
+            {
+                Logger::log(LogLevel::Warn, "loadAdditionalExtensions: invalid JSON structure in %s", configPath);
+                return true;
+            }
+
+            const rapidjson::Value& extensions = document["extensions"];
+            for (rapidjson::SizeType i = 0; i < extensions.Size(); ++i)
+            {
+                const rapidjson::Value& entry = extensions[i];
+                if (!entry.IsObject() || !entry.HasMember("library") || !entry["library"].IsString())
+                {
+                    Logger::log(LogLevel::Warn, "loadAdditionalExtensions: extension entry %u missing 'library' field, skipping", i);
+                    continue;
+                }
+
+                const std::string libraryPath = entry["library"].GetString();
+                Logger::log(LogLevel::Information, "loadAdditionalExtensions: attempting to load extension: %s", libraryPath.c_str());
+                if (!WstCompositorAddModule(compositor, libraryPath.c_str()))
+                {
+                    Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to load plugin: %s, westeros error: %s",
+                                libraryPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                }
+            }
+        }
+        else
+        {
+            success = false;
+        }
+#endif /* RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG */
 
         return success;
     }

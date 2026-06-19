@@ -140,6 +140,7 @@ namespace RdkWindowManager
             void shutdownApplication();
             static bool loadExtensions(WstCompositor *compositor, const std::string& clientName);
             static bool loadfireboltExtensions(WstCompositor *compositor);
+            static bool loadAdditionalExtensions(WstCompositor *compositor);
             void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void updateWaylandState();
