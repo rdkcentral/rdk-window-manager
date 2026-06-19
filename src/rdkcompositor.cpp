@@ -47,7 +47,7 @@ namespace RdkWindowManager
 
     RdkCompositor::RdkCompositor() : mDisplayName(), mWstContext(NULL), 
         mWidth(1920), mHeight(1080), mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
-        mVisible(true), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
+        mVisible(false), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
