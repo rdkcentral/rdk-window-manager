@@ -153,6 +153,13 @@ namespace RdkWindowManager
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED},
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED}
         };
+    std::unordered_map<int, std::shared_ptr<ExtensionEventListener>> gExtensionEventListenerMap;
+    std::mutex gExtensionListenerMapMutex;
+    int gExtensionEventListenerTag = 0;
+    const std::unordered_map<std::string, std::string> gExtensionEventMap = {
+            { RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED, RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED },
+            { RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED, RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED }
+        };
 
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
     static bool gVncServerEnabled = false;
@@ -165,6 +172,9 @@ namespace RdkWindowManager
         std::transform(displayName.begin(), displayName.end(), displayName.begin(), [](unsigned char c){ return std::tolower(c); });
         return displayName;
     }
+
+    void notifyExtensionClientConfigChanged(const std::string& clientName, const ClientInfo& clientInfo);
+    void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId);
 
     /*
         getCompositorInfo searches gCompositorList and gTopmostCompositoList for compositor info with
@@ -1131,6 +1141,24 @@ namespace RdkWindowManager
         return "";
     }
 
+    std::string CompositorController::getAliasFromDisplayName(const std::string& clientId)
+    {
+        if (clientId.empty())
+        {
+            return "";
+        }
+
+        const std::string standardizedClientId = standardizeName(clientId);
+        std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+        const auto aliasEntry = gClientAliasMap.find(standardizedClientId);
+        if (aliasEntry != gClientAliasMap.end())
+        {
+            return aliasEntry->second;
+        }
+
+        return "";
+    }
+
     bool CompositorController::getZOrder(const std::string& client, int32_t &zorder)
     {
         CompositorListIterator it;
@@ -1237,7 +1265,18 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            bool currentVisibility = false;
+            it->compositor->visible(currentVisibility);
             it->compositor->setVisible(visible);
+
+            if (currentVisibility != visible)
+            {
+                ClientInfo updatedInfo{};
+                if (CompositorController::getClientInfo(client, updatedInfo))
+                {
+                    notifyExtensionClientConfigChanged(client, updatedInfo);
+                }
+            }
             return true;
         }
         return false;
@@ -1747,6 +1786,85 @@ namespace RdkWindowManager
         }
     }
 
+    void sendExtensionEvent(const std::shared_ptr<ExtensionEventListener>& listener,
+                                   const std::string& eventName,
+                                   const std::string& clientName,
+                                   const ClientInfo& clientInfo,
+                                   int ownerId)
+    {
+        std::string eventClientName = CompositorController::getAliasFromDisplayName(clientName);
+        if (eventClientName.empty())
+        {
+            eventClientName = clientName;
+        }
+
+        Logger::log(LogLevel::Information, "sendExtensionEvent - client:%s eventName:%s", eventClientName.c_str(), eventName.c_str());
+        if (eventName == RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED)
+        {
+            listener->onClientConfigChanged(eventClientName,
+                                            clientInfo.visible,
+                                            clientInfo.zorder,
+                                            clientInfo.opacity,
+                                            clientInfo.x,
+                                            clientInfo.y,
+                                            clientInfo.width,
+                                            clientInfo.height);
+        }
+        else if (eventName == RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED)
+        {
+            listener->onOwnerChanged(ownerId, eventClientName);
+        }
+    }
+
+    void notifyExtensionClientConfigChanged(const std::string& clientName, const ClientInfo& clientInfo)
+    {
+        const auto eventIt = gExtensionEventMap.find(RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED);
+        if (eventIt == gExtensionEventMap.end())
+        {
+            return;
+        }
+
+        std::vector<std::pair<int, std::shared_ptr<ExtensionEventListener>>> listeners;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listeners.reserve(gExtensionEventListenerMap.size());
+            for (const auto& entry : gExtensionEventListenerMap)
+            {
+                listeners.emplace_back(entry.first, entry.second);
+            }
+        }
+
+        for (const auto& entry : listeners)
+        {
+            sendExtensionEvent(entry.second, eventIt->second, clientName, clientInfo, clientInfo.ownerId);
+        }
+    }
+
+    void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId)
+    {
+        const auto eventIt = gExtensionEventMap.find(RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED);
+        if (eventIt == gExtensionEventMap.end())
+        {
+            return;
+        }
+
+        ClientInfo noopInfo{};
+        std::vector<std::pair<int, std::shared_ptr<ExtensionEventListener>>> listeners;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listeners.reserve(gExtensionEventListenerMap.size());
+            for (const auto& entry : gExtensionEventListenerMap)
+            {
+                listeners.emplace_back(entry.first, entry.second);
+            }
+        }
+
+        for (const auto& entry : listeners)
+        {
+            sendExtensionEvent(entry.second, eventIt->second, clientName, noopInfo, ownerId);
+        }
+    }
+
     bool CompositorController::addFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
     {
         bool success = false;
@@ -1850,6 +1968,45 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Error,
                 "onFireboltExtensionEvent - Invalid eventCompositor[%p] or eventName[%s]", eventCompositor, eventName.c_str());
+        }
+
+        return success;
+    }
+
+    int CompositorController::addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener)
+    {
+        if (!listener)
+        {
+            Logger::log(LogLevel::Error,
+                "addExtensionEventListener: listener is null!");
+            return -1;
+        }
+
+        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+        const int listenerTag = ++gExtensionEventListenerTag;
+        gExtensionEventListenerMap[listenerTag] = listener;
+        Logger::log(LogLevel::Information,
+            "addExtensionEventListener: Listener registered with tag %d", listenerTag);
+        return listenerTag;
+    }
+
+    bool CompositorController::removeExtensionEventListener(int listenerTag)
+    {
+        bool success = false;
+
+        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+        auto it = gExtensionEventListenerMap.find(listenerTag);
+        if (it == gExtensionEventListenerMap.end())
+        {
+            Logger::log(LogLevel::Warn,
+                "removeExtensionEventListener: no listener found for tag %d", listenerTag);
+        }
+        else
+        {
+            gExtensionEventListenerMap.erase(it);
+            Logger::log(LogLevel::Information,
+                "removeExtensionEventListener: Listener removed for tag %d", listenerTag);
+            success = true;
         }
 
         return success;
@@ -2169,6 +2326,9 @@ namespace RdkWindowManager
             return false;
         auto c = it->compositor;
 
+        ClientInfo currentInfo{};
+        const bool hasCurrentInfo = CompositorController::getClientInfo(client, currentInfo);
+
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
@@ -2179,6 +2339,34 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());
         }
+
+        ClientInfo updatedInfo{};
+        if (CompositorController::getClientInfo(client, updatedInfo))
+        {
+            const bool ownerChanged = !hasCurrentInfo || (currentInfo.ownerId != updatedInfo.ownerId);
+            const bool nonOwnerConfigChanged = !hasCurrentInfo ||
+                (currentInfo.visible != updatedInfo.visible) ||
+                (currentInfo.zorder != updatedInfo.zorder) ||
+                (currentInfo.opacity != updatedInfo.opacity) ||
+                (currentInfo.x != updatedInfo.x) ||
+                (currentInfo.y != updatedInfo.y) ||
+                (currentInfo.width != updatedInfo.width) ||
+                (currentInfo.height != updatedInfo.height) ||
+                (currentInfo.cropX != updatedInfo.cropX) ||
+                (currentInfo.cropY != updatedInfo.cropY) ||
+                (currentInfo.cropWidth != updatedInfo.cropWidth) ||
+                (currentInfo.cropHeight != updatedInfo.cropHeight);
+
+            if (ownerChanged && !nonOwnerConfigChanged)
+            {
+                notifyExtensionOwnerChanged(client, updatedInfo.ownerId);
+            }
+            else if (nonOwnerConfigChanged)
+            {
+                notifyExtensionClientConfigChanged(client, updatedInfo);
+            }
+        }
+
         return true;
     }
 
@@ -2317,6 +2505,15 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information,  "saving Display size for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
                 //setting Display size to 1,1
                 it->compositor->setSize(1, 1);
+            }
+
+            if (result && enable)
+            {
+                ClientInfo updatedInfo{};
+                if (CompositorController::getClientInfo(client, updatedInfo))
+                {
+                    notifyExtensionClientConfigChanged(client, updatedInfo);
+                }
             }
             return result;
         }
