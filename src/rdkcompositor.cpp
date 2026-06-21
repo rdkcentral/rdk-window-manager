@@ -911,11 +911,6 @@ namespace RdkWindowManager
         else
         {
             Logger::log(LogLevel::Information,  "setCrop mWidth:%d mHeight:%d mPositionX:%d mPositionY:%d", mWidth, mHeight, mPositionX, mPositionY);
-
-            mMatrix[0] = 1.f;
-            mMatrix[5] = 1.f;
-            mMatrix[12] = 0.f;
-            mMatrix[13] = 0.f;
         }
     }
 
