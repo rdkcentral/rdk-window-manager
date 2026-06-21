@@ -22,6 +22,7 @@
 #include "rdkwindowmanagerjson.h"
 
 #include <iostream>
+#include <sstream>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -249,7 +250,7 @@ namespace RdkWindowManager
         return success;
     }
 
-    bool RdkCompositor::loadAdditionalExtensions(WstCompositor *compositor)
+    bool RdkCompositor::loadAdditionalExtensions(WstCompositor *compositor, const std::string& capabilities)
     {
         Logger::log(LogLevel::Information,  "loadAdditionalExtensions WstCompositor:%p", compositor);
         bool success = true;
@@ -282,8 +283,55 @@ namespace RdkWindowManager
                 }
 
                 const std::string libraryPath = entry["library"].GetString();
+
+                // Check extension capabilities against client capabilities
+                bool shouldLoad = true;
+                if (entry.HasMember("capabilities") && entry["capabilities"].IsArray())
+                {
+                    const rapidjson::Value& extCaps = entry["capabilities"];
+                    bool hasWildcard = false;
+                    bool hasMatch = false;
+                    for (rapidjson::SizeType j = 0; j < extCaps.Size(); ++j)
+                    {
+                        if (!extCaps[j].IsString()) continue;
+                        const std::string cap = extCaps[j].GetString();
+                        if (cap == "*") { hasWildcard = true; break; }
+                        // check if cap token is present in comma-separated capabilities
+                        std::istringstream capStream(capabilities);
+                        std::string token;
+                        while (std::getline(capStream, token, ','))
+                        {
+                            if (token == cap) { hasMatch = true; break; }
+                        }
+                        if (hasMatch) break;
+                    }
+                    shouldLoad = hasWildcard || hasMatch;
+                }
+
+                if (!shouldLoad)
+                {
+                    Logger::log(LogLevel::Information, "loadAdditionalExtensions: skipping extension '%s' (client lacks required capability)",
+                                libraryPath.c_str());
+                    continue;
+                }
+
+                // Determine module type: "renderer" uses WstCompositorSetRendererModule; default is "plugin"
+                bool isRenderer = false;
+                if (entry.HasMember("type") && entry["type"].IsString())
+                {
+                    isRenderer = (std::string(entry["type"].GetString()) == "renderer");
+                }
+
                 Logger::log(LogLevel::Information, "loadAdditionalExtensions: attempting to load extension: %s", libraryPath.c_str());
-                if (!WstCompositorAddModule(compositor, libraryPath.c_str()))
+                if (isRenderer)
+                {
+                    if (!WstCompositorSetRendererModule(compositor, libraryPath.c_str()))
+                    {
+                        Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to set renderer module: %s, westeros error: %s",
+                                    libraryPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                    }
+                }
+                else if (!WstCompositorAddModule(compositor, libraryPath.c_str()))
                 {
                     Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to load plugin: %s, westeros error: %s",
                                 libraryPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
