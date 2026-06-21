@@ -59,7 +59,7 @@ namespace RdkWindowManager
 
     struct CompositorInfo
     {
-        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1), isSuspended(false), previousWidth(0), previousHeight(0) {}
+        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1), isSuspended(false), previousWidth(0), previousHeight(0), capabilities() {}
         std::string name;
         std::shared_ptr<RdkCompositor> compositor;
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
@@ -69,6 +69,7 @@ namespace RdkWindowManager
         bool isSuspended;
         uint32_t previousWidth;
         uint32_t previousHeight;
+        std::string capabilities;
     };
 
     struct KeyInterceptInfo
@@ -1159,6 +1160,18 @@ namespace RdkWindowManager
         return "";
     }
 
+    bool CompositorController::getCapabilities(const std::string& clientId, std::string& capabilities)
+    {
+        CompositorListIterator it;
+        if (!getCompositorInfo(clientId, it))
+        {
+            Logger::log(LogLevel::Error, "Client '%s' not found. Cannot get capabilities", clientId.c_str());
+            return false;
+        }
+        capabilities = it->capabilities;
+        return true;
+    }
+
     bool CompositorController::getZOrder(const std::string& client, int32_t &zorder)
     {
         CompositorListIterator it;
@@ -1525,7 +1538,7 @@ namespace RdkWindowManager
 
     bool CompositorController::createDisplay(const std::string& client, const std::string& displayName,
         uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight,
-        bool topmost, bool focus , int32_t ownerId, int32_t groupId)
+        bool topmost, bool focus , int32_t ownerId, int32_t groupId, const std::string& capabilities)
     {
         Logger::log(LogLevel::Information,
             "rdkwindowmanager createDisplay client: %s, displayName: %s, res: %d x %d, virtualDisplayEnabled: %d, virtualRes: %d x %d, topmost: %d, focus: %d\n",
@@ -1548,6 +1561,7 @@ namespace RdkWindowManager
         CompositorInfo compositorInfo;
         compositorInfo.name = clientDisplayName;
         compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
+        compositorInfo.capabilities = capabilities;
 
         uint32_t width = 0;
         uint32_t height = 0;
@@ -1579,7 +1593,7 @@ namespace RdkWindowManager
             topmost, focus);
 
         bool ret = compositorInfo.compositor->createDisplay(compositorDisplayName, clientDisplayName, width, height,
-            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId);
+            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId, capabilities);
 
         if (ret)
         {
