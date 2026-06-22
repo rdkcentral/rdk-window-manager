@@ -1,12 +1,13 @@
 permissions:
   contents: read
+  actions: write
 name: main-workflow
 
 on:
   push:
-    branches: [ main, develop, 'sprint/**', 'release/**' ]
+    branches: [ main, develop, 'sprint/**', 'release/**', 'topic/RDK*' ]
   pull_request:
-    branches: [ main, develop, 'sprint/**', 'release/**' ]
+    branches: [ main, develop, 'sprint/**', 'release/**', 'topic/RDK*' ]
 
 jobs:
   trigger-L1:

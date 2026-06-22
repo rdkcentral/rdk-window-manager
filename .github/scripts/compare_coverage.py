@@ -190,7 +190,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Compare L0/L1 coverage against the develop baseline.\n"
-            "Exits 1 when coverage fails threshold or regresses from baseline."
+            "Prints a report and exits 0 (informational only — PRs are never blocked)."
         )
     )
     parser.add_argument("--baseline", required=True, metavar="PATH",
@@ -249,11 +249,23 @@ def main() -> None:
                 file=sys.stderr,
             )
 
-    l0_ok, l0_result, l0_delta, l0_reason = _suite_analysis(l0_coverage, baseline_l0)
-    l1_ok, l1_result, l1_delta, l1_reason = _suite_analysis(l1_coverage, baseline_l1)
+    l0_requested = args.l0 is not None
+    l1_requested = args.l1 is not None
 
-    all_ok       = l0_ok and l1_ok
-    status_token = _colored("[PASS]", True) if all_ok else _colored("[WARN]", False)
+    if l0_requested:
+        l0_ok, l0_result, l0_delta, l0_reason = _suite_analysis(l0_coverage, baseline_l0)
+    else:
+        l0_ok, l0_result, l0_delta, l0_reason = True, _colored("[SKIP]", True) + "  not applicable", "N/A", None
+
+    if l1_requested:
+        l1_ok, l1_result, l1_delta, l1_reason = _suite_analysis(l1_coverage, baseline_l1)
+    else:
+        l1_ok, l1_result, l1_delta, l1_reason = True, _colored("[SKIP]", True) + "  not applicable", "N/A", None
+
+    # Compute overall status from requested suites only; not-applicable suites are SKIP (ok).
+    applicable_ok = [ok for ok, req in [(l0_ok, l0_requested), (l1_ok, l1_requested)] if req]
+    all_ok        = all(applicable_ok) if applicable_ok else False
+    status_token  = _colored("[PASS]", True) if all_ok else _colored("[WARN]", False)
 
     
     # Output report
@@ -286,9 +298,9 @@ def main() -> None:
     if summary:
         print(f"  {summary}")
 
-    # Notify when one or both suites had no coverage data (artifact absent).
-    # Gate logic is unchanged — SKIP is treated as passing by design.
-    skipped = [n for n, cov in [("L0", l0_coverage), ("L1", l1_coverage)] if cov is None]
+    # Notify when a requested suite had no coverage data (artifact absent).
+    # Non-applicable suites (arg not passed) are excluded — their absence is expected.
+    skipped = [n for n, req, cov in [("L0", l0_requested, l0_coverage), ("L1", l1_requested, l1_coverage)] if req and cov is None]
     if skipped:
         print(f"  NOTE: {_join_names(skipped)} coverage data absent \u2014 artifact missing or unreadable.")
 

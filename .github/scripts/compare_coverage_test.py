@@ -611,9 +611,14 @@ class TestMainIntegration(unittest.TestCase):
     # ===========================================================================
 
     def test_s10_l1_artifact_absent(self):
-        """--l1 omitted — simulates the artifact download step failing."""
+        """--l1 path provided but file absent — simulates artifact download step failing.
+
+        The real workflow always passes --l1 <path>; the file simply doesn't exist when
+        actions/download-artifact fails (continue-on-error: true).  Omitting --l1 entirely
+        would mean L1 is not applicable (SKIP), which is a different scenario.
+        """
         bl = self._baseline({"L1": 75.0})
-        r = self._run("--baseline", bl)
+        r = self._run("--baseline", bl, "--l1", "/nonexistent/path/filtered_coverage.info")
         self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
         self.assertIn("coverage data missing", r.stdout)
         self.assertIn("[WARN]", r.stdout)
