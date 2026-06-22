@@ -903,10 +903,10 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Information,  "setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
 
-            mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
-            mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
-            mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
-            mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
+            //mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
+            //mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
+            //mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
+            //mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
         }
         else
         {
