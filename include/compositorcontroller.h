@@ -87,6 +87,9 @@ namespace RdkWindowManager
             static bool setScale(const std::string& client, double scaleX, double scaleY);
             static bool getHolePunch(const std::string& client, bool& holePunch);
             static bool setHolePunch(const std::string& client, const bool holePunch);
+            static bool setGlobalHolePunch(const RdkWindowManagerRect& rect);
+            static bool getGlobalHolePunch(RdkWindowManagerRect& rect);
+            static bool enableGlobalHolePunch(bool enable);
             static bool getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
             static bool setCrop(const std::string& client, int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
             static bool scaleToFit(const std::string& client, const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);

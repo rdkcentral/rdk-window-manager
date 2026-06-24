@@ -145,6 +145,16 @@ namespace RdkWindowManager
 
     std::shared_ptr<Cursor> gCursor = nullptr;
     KeyRepeatConfig gKeyRepeatConfig;
+
+    // Global hole-punch state: a single rect that applies to all compositors
+    // when global hole-punch is enabled (used when textured_video is not set).
+    bool                  gGlobalHolePunchEnabled = false;
+    RdkWindowManagerRect  gGlobalHolePunchRect;
+
+    // Z-order threshold separating app-tier compositors (players, apps)
+    // from overlay-tier compositors (subtitles z=1000, watermark z=1001).
+    // The global hole punch must be applied between these two tiers.
+    static constexpr int32_t kOverlayZOrderThreshold = 1000;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
     std::mutex gFireboltExtensionListenerMapMutex;
@@ -1374,6 +1384,29 @@ namespace RdkWindowManager
         return false;
     }
 
+    bool CompositorController::setGlobalHolePunch(const RdkWindowManagerRect& rect)
+    {
+        gGlobalHolePunchRect = rect;
+        Logger::log(LogLevel::Information,
+                    "setGlobalHolePunch: x=%u y=%u width=%u height=%u",
+                    rect.x, rect.y, rect.width, rect.height);
+        return true;
+    }
+
+    bool CompositorController::getGlobalHolePunch(RdkWindowManagerRect& rect)
+    {
+        rect = gGlobalHolePunchRect;
+        return true;
+    }
+
+    bool CompositorController::enableGlobalHolePunch(bool enable)
+    {
+        gGlobalHolePunchEnabled = enable;
+        Logger::log(LogLevel::Information,
+                    "enableGlobalHolePunch: %s", enable ? "enabled" : "disabled");
+        return true;
+    }
+
     bool CompositorController::getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
     {
         CompositorListIterator it;
@@ -1661,8 +1694,36 @@ namespace RdkWindowManager
         }
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
+        // Base pass — draw app-tier compositors (players + apps, z < kOverlayZOrderThreshold)
+        // in ascending z-order (background → foreground).
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
         {
+            if (reverseIterator->zorder >= kOverlayZOrderThreshold)
+                continue;
+            bool needsHolePunch = false;
+            RdkWindowManagerRect rect;
+            reverseIterator->compositor->draw(needsHolePunch, rect, false);
+        }
+
+        // Global hole punch: after apps but before subtitles/watermark, punch a
+        // transparent hole to expose the HW video layer beneath the composited
+        // output — mirrors the per-player hole punch in WesterosWindowManager.
+        if (gGlobalHolePunchEnabled)
+        {
+            glEnable(GL_SCISSOR_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glScissor(gGlobalHolePunchRect.x, gGlobalHolePunchRect.y,
+                      gGlobalHolePunchRect.width, gGlobalHolePunchRect.height);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_SCISSOR_TEST);
+        }
+
+        // Base pass — draw overlay-tier compositors (subtitles, watermark,
+        // z >= kOverlayZOrderThreshold) on top of the hole-punched frame.
+        for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
+        {
+            if (reverseIterator->zorder < kOverlayZOrderThreshold)
+                continue;
             bool needsHolePunch = false;
             RdkWindowManagerRect rect;
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
