@@ -903,11 +903,11 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Information,  "MADAN setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
 
-            //mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
-            //mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
-            //mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
-            //mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
-            Logger::log(LogLevel::Information,  "MADAN2 commented setCrop cropX:%f cropY:%f cropWidth:%f cropHeight:%f", mMatrix[12], mMatrix[13], mMatrix[0], mMatrix[5]);
+            mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
+            mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
+            mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
+            mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
+            Logger::log(LogLevel::Information,  "MADAN1 not commented setCrop cropX:%f cropY:%f cropWidth:%f cropHeight:%f", mMatrix[12], mMatrix[13], mMatrix[0], mMatrix[5]);
         }
         else
         {
