@@ -148,6 +148,7 @@ namespace RdkWindowManager
 
     // Global hole-punch state: a single rect that applies to all compositors
     // when global hole-punch is enabled (used when textured_video is not set).
+    std::mutex            gGlobalHolePunchMutex;
     bool                  gGlobalHolePunchEnabled = false;
     RdkWindowManagerRect  gGlobalHolePunchRect;
 
@@ -1386,6 +1387,7 @@ namespace RdkWindowManager
 
     bool CompositorController::setGlobalHolePunch(const RdkWindowManagerRect& rect)
     {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
         gGlobalHolePunchRect = rect;
         Logger::log(LogLevel::Information,
                     "setGlobalHolePunch: x=%u y=%u width=%u height=%u",
@@ -1395,12 +1397,14 @@ namespace RdkWindowManager
 
     bool CompositorController::getGlobalHolePunch(RdkWindowManagerRect& rect)
     {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
         rect = gGlobalHolePunchRect;
         return true;
     }
 
     bool CompositorController::enableGlobalHolePunch(bool enable)
     {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
         gGlobalHolePunchEnabled = enable;
         Logger::log(LogLevel::Information,
                     "enableGlobalHolePunch: %s", enable ? "enabled" : "disabled");
@@ -1708,14 +1712,17 @@ namespace RdkWindowManager
         // Global hole punch: after apps but before subtitles/watermark, punch a
         // transparent hole to expose the HW video layer beneath the composited
         // output — mirrors the per-player hole punch in WesterosWindowManager.
-        if (gGlobalHolePunchEnabled)
         {
-            glEnable(GL_SCISSOR_TEST);
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glScissor(gGlobalHolePunchRect.x, gGlobalHolePunchRect.y,
-                      gGlobalHolePunchRect.width, gGlobalHolePunchRect.height);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glDisable(GL_SCISSOR_TEST);
+            std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
+            if (gGlobalHolePunchEnabled)
+            {
+                glEnable(GL_SCISSOR_TEST);
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                glScissor(gGlobalHolePunchRect.x, gGlobalHolePunchRect.y,
+                          gGlobalHolePunchRect.width, gGlobalHolePunchRect.height);
+                glClear(GL_COLOR_BUFFER_BIT);
+                glDisable(GL_SCISSOR_TEST);
+            }
         }
 
         // Base pass — draw overlay-tier compositors (subtitles, watermark,
