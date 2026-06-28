@@ -88,8 +88,8 @@ namespace RdkWindowManager
                                              double opacity,
                                              int x,
                                              int y,
-                                             unsigned width,
-                                             unsigned height) {}
+                                             uint32_t width,
+                                             uint32_t height) {}
           virtual void onOwnerChanged(int ownerId, const std::string& clientName) {}
     };
 
