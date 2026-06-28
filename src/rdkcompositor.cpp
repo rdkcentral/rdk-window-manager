@@ -48,7 +48,8 @@ namespace RdkWindowManager
     }
 
     RdkCompositor::RdkCompositor() : mDisplayName(), mWstContext(NULL), 
-        mWidth(1920), mHeight(1080), mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
+        mWidth(1920), mHeight(1080), mLogicalWidth(1920), mLogicalHeight(1080),
+        mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
         mVisible(true), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
@@ -62,6 +63,8 @@ namespace RdkWindowManager
             RdkWindowManager::Logger::log(LogLevel::Information,  "forcing 720 for rdkc");
             mWidth = 1280;
             mHeight = 720;
+            mLogicalWidth = 1280;
+            mLogicalHeight = 720;
         }
         float* matrixPointer = mMatrix;
         float matrix[16] = 
@@ -839,6 +842,18 @@ namespace RdkWindowManager
     {
         width = mWidth;
         height = mHeight;
+    }
+
+    void RdkCompositor::setLogicalSize(uint32_t width, uint32_t height)
+    {
+        mLogicalWidth = width;
+        mLogicalHeight = height;
+    }
+
+    void RdkCompositor::logicalSize(uint32_t &width, uint32_t &height)
+    {
+        width = mLogicalWidth;
+        height = mLogicalHeight;
     }
 
     void RdkCompositor::opacity(double& opacity)

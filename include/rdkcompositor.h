@@ -78,6 +78,12 @@ namespace RdkWindowManager
             void position(int32_t &x, int32_t &y);
             void setSize(uint32_t width, uint32_t height);
             void size(uint32_t &width, uint32_t &height);
+            // Logical (reported) size: what was set via setClientInfo (tile or
+            // fullscreen dimensions). Returned by getClientInfo so that
+            // onClientConfigChanged events carry the correct width/height.
+            // Rendering always uses mWidth/mHeight (natural resolution).
+            void setLogicalSize(uint32_t width, uint32_t height);
+            void logicalSize(uint32_t &width, uint32_t &height);
             void setOpacity(double opacity);
             void scale(double &scaleX, double &scaleY);
             void setScale(double scaleX, double scaleY);
@@ -148,8 +154,10 @@ namespace RdkWindowManager
             
             std::string mDisplayName;
             WstCompositor *mWstContext;
-            uint32_t mWidth;
+            uint32_t mWidth;          // Westeros render resolution (natural)
             uint32_t mHeight;
+            uint32_t mLogicalWidth;    // Reported size (tile or fullscreen) for events
+            uint32_t mLogicalHeight;
             int32_t mPositionX;
             int32_t mPositionY;
             float mMatrix[16];

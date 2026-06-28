@@ -2388,7 +2388,8 @@ namespace RdkWindowManager
         ci.zorder = it->zorder;
         c->opacity(ci.opacity);
         c->position(ci.x, ci.y);
-        c->size(ci.width, ci.height);
+        c->logicalSize(ci.width, ci.height);  // tile/fullscreen dims set by setClientInfo
+        c->scale(ci.sx, ci.sy);              // computed scale retained from setClientInfo
         c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         c->ownerId(ci.ownerId);
         return true;
@@ -2422,9 +2423,16 @@ namespace RdkWindowManager
         // compute scale = tile_size / natural_size so the full output is scaled
         // down to fit the tile in the matrix transform.
         uint32_t curW = 0, curH = 0;
-        c->size(curW, curH);
-        if (curW == 0) curW = 1920;
-        if (curH == 0) curH = 1080;
+        c->size(curW, curH);  // returns mWidth/mHeight (natural render resolution)
+        if (curW == 0 || curH == 0)
+        {
+            // Fall back to actual screen resolution — not hardcoded 1920/1080
+            // so that 720p and 4K screens are handled correctly.
+            uint32_t screenW = 0, screenH = 0;
+            getScreenResolution(screenW, screenH);
+            if (curW == 0) curW = (screenW > 0) ? screenW : 1920;
+            if (curH == 0) curH = (screenH > 0) ? screenH : 1080;
+        }
 
         double scaleX, scaleY;
         if (ci.sx > 0.0)
@@ -2447,6 +2455,19 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());
         }
+
+        // Store the logical (tile or fullscreen) dimensions and scale so that
+        // getClientInfo returns consistent values in onClientConfigChanged events.
+        // EPG needs these to match what it originally sent.
+        const uint32_t logicalW = (ci.width > 0) ? ci.width
+                                : (ci.sx > 0.0)   ? static_cast<uint32_t>(curW * ci.sx)
+                                :                   curW;
+        const uint32_t logicalH = (ci.height > 0) ? ci.height
+                                : (ci.sy > 0.0)    ? static_cast<uint32_t>(curH * ci.sy)
+                                :                    curH;
+        c->setLogicalSize(logicalW, logicalH);
+        Logger::log(LogLevel::Information, "setClientInfo logicalSize:(%ux%u) scale:(%f,%f) client:%s",
+            logicalW, logicalH, scaleX, scaleY, client.c_str());
 
         ClientInfo updatedInfo{};
         if (CompositorController::getClientInfo(client, updatedInfo))
