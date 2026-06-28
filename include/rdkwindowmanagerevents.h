@@ -65,9 +65,10 @@ namespace RdkWindowManager
           virtual void client_disconnected(const char* clientName) {}
     };
 
-        class ExtensionEventListener
+    class ExtensionEventListener
     {
         public:
+          virtual ~ExtensionEventListener() = default;
           virtual void onClientConfigChanged(const std::string& clientName,
                                              bool visible,
                                              int zOrder,
