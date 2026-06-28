@@ -212,6 +212,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::loadfireboltExtensions(WstCompositor *compositor)
     {
+        return true;
         Logger::log(LogLevel::Information,  "loadfireboltExtensions WstCompositor:%p", compositor);
         bool success = true;
 
@@ -901,13 +902,15 @@ namespace RdkWindowManager
 
         if (cropWidth > 0 || cropHeight > 0)
         {
-            Logger::log(LogLevel::Information,  "MADAN setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
+            Logger::log(LogLevel::Information,  "setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
+	    // Scale: map [0, mWidth] vertex space to [0, cropWidth] screen pixels
+	    mMatrix[0] = (mWidth > 0) ? ((float)cropWidth / (float)mWidth) : 1.f;
+            mMatrix[5] = (mHeight > 0) ? ((float)cropHeight / (float)mHeight) : 1.f;
+            // Translation: absolute screen position of the crop origin
+	    mMatrix[12] = (float)mPositionX + (float)cropX;
+            mMatrix[13] = (float)mPositionY + (float)cropY;
+            Logger::log(LogLevel::Information,  "setCrop matrix scale:(%f,%f) translate:(%f,%f)", mMatrix[0], mMatrix[5], mMatrix[12], mMatrix[13]);
 
-            mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
-            mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
-            mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
-            mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
-            Logger::log(LogLevel::Information,  "MADAN1 not commented setCrop cropX:%f cropY:%f cropWidth:%f cropHeight:%f", mMatrix[12], mMatrix[13], mMatrix[0], mMatrix[5]);
         }
         else
         {

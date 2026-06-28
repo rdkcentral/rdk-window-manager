@@ -2404,16 +2404,42 @@ namespace RdkWindowManager
         ClientInfo currentInfo{};
         const bool hasCurrentInfo = CompositorController::getClientInfo(client, currentInfo);
 
+        Logger::log(LogLevel::Information, "setClientInfo client:%s x:%d y:%d w:%u h:%u sx:%f sy:%f visible:%d opacity:%f zorder:%d",
+            client.c_str(), ci.x, ci.y, ci.width, ci.height, ci.sx, ci.sy, (int)ci.visible, ci.opacity, ci.zorder);
+
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
-        c->setSize(ci.width, ci.height);
 
-        uint32_t screenWidth = 0, screenHeight = 0;
-        RdkWindowManager::EssosInstance::instance()->resolution(screenWidth, screenHeight);
-        double scaleX = (double)ci.width / (double)screenWidth;
-        double scaleY = (double)ci.height / (double)screenHeight;
+        // drawDirect composes with bounds=(0,0,mWidth,mHeight). If we called
+        // setSize(ci.width, ci.height) here, mWidth would change to the tile size
+        // (e.g. 456) and WstCompositorSetOutputSize would ask the app to resize.
+        // If the app does NOT re-render at the new size, Westeros clips its
+        // full-resolution output to the first 456 pixels -- showing only the
+        // top-left corner instead of a scaled-down thumbnail.
+        //
+        // Solution: keep mWidth/mHeight at the app's natural render resolution and
+        // compute scale = tile_size / natural_size so the full output is scaled
+        // down to fit the tile in the matrix transform.
+        uint32_t curW = 0, curH = 0;
+        c->size(curW, curH);
+        if (curW == 0) curW = 1920;
+        if (curH == 0) curH = 1080;
+
+        double scaleX, scaleY;
+        if (ci.sx > 0.0)
+            scaleX = ci.sx;
+        else
+            scaleX = (ci.width > 0) ? ((double)ci.width / curW) : 1.0;
+
+        if (ci.sy > 0.0)
+            scaleY = ci.sy;
+        else
+            scaleY = (ci.height > 0) ? ((double)ci.height / curH) : 1.0;
+
         it->compositor->setScale(scaleX, scaleY);
+        Logger::log(LogLevel::Information, "setClientInfo scale:(%f,%f) client:%s (output:%ux%u tile:%ux%u)",
+            scaleX, scaleY, client.c_str(), curW, curH, ci.width, ci.height);
 
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
