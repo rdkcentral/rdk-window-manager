@@ -1,10 +1,7 @@
 name: FireboltWM L1 Tests
 
 on:
-  push:
-    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
-  pull_request:
-    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+  workflow_call:
 
 env:
   BUILD_TYPE: Debug
@@ -98,9 +95,10 @@ jobs:
         if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: artifacts-L1
           path: |
             coverage/
+            filtered_coverage.info
             valgrind_log
             FireboltWML1TestResults.json
             FireboltShellL1TestResults.json
