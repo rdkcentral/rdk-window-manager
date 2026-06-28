@@ -81,6 +81,7 @@ namespace RdkWindowManager
     class ExtensionEventListener
     {
         public:
+          virtual ~ExtensionEventListener() = default;
           virtual void onClientConfigChanged(const std::string& clientName,
                                              bool visible,
                                              int zOrder,
