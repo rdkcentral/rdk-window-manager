@@ -2493,11 +2493,11 @@ namespace RdkWindowManager
                 (currentInfo.cropWidth != updatedInfo.cropWidth) ||
                 (currentInfo.cropHeight != updatedInfo.cropHeight);
 
-            if (ownerChanged)
+            if (ownerChanged && !nonOwnerConfigChanged)
             {
                 notifyExtensionOwnerChanged(client, updatedInfo.ownerId);
             }
-            if (nonOwnerConfigChanged)
+            else if (nonOwnerConfigChanged)
             {
                 notifyExtensionClientConfigChanged(client, updatedInfo);
             }
