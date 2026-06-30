@@ -12,7 +12,9 @@ applyTo: "**/*.cpp,**/*.h,**/CMakeLists.txt,**/*.cmake"
   6. [Client Name Canonicalization](#client-name-canonicalization)
   7. [Environment and Config Parsing](#environment-and-config-parsing)
   8. [CMake Feature Gating](#cmake-feature-gating)
-  9. [Tests for Public Behavior](#tests-for-public-behavior)
+  9. [Naming Conventions](#naming-conventions)
+  10. [Westeros API Usage Boundaries](#westeros-api-usage-boundaries)
+  11. [Tests for Public Behavior](#tests-for-public-behavior)
 
 ### Runtime Logging
 ### Requirement
@@ -153,6 +155,63 @@ if (RDK_WINDOW_MANAGER_BUILD_MY_FEATURE)
   add_definitions("-DRDK_WINDOW_MANAGER_BUILD_MY_FEATURE")
   list(APPEND RDK_WINDOW_MANAGER_SOURCES src/myfeature.cpp)
 endif()
+```
+
+### Naming Conventions
+### Requirement
+
+Use `camelCase` for member variables, function names, parameters, and local variables in new or modified C++ code.
+
+- Member variables: `mDisplayName`, `mInputListeners`
+- Functions: `setFocus`, `createDisplay`
+- Parameters/locals: `clientName`, `surfaceId`
+
+Avoid introducing `snake_case` or mixed naming styles for runtime C++ symbols unless required by an external API type or generated protocol code.
+
+### Example
+
+```cpp
+bool setFocus(const std::string& clientName)
+{
+    std::lock_guard<std::mutex> locker(mInputLock);
+    auto clientId = findClientId(clientName);
+    return clientId > 0;
+}
+```
+
+### Incorrect Example
+
+```cpp
+bool set_focus(const std::string& client_name)
+{
+    int client_id = 0;
+    return client_id > 0;
+}
+```
+
+### Westeros API Usage Boundaries
+### Requirement
+
+Direct Westeros API calls (for example, `WstCompositor*` APIs) must be contained within compositor implementation files under `src/rdkcompositor*.cpp`.
+
+- Do not add direct Westeros calls in non-compositor sources such as `rdkwindowmanager.cpp`, `compositorcontroller.cpp`, extensions, or tests unless there is an explicit architecture exception.
+- Non-compositor modules should use `RdkCompositor` interfaces/wrappers instead of invoking Westeros APIs directly.
+
+### Example
+
+```cpp
+// src/rdkcompositor.cpp
+if (!WstCompositorSetIsNested(mWstContext, true)) {
+    Logger::log(LogLevel::Error, "failed to set nested mode");
+    return false;
+}
+```
+
+### Incorrect Example
+
+```cpp
+// src/rdkwindowmanager.cpp
+WstCompositorSetIsNested(mWstContext, true);
 ```
 
 ### Tests for Public Behavior

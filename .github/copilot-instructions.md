@@ -29,5 +29,9 @@ Refer: https://github.com/rdkcentral/rdk-window-manager/blob/develop/.github/ins
 
 Refer: https://github.com/rdkcentral/rdk-window-manager/blob/develop/.github/instructions/General.instructions.md#cmake-feature-gating
 
+Refer: https://github.com/rdkcentral/rdk-window-manager/blob/develop/.github/instructions/General.instructions.md#naming-conventions
+
+Refer: https://github.com/rdkcentral/rdk-window-manager/blob/develop/.github/instructions/General.instructions.md#westeros-api-usage-boundaries
+
 Refer: https://github.com/rdkcentral/rdk-window-manager/blob/develop/.github/instructions/General.instructions.md#tests-for-public-behavior
 ```
