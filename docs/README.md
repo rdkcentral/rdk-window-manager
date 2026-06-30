@@ -11,7 +11,7 @@ The **RDK Window Manager** is a critical component in the RDK (Reference Design 
 | Document | Description |
 |----------|-------------|
 | [Architecture Overview](./architecture.md) | High-level system architecture, component interactions, and design patterns |
-| [Core Components](./core-components.md) | Detailed documentation of core classes: RdkCompositor, CompositorController, EssosInstance |
+| [Core Components](./RDK_WindowManager.md) | Detailed documentation of core classes: RdkCompositor, CompositorController, EssosInstance |
 | [Wayland Extensions](./extensions.md) | Firebolt Shell, Surface, and Window Manager Wayland protocol extensions |
 | [Configuration & Build](./configuration-build.md) | Build system, CMake options, environment variables, and deployment |
 | [Input & Event Handling](./input-events.md) | Input device handling, key interception, event propagation |

@@ -228,7 +228,8 @@ export RDK_WINDOW_MANAGER_LOW_MEMORY_THRESHOLD=150
 | Output | Description |
 |--------|-------------|
 | `rdkwindowmanager` | Main window manager executable |
-| `rdkwindowmanager_test` | Test application (if enabled) |
+| `rdkwindowmanagertest` | Basic test application (if enabled) |
+| `rdkwmtest` | Window manager test suite (if enabled) |
 
 ---
 

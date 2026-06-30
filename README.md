@@ -67,7 +67,7 @@ graph TB
 | Document | Description |
 |----------|-------------|
 | [Architecture Overview](./docs/architecture.md) | High-level system architecture, component interactions, and design patterns |
-| [Core Components](./docs/core-components.md) | Detailed documentation of core classes: RdkCompositor, CompositorController, EssosInstance |
+| [Core Components](./docs/RDK_WindowManager.md) | Detailed documentation of core classes: RdkCompositor, CompositorController, EssosInstance |
 | [Wayland Extensions](./docs/extensions.md) | Firebolt Shell, Surface, and Window Manager Wayland protocol extensions |
 | [Configuration & Build](./docs/configuration-build.md) | Build system, CMake options, environment variables, and deployment |
 
