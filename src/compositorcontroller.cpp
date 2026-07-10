@@ -2398,7 +2398,7 @@ namespace RdkWindowManager
         c->logicalSize(ci.width, ci.height);  // tile/fullscreen dims set by setClientInfo
         c->scale(ci.sx, ci.sy);              // computed scale retained from setClientInfo
         c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
-        c->ownerId(ci.ownerId);
+        //c->ownerId(ci.ownerId);
         return true;
     }
 
@@ -2458,10 +2458,6 @@ namespace RdkWindowManager
 
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
-        if (!(c->setOwner(ci.ownerId, -1)))
-        {
-            Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());
-        }
 
         // Store the logical (tile or fullscreen) dimensions and scale so that
         // getClientInfo returns consistent values in onClientConfigChanged events.
@@ -2479,7 +2475,6 @@ namespace RdkWindowManager
         ClientInfo updatedInfo{};
         if (CompositorController::getClientInfo(client, updatedInfo))
         {
-            const bool ownerChanged = !hasCurrentInfo || (currentInfo.ownerId != updatedInfo.ownerId);
             const bool nonOwnerConfigChanged = !hasCurrentInfo ||
                 (currentInfo.visible != updatedInfo.visible) ||
                 (currentInfo.zorder != updatedInfo.zorder) ||
@@ -2493,11 +2488,7 @@ namespace RdkWindowManager
                 (currentInfo.cropWidth != updatedInfo.cropWidth) ||
                 (currentInfo.cropHeight != updatedInfo.cropHeight);
 
-            if (ownerChanged && !nonOwnerConfigChanged)
-            {
-                notifyExtensionOwnerChanged(client, updatedInfo.ownerId);
-            }
-            else if (nonOwnerConfigChanged)
+            if (nonOwnerConfigChanged)
             {
                 notifyExtensionClientConfigChanged(client, updatedInfo);
             }
