@@ -62,8 +62,6 @@ public:
     virtual bool getSurfaceInfo(const std::string& client, int surfaceId, FireboltSurfaceInfo& si) = 0;
     virtual bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener) = 0;
     virtual bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener) = 0;
-    virtual int addExtensionEventListener(std::shared_ptr<class ExtensionEventListener> listener) = 0;
-    virtual bool removeExtensionEventListener(int listenerTag) = 0;
 };
 
 }
