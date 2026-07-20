@@ -87,6 +87,9 @@ namespace RdkWindowManager
             static bool setScale(const std::string& client, double scaleX, double scaleY);
             static bool getHolePunch(const std::string& client, bool& holePunch);
             static bool setHolePunch(const std::string& client, const bool holePunch);
+            static bool setGlobalHolePunch(const RdkWindowManagerRect& rect);
+            static bool getGlobalHolePunch(RdkWindowManagerRect& rect);
+            static bool enableGlobalHolePunch(bool enable);
             static bool getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
             static bool setCrop(const std::string& client, int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
             static bool scaleToFit(const std::string& client, const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);
@@ -96,13 +99,15 @@ namespace RdkWindowManager
             static void onPointerButtonPress(uint32_t keyCode, uint32_t x, uint32_t y);
             static void onPointerButtonRelease(uint32_t keyCode, uint32_t x, uint32_t y);
             static bool createDisplay(const std::string& client, const std::string& displayName, uint32_t displayWidth=0, uint32_t displayHeight=0,
-                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , int32_t ownerId = 0, int32_t groupId = 0);
+                bool virtualDisplayEnabled=false, uint32_t virtualWidth=0, uint32_t virtualHeight=0, bool topmost = false, bool focus = false , int32_t ownerId = 0, int32_t groupId = 0, const std::string& capabilities = std::string());
             static bool addListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool removeListener(const std::string& client, std::shared_ptr<RdkWindowManagerEventListener> listener);
             static bool onEvent(RdkCompositor* eventCompositor, const std::string& eventName);
             static bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName);
+            static int addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener);
+            static bool removeExtensionEventListener(int listenerTag);
             static void enableInactivityReporting(const bool enable);
             static void setInactivityInterval(const double minutes);
             static void resetInactivityTime();
@@ -150,6 +155,10 @@ namespace RdkWindowManager
             static bool renderReady(const std::string& client);
             static bool startVncServer();
             static bool stopVncServer();
+            static bool setAlias(const std::string& clientId, const std::string& alias);
+            static std::string getDisplayNameFromAlias(const std::string& alias);
+            static std::string getAliasFromDisplayName(const std::string& clientId);
+            static bool getCapabilities(const std::string& clientId, std::string& capabilities);
     };
 }
 
