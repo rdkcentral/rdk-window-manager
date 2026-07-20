@@ -419,7 +419,7 @@ sequenceDiagram
 | `RDK_WINDOW_MANAGER_SWAP_MEMORY_INCREASE_THRESHOLD`  | double (MB)    | `50`                         | Swap increase (MB per interval) above which a swap-growth notification is emitted.                             |
 | `RDK_WINDOW_MANAGER_KEY_INITIAL_DELAY`               | int (ms)       | `500`                        | Delay before key-repeat begins, forwarded to Essos.                                                            |
 | `RDK_WINDOW_MANAGER_KEY_REPEAT_INTERVAL`             | int (ms)       | `100`                        | Interval between repeated key events while a key is held.                                                      |
-| `RDK_WINDOW_MANAGER_LOG_LEVEL`                       | string         | `Information`                | Runtime log level (`Debug`, `Information`, `Warn`, `Error`, `Fatal`).                                          |
+| `RDK_WINDOW_MANAGER_LOG_LEVEL`                       | string         | `Info`                        | Runtime log level (`Debug`, `Info`, `Warn`, `Error`, `Fatal`).                                                 |
 | `RDK_WINDOW_MANAGER_SET_GRAPHICS_720`                | string (`"1"`) | unset                        | Force graphics resolution to 1280×720 instead of 1920×1080. Requires `RDK_WINDOW_MANAGER_BUILD_FORCE_1080=ON`. |
 | `RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG`            | string (path)  | unset                        | Path to the JSON input-device classification configuration file.                                               |
 | `RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY`       | string (path)  | `/usr/lib/plugins/westeros/` | Directory from which Westeros extension plugins are loaded.                                                    |
