@@ -52,6 +52,7 @@ option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -86,6 +87,11 @@ endif()
 if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
      message(STATUS "Enable RDKWindowManager VNCServer2 integration")
      add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
+endif()
+
+if(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE)
+     message(STATUS "Enable render minimize: resize window to 1x1 and maximize inside enableDisplayRender")
+     add_definitions("-DENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE")
 endif()
 
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
