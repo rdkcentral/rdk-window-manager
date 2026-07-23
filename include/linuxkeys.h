@@ -321,7 +321,10 @@
 #define RDK_WINDOW_MANAGER_KEY_F23 	135
 #define RDK_WINDOW_MANAGER_KEY_F24 	136
 
-/* BLE RemoteUnit: RDK internal / evdev case labels for keyCodeToWayland() */
+/* Additional Wayland keycodes used by BLE RemoteUnit outbound mapping */
+#define WAYLAND_KEY_PROFILE                     429
+
+/* BLE RemoteUnit: keyCodeToWayland() case labels (values match Linux evdev keycodes from /etc/rcu_keymap.json) */
 #define RDK_WINDOW_MANAGER_KEY_DEV_POWER        240
 #define RDK_WINDOW_MANAGER_KEY_SEARCH           217
 #define RDK_WINDOW_MANAGER_KEY_PROGRAM          362
@@ -329,7 +332,6 @@
 #define RDK_WINDOW_MANAGER_KEY_TV               377
 #define RDK_WINDOW_MANAGER_KEY_RECORD           167
 #define RDK_WINDOW_MANAGER_KEY_PROFILE          429
-#define WAYLAND_KEY_PROFILE                     429
 
 bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t &mappedKeyCode, uint32_t &mappedFlags);
 uint32_t keyCodeToWayland(uint32_t keyCode);
