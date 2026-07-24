@@ -1029,7 +1029,7 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
       case RDK_WINDOW_MANAGER_KEY_F24:
          waylandKeyCode = WAYLAND_KEY_F24;
          break;
-      /* BLE RemoteUnit outbound (after /etc/rcu_keymap.json inbound) */
+      /* BLE RemoteUnit outbound mapping (keycodes originate from keymap JSON loaded via RDK_WINDOW_MANAGER_KEYMAP_FILE) */
       case RDK_WINDOW_MANAGER_KEY_DEV_POWER:
          waylandKeyCode = WAYLAND_KEY_POWER;
          break;
