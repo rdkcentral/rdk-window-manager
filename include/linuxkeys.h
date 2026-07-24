@@ -324,7 +324,7 @@
 /* Additional Wayland keycodes used by BLE RemoteUnit outbound mapping */
 #define WAYLAND_KEY_PROFILE                     429
 
-/* BLE RemoteUnit: keyCodeToWayland() case labels (values match Linux evdev keycodes from /etc/rcu_keymap.json) */
+/* BLE RemoteUnit: keyCodeToWayland() case labels (values match Linux evdev keycodes from keymap JSON loaded via RDK_WINDOW_MANAGER_KEYMAP_FILE) */
 #define RDK_WINDOW_MANAGER_KEY_DEV_POWER        240
 #define RDK_WINDOW_MANAGER_KEY_SEARCH           217
 #define RDK_WINDOW_MANAGER_KEY_PROGRAM          362
