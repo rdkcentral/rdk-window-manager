@@ -1458,7 +1458,7 @@ namespace RdkWindowManager
 
     void CompositorController::onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
-        Logger::log(LogLevel::Information,  "key press code sonajeya " << keycode << " flags " << flags << std::endl;
+        Logger::log(LogLevel::Information, "key press code sonajeya " + std::to_string(keycode) + " flags " + std::to_string(flags));
         double currentTime = RdkWindowManager::seconds();
         if ((true == physicalKeyPress) && (0.0 == gLastKeyPressStartTime))
         {
