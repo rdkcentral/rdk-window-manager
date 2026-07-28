@@ -51,6 +51,8 @@ option(RDK_WINDOW_MANAGER_LOGGER "RDK_WINDOW_MANAGER_LOGGER" ON)
 option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL" ON)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
+option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
   src/compositorcontroller.cpp
@@ -81,11 +83,20 @@ if(RDK_WINDOW_MANAGER_VNC_SERVER)
      add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER")
 endif()
 
+if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
+     message(STATUS "Enable RDKWindowManager VNCServer2 integration")
+     add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
+endif()
+
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="${RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER}")
 else()
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="/usr/lib/plugins/westeros/")
 endif (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
+
+if (RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG)
+    add_definitions(-DRDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG="${RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG}")
+endif (RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG)
 
 if (RDK_WINDOW_MANAGER_BUILD_KEY_METADATA)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_KEY_METADATA")
@@ -125,12 +136,18 @@ add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER_PORT=5900")
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/VncServer)
 list( APPEND RDK_WINDOW_MANAGER_SOURCES
   src/VncServer/VncServer.cpp
+  src/VncServer/VncServerFactory.cpp
   src/VncServer/VncFrameBuffer.cpp
   src/VncServer/VncClient.cpp
   src/VncServer/VncBuffer.cpp
   src/VncServer/VncSoupTcpServer.cpp
   src/VncServer/VncSoupTcpSocket.cpp
 )
+if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
+  list( APPEND RDK_WINDOW_MANAGER_SOURCES
+    src/VncServer/VncBridgeServer.cpp
+  )
+endif()
 include_directories(${GLIB_INCLUDE_DIRS})
 include_directories(${GIO_INCLUDE_DIRS})
 include_directories(${GIO_UNIX_INCLUDE_DIRS})

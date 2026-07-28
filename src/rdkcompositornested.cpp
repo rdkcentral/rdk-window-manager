@@ -31,7 +31,8 @@
 namespace RdkWindowManager
 {
     bool RdkCompositorNested::createDisplay(const std::string& displayName, const std::string& clientName,
-        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId)
+        uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId,
+        const std::string& capabilities)
     {
         if (width > 0 && height > 0)
         {
@@ -87,7 +88,9 @@ namespace RdkWindowManager
                 Logger::log(LogLevel::Information,  "The display name is: %s", mDisplayName.c_str());
                 
                 /* Load Westeros extensions for WM firebolt interfaces */
-                loadfireboltExtensions(mWstContext);           
+                loadfireboltExtensions(mWstContext);
+                /* Load additional extensions listed in the JSON manifest */
+                loadAdditionalExtensions(mWstContext, capabilities);
 
                 if (!error && !WstCompositorStart(mWstContext))
                 {
