@@ -56,6 +56,7 @@ option(RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC "Build dynamic split-screen man
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
+  src/splitscreenmanager.cpp
   src/compositorcontroller.cpp
   src/essosinstance.cpp
   src/rdkcompositor.cpp
