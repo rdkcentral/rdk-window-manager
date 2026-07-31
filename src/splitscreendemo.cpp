@@ -34,10 +34,132 @@
 #include <poll.h>
 #include <termios.h>
 
+#include <GLES2/gl2.h>
+
 #include "rdkwindowmanager.h"
 #include "compositorcontroller.h"
 #include "splitscreenmanager.h"
 #include "logger.h"
+
+// ── GLES2 pane overlay renderer ──────────────────────────────────────────────
+// The compositor slots created by createDisplay are Wayland surface containers.
+// Without a real Wayland client app connected, those surfaces are empty.
+// We draw coloured quads directly into the EGL framebuffer at the same
+// positions the SplitScreenManager places each slot, giving a visual
+// representation of the split-screen layout.
+
+static GLuint gFlatShader  = 0;
+static GLint  gFlatPosAttr = -1;
+static GLint  gFlatColorUni= -1;
+static GLint  gFlatResUni  = -1;
+
+static const char* kFlatVert = R"GLSL(
+    attribute vec2 aPos;
+    uniform vec2 uRes;
+    void main() {
+        vec2 ndc = (aPos / uRes) * 2.0 - 1.0;
+        gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+    }
+)GLSL";
+
+static const char* kFlatFrag = R"GLSL(
+    precision mediump float;
+    uniform vec4 uColor;
+    void main() { gl_FragColor = uColor; }
+)GLSL";
+
+static void initGLPainter()
+{
+    auto compile = [](GLenum type, const char* src) -> GLuint {
+        GLuint s = glCreateShader(type);
+        glShaderSource(s, 1, &src, nullptr);
+        glCompileShader(s);
+        GLint ok = 0;
+        glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+        if (!ok)
+            std::cerr << "[demo] shader compile failed (type=" << type << ")\n";
+        return s;
+    };
+    GLuint vs = compile(GL_VERTEX_SHADER,   kFlatVert);
+    GLuint fs = compile(GL_FRAGMENT_SHADER, kFlatFrag);
+    gFlatShader = glCreateProgram();
+    glAttachShader(gFlatShader, vs);
+    glAttachShader(gFlatShader, fs);
+    glLinkProgram(gFlatShader);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    gFlatPosAttr  = glGetAttribLocation (gFlatShader, "aPos");
+    gFlatColorUni = glGetUniformLocation(gFlatShader, "uColor");
+    gFlatResUni   = glGetUniformLocation(gFlatShader, "uRes");
+    std::cout << "[demo] GL painter ready (shader=" << gFlatShader << ")\n";
+}
+
+// RGBA fill colours for each demo slot (semi-transparent).
+static const float kPaneColors[4][4] = {
+    { 0.80f, 0.20f, 0.20f, 0.55f },  // A – red
+    { 0.20f, 0.40f, 0.90f, 0.55f },  // B – blue
+    { 0.20f, 0.80f, 0.30f, 0.55f },  // C – green
+    { 0.90f, 0.80f, 0.10f, 0.55f },  // D – yellow
+};
+
+static void drawQuadGL(float x, float y, float w, float h)
+{
+    float v[] = { x, y,  x+w, y,  x, y+h,  x+w, y+h };
+    glVertexAttribPointer(gFlatPosAttr, 2, GL_FLOAT, GL_FALSE, 0, v);
+    glEnableVertexAttribArray(gFlatPosAttr);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(gFlatPosAttr);
+}
+
+// Called every frame after RdkWindowManager::draw().  Queries the current
+// compositor bounds for each slot (set by SplitScreenManager::update() via
+// scaleToFit) and fills the area with a distinctive colour so the layout
+// is visible even without real Wayland client applications.
+static void drawPaneOverlays(const std::vector<std::string>& clients,
+                              uint32_t screenW, uint32_t screenH,
+                              int focusedPane)
+{
+    if (gFlatShader == 0 || clients.empty()) return;
+
+    glUseProgram(gFlatShader);
+    glUniform2f(gFlatResUni, static_cast<float>(screenW),
+                              static_cast<float>(screenH));
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    for (int i = 0; i < static_cast<int>(clients.size()); ++i)
+    {
+        uint32_t bx = 0, by = 0, bw = 0, bh = 0;
+        if (!RdkWindowManager::CompositorController::getBounds(
+                clients[i], bx, by, bw, bh) || bw == 0 || bh == 0)
+            continue;
+
+        const float* c = kPaneColors[i % 4];
+        // Focused pane is fully opaque; others are semi-transparent.
+        float alpha = (i == focusedPane) ? 0.85f : c[3];
+        glUniform4f(gFlatColorUni, c[0], c[1], c[2], alpha);
+        drawQuadGL(static_cast<float>(bx), static_cast<float>(by),
+                   static_cast<float>(bw), static_cast<float>(bh));
+
+        // White border on the focused pane so it stands out.
+        if (i == focusedPane)
+        {
+            constexpr float B = 6.0f;
+            glUniform4f(gFlatColorUni, 1.0f, 1.0f, 1.0f, 0.9f);
+            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by),
+                       static_cast<float>(bw), B);                     // top
+            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by+bh-B),
+                       static_cast<float>(bw), B);                     // bottom
+            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by),
+                       B, static_cast<float>(bh));                     // left
+            drawQuadGL(static_cast<float>(bx+bw-B), static_cast<float>(by),
+                       B, static_cast<float>(bh));                     // right
+        }
+    }
+
+    glDisable(GL_BLEND);
+    glUseProgram(0);
+}
 
 // ── Demo constants ────────────────────────────────────────────────────────────
 
@@ -265,6 +387,9 @@ int main(int argc, char* argv[])
     // Initialise the window manager (Essos, GL, Wayland socket, etc.)
     RdkWindowManager::initialize();
 
+    // Compile the GLES2 overlay shader (GL context is live after initialize).
+    initGLPainter();
+
     // Resolve screen dimensions (WM may override via environment).
     uint32_t screenW = (argc >= 3) ? static_cast<uint32_t>(std::atoi(argv[1]))
                                    : 1920u;
@@ -331,7 +456,11 @@ int main(int argc, char* argv[])
         //    sets up the GL viewport, then composites all panes.
         RdkWindowManager::draw();
 
-        // 4. Pace to the target frame rate.
+        // 4. Overlay coloured quads so the pane layout is visible even
+        //    without real Wayland client applications connected.
+        drawPaneOverlays(kDemoClients, screenW, screenH, focusedPane);
+
+        // 5. Pace to the target frame rate.
         usleep(kFrameUs);
     }
 

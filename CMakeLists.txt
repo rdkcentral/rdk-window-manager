@@ -224,7 +224,7 @@ endif (RDK_WINDOW_MANAGER_BUILD_APP)
     add_executable(splitscreendemo src/splitscreendemo.cpp)
     add_dependencies(splitscreendemo rdkwindowmanager_shared)
     target_link_libraries(splitscreendemo rdkwindowmanager_shared
-        ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lpthread)
+        ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lpthread -lGLESv2)
 #endif (RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC)
 
 if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
