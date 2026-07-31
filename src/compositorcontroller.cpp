@@ -2747,11 +2747,11 @@ namespace RdkWindowManager
     }
 }
 
-#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
 namespace RdkWindowManager
 {
     bool CompositorController::showSplashScreen(uint32_t displayTimeInSeconds)
     {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
         Logger::log(LogLevel::Information, "showSplashScreen: requested display time %u s", displayTimeInSeconds);
         if (gShowSplashImage)
         {
@@ -2805,10 +2805,15 @@ namespace RdkWindowManager
         gSplashStartTime = RdkWindowManager::seconds();
         Logger::log(LogLevel::Information, "showSplashScreen: showing '%s' for %u s", selectedPath.c_str(), displayTimeInSeconds);
         return true;
+#else
+        Logger::log(LogLevel::Warn, "showSplashScreen: splash screen support not compiled in");
+        return false;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 
     bool CompositorController::hideSplashScreen()
     {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
         Logger::log(LogLevel::Information, "hideSplashScreen: hiding splash screen");
         if (!gShowSplashImage)
         {
@@ -2819,7 +2824,10 @@ namespace RdkWindowManager
         gSplashImage = nullptr;
         Logger::log(LogLevel::Information, "hideSplashScreen: splash screen hidden");
         return true;
+#else
+        Logger::log(LogLevel::Warn, "hideSplashScreen: splash screen support not compiled in");
+        return true;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
-#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
 
