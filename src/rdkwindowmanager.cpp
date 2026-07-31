@@ -194,6 +194,37 @@ namespace RdkWindowManager
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        {
+            char const *showSplash = getenv("RDKWINDOWMANAGER_SHOW_SPLASH_SCREEN");
+            if (showSplash && (strcmp(showSplash, "1") == 0))
+            {
+                std::ifstream splashDoneFile(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
+                if (!splashDoneFile.good())
+                {
+                    uint32_t splashTime = 0;
+                    char const *splashTimeValue = getenv("RDKWINDOWMANAGER_SPLASH_TIME_IN_SECONDS");
+                    if (splashTimeValue)
+                    {
+                        int value = atoi(splashTimeValue);
+                        if (value > 0)
+                            splashTime = (uint32_t)value;
+                    }
+                    if (CompositorController::showSplashScreen(splashTime))
+                    {
+                        // Touch the marker file so we don't re-show the splash
+                        // on subsequent WPEFramework restarts within the same boot.
+                        std::ofstream output(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
+                    }
+                }
+                else
+                {
+                    Logger::log(LogLevel::Information, "splash screen skipped — already shown since last boot");
+                }
+            }
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+
         CompositorController::initialize();
        //launchMemoryMonitorThread();
     }

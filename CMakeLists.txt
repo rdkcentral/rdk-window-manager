@@ -52,6 +52,7 @@ option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -87,6 +88,11 @@ if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
      message(STATUS "Enable RDKWindowManager VNCServer2 integration")
      add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
 endif()
+
+if(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)
+    message(STATUS "Enable splash screen support")
+    add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN")
+endif(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)
 
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="${RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER}")
