@@ -56,7 +56,6 @@ option(RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC "Build dynamic split-screen man
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
-  src/splitscreenmanager.cpp
   src/compositorcontroller.cpp
   src/essosinstance.cpp
   src/rdkcompositor.cpp
@@ -219,6 +218,14 @@ if (RDK_WINDOW_MANAGER_BUILD_APP)
     add_dependencies(rdkwindowmanager rdkwindowmanager_shared)
     target_link_libraries(rdkwindowmanager ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} rdkwindowmanager_shared -lpthread)
 endif (RDK_WINDOW_MANAGER_BUILD_APP)
+
+#if (RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC)
+    message("Building split screen demo application")
+    add_executable(splitscreendemo src/splitscreendemo.cpp)
+    add_dependencies(splitscreendemo rdkwindowmanager_shared)
+    target_link_libraries(splitscreendemo rdkwindowmanager_shared
+        ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lpthread)
+#endif (RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC)
 
 if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     add_definitions("-DRDK_WINDOW_MANAGER_BUILD_TEST_APP")
