@@ -111,16 +111,36 @@ static void drawQuadGL(float x, float y, float w, float h)
     glDisableVertexAttribArray(gFlatPosAttr);
 }
 
-// Called every frame after RdkWindowManager::draw().  Queries the current
-// compositor bounds for each slot (set by SplitScreenManager::update() via
-// scaleToFit) and fills the area with a distinctive colour so the layout
-// is visible even without real Wayland client applications.
+// Called every frame after RdkWindowManager::draw().
+//
+// scaleToFit() positions compositors via setPosition() + setScale().
+// getBounds() reads back position() and size() — but size() returns the
+// ORIGINAL logical size (1920×1080 from createDisplay), not the scaled
+// display size.  The correct visual width/height is:
+//   visual_w = logical_w * scaleX     (scaleX = target_w / logical_w)
+// So we call getScale() and multiply to recover the true on-screen rect.
+//
+// We also reset GL state that the WM compositor may leave dirty (depth
+// test, scissor, FBO binding) so our 2-D quads always reach the display.
 static void drawPaneOverlays(const std::vector<std::string>& clients,
                               uint32_t screenW, uint32_t screenH,
                               int focusedPane)
 {
     if (gFlatShader == 0 || clients.empty()) return;
 
+    // ── Reset GL state ───────────────────────────────────────────────────
+    // The WM draw path may leave an FBO bound, depth test on, or scissor
+    // active.  Reset everything we need for a simple 2-D overlay pass.
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, static_cast<GLsizei>(screenW),
+                     static_cast<GLsizei>(screenH));
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+    // ── Draw panes ───────────────────────────────────────────────────────
     glUseProgram(gFlatShader);
     glUniform2f(gFlatResUni, static_cast<float>(screenW),
                               static_cast<float>(screenH));
@@ -129,31 +149,40 @@ static void drawPaneOverlays(const std::vector<std::string>& clients,
 
     for (int i = 0; i < static_cast<int>(clients.size()); ++i)
     {
-        uint32_t bx = 0, by = 0, bw = 0, bh = 0;
+        // getBounds returns the logical position (correct) and the
+        // original createDisplay size (needs scaling to get display size).
+        uint32_t bx = 0, by = 0, logW = 0, logH = 0;
         if (!RdkWindowManager::CompositorController::getBounds(
-                clients[i], bx, by, bw, bh) || bw == 0 || bh == 0)
+                clients[i], bx, by, logW, logH))
             continue;
 
+        // Recover actual on-screen size: visual = logical × scale.
+        double sx = 1.0, sy = 1.0;
+        RdkWindowManager::CompositorController::getScale(clients[i], sx, sy);
+        auto bw = static_cast<uint32_t>(logW * sx);
+        auto bh = static_cast<uint32_t>(logH * sy);
+
+        if (bw < 4 || bh < 4) continue;  // skip if not yet animated in
+
         const float* c = kPaneColors[i % 4];
-        // Focused pane is fully opaque; others are semi-transparent.
         float alpha = (i == focusedPane) ? 0.85f : c[3];
         glUniform4f(gFlatColorUni, c[0], c[1], c[2], alpha);
         drawQuadGL(static_cast<float>(bx), static_cast<float>(by),
                    static_cast<float>(bw), static_cast<float>(bh));
 
-        // White border on the focused pane so it stands out.
+        // White border on the focused pane.
         if (i == focusedPane)
         {
             constexpr float B = 6.0f;
             glUniform4f(gFlatColorUni, 1.0f, 1.0f, 1.0f, 0.9f);
-            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by),
-                       static_cast<float>(bw), B);                     // top
-            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by+bh-B),
-                       static_cast<float>(bw), B);                     // bottom
-            drawQuadGL(static_cast<float>(bx),      static_cast<float>(by),
-                       B, static_cast<float>(bh));                     // left
-            drawQuadGL(static_cast<float>(bx+bw-B), static_cast<float>(by),
-                       B, static_cast<float>(bh));                     // right
+            drawQuadGL(static_cast<float>(bx),        static_cast<float>(by),
+                       static_cast<float>(bw), B);                       // top
+            drawQuadGL(static_cast<float>(bx),        static_cast<float>(by + bh) - B,
+                       static_cast<float>(bw), B);                       // bottom
+            drawQuadGL(static_cast<float>(bx),        static_cast<float>(by),
+                       B, static_cast<float>(bh));                       // left
+            drawQuadGL(static_cast<float>(bx + bw) - B, static_cast<float>(by),
+                       B, static_cast<float>(bh));                       // right
         }
     }
 
