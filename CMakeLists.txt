@@ -55,6 +55,7 @@ option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 in
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
+  src/splitscreenmanager.cpp
   src/compositorcontroller.cpp
   src/essosinstance.cpp
   src/rdkcompositor.cpp

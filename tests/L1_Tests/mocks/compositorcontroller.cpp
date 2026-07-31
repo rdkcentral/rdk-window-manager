@@ -112,6 +112,11 @@ namespace RdkWindowManager
            assert(nullptr != impl);
            return impl->setFocus(client);
     }
+    bool CompositorController::scaleToFit(const std::string& client, const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
+    {
+           assert(nullptr != impl);
+           return impl->scaleToFit(client, x, y, width, height);
+    }
     bool CompositorController::setBounds(const std::string& client, const uint32_t x, const uint32_t y, const uint32_t width, const uint32_t height)
     {
            assert(nullptr != impl);

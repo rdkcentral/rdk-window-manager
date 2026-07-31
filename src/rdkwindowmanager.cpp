@@ -27,6 +27,7 @@
 #include "logger.h"
 #include "rdkwindowmanager.h"
 #include "rdkwindowmanagerimage.h"
+#include "splitscreenmanager.h"
 #include <unistd.h>
 #include <time.h>
 #include <sys/sysinfo.h>
@@ -247,5 +248,6 @@ namespace RdkWindowManager
     void update()
     {
         RdkWindowManager::CompositorController::update();
+        SplitScreenManager::instance().update();
     }
 }

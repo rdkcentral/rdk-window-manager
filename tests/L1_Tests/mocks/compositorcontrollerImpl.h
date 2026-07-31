@@ -47,6 +47,7 @@ public:
     virtual bool getFocused(std::string& client) = 0;
     virtual bool kill(const std::string& client) = 0;
     virtual bool setFocus(const std::string& client) = 0;
+    virtual bool scaleToFit(const std::string& client, int32_t x, int32_t y, uint32_t width, uint32_t height) = 0;
     virtual bool setBounds(const std::string& client, uint32_t x, uint32_t y, uint32_t width, uint32_t height) = 0;
     virtual bool getVirtualDisplayEnabled(const std::string& client, bool& enabled) = 0;
     virtual bool getClients(std::vector<std::string>& clients) = 0;

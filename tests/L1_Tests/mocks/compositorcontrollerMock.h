@@ -35,6 +35,7 @@ public:
     MOCK_METHOD(bool, getFocused, (std::string& client), (override));
     MOCK_METHOD(bool, kill, (const std::string& client), (override));
     MOCK_METHOD(bool, setFocus, (const std::string& client), (override));
+    MOCK_METHOD(bool, scaleToFit, (const std::string& client, int32_t x, int32_t y, uint32_t width, uint32_t height), (override));
     MOCK_METHOD(bool, setBounds, (const std::string& client, uint32_t x, uint32_t y, uint32_t width, uint32_t height), (override));
     MOCK_METHOD(bool, getVirtualDisplayEnabled, (const std::string& client, bool &enabled), (override));
     MOCK_METHOD(bool, getClients, (std::vector<std::string>& clients), (override));

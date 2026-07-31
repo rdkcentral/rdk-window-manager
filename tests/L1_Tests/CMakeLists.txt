@@ -30,3 +30,6 @@ add_subdirectory(firebolt_shell_tests)
 
 # Add the unit_tests for firebolt_surface directory
 add_subdirectory(firebolt_surface_tests)
+
+# Add the unit_tests for the split-screen POC
+add_subdirectory(split_screen_tests)
