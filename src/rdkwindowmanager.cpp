@@ -27,7 +27,9 @@
 #include "logger.h"
 #include "rdkwindowmanager.h"
 #include "rdkwindowmanagerimage.h"
+#ifdef RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC
 #include "splitscreenmanager.h"
+#endif
 #include <unistd.h>
 #include <time.h>
 #include <sys/sysinfo.h>
@@ -248,6 +250,8 @@ namespace RdkWindowManager
     void update()
     {
         RdkWindowManager::CompositorController::update();
+#ifdef RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC
         SplitScreenManager::instance().update();
+#endif
     }
 }

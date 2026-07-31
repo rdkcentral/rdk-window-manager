@@ -52,10 +52,10 @@ option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+option(RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC "Build dynamic split-screen manager POC" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
-  src/splitscreenmanager.cpp
   src/compositorcontroller.cpp
   src/essosinstance.cpp
   src/rdkcompositor.cpp
@@ -87,6 +87,12 @@ endif()
 if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
      message(STATUS "Enable RDKWindowManager VNCServer2 integration")
      add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
+endif()
+
+if(RDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC)
+     message(STATUS "Enable split-screen POC")
+     list(APPEND RDK_WINDOW_MANAGER_SOURCES src/splitscreenmanager.cpp)
+     add_definitions("-DRDK_WINDOW_MANAGER_BUILD_SPLIT_SCREEN_POC")
 endif()
 
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
