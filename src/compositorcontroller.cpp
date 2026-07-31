@@ -30,6 +30,8 @@
 #include "rdkwindowmanagerrect.h"
 #include "cursor.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <map>
 #include <ctime>
 #include <mutex>
@@ -2757,25 +2759,51 @@ namespace RdkWindowManager
             return true;
         }
 
-        const char* splashFile = getenv("RDKWINDOWMANAGER_SPLASH_IMAGE");
-        if (splashFile == nullptr)
+        const char* splashEnv = getenv("RDKWINDOWMANAGER_SPLASH_IMAGE");
+        if (splashEnv == nullptr)
         {
             Logger::log(LogLevel::Warn, "showSplashScreen: RDKWINDOWMANAGER_SPLASH_IMAGE not set");
             return false;
         }
 
+        // Iterate the comma-separated list and pick the first path that exists
+        std::string selectedPath;
+        std::istringstream stream(splashEnv);
+        std::string token;
+        while (std::getline(stream, token, ','))
+        {
+            const size_t start = token.find_first_not_of(" \t");
+            const size_t end   = token.find_last_not_of(" \t");
+            if (start == std::string::npos)
+                continue;
+            token = token.substr(start, end - start + 1);
+            if (std::ifstream(token).good())
+            {
+                selectedPath = token;
+                Logger::log(LogLevel::Information, "showSplashScreen: using splash image: %s", selectedPath.c_str());
+                break;
+            }
+            Logger::log(LogLevel::Information, "showSplashScreen: skipping '%s' (not found)", token.c_str());
+        }
+
+        if (selectedPath.empty())
+        {
+            Logger::log(LogLevel::Warn, "showSplashScreen: no usable splash image found in RDKWINDOWMANAGER_SPLASH_IMAGE");
+            return false;
+        }
+
         gSplashImage = std::make_shared<RdkWindowManager::Image>();
-        gShowSplashImage = gSplashImage->loadLocalFile(splashFile);
+        gShowSplashImage = gSplashImage->loadLocalFile(selectedPath.c_str());
         if (!gShowSplashImage)
         {
-            Logger::log(LogLevel::Error, "showSplashScreen: failed to load image: %s", splashFile);
+            Logger::log(LogLevel::Error, "showSplashScreen: failed to load image: %s", selectedPath.c_str());
             gSplashImage = nullptr;
             return false;
         }
 
         gSplashDisplayTimeInSeconds = displayTimeInSeconds;
         gSplashStartTime = RdkWindowManager::seconds();
-        Logger::log(LogLevel::Information, "showSplashScreen: showing '%s' for %u s", splashFile, displayTimeInSeconds);
+        Logger::log(LogLevel::Information, "showSplashScreen: showing '%s' for %u s", selectedPath.c_str(), displayTimeInSeconds);
         return true;
     }
 
