@@ -178,8 +178,6 @@ namespace RdkWindowManager
             static bool addFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool removeFireboltExtensionListener(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
             static bool onFireboltExtensionEvent(RdkCompositor* eventCompositor, const std::string& eventName);
-                static int addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener);
-                static bool removeExtensionEventListener(int listenerTag);
     };
 extern bool (*enableVirtualDisplay)(const std::string&, const bool);
 extern bool (*getClientInfo)(const std::string&, ClientInfo&);
@@ -206,8 +204,6 @@ extern bool (*fireboltSurfaceDestroy)(const std::string& client, int surfaceId);
 extern bool (*getSurfaceInfo)(const std::string& client, int surfaceId, FireboltSurfaceInfo& si);
 extern bool (*addFireboltExtensionListener)(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
 extern bool (*removeFireboltExtensionListener)(const std::string& client, std::shared_ptr<FireboltExtensionEventListener> listener);
-extern int (*addExtensionEventListener)(std::shared_ptr<ExtensionEventListener> listener);
-extern bool (*removeExtensionEventListener)(int listenerTag);
 }
 
 #endif //RDK_WINDOW_MANAGER_COMPOSITOR_CONTROLLER_H

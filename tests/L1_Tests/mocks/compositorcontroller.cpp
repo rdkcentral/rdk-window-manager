@@ -82,16 +82,6 @@ namespace RdkWindowManager
           assert(nullptr != impl);
           return impl->removeFireboltExtensionListener(client,listener);
     }
-        int CompositorController::addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener)
-        {
-            assert(nullptr != impl);
-            return impl->addExtensionEventListener(listener);
-        }
-        bool CompositorController::removeExtensionEventListener(int listenerTag)
-        {
-            assert(nullptr != impl);
-            return impl->removeExtensionEventListener(listenerTag);
-        }
     bool CompositorController::getTopmost(std::string& client)
     {
            assert(nullptr != impl);
@@ -209,9 +199,5 @@ namespace RdkWindowManager
     bool (*setFireboltSurfaceVisibility)(const std::string&, int, bool) = &CompositorController::setFireboltSurfaceVisibility;
     bool (*fireboltSurfaceDestroy)(const std::string&, int) = &CompositorController::fireboltSurfaceDestroy;
     bool (*getSurfaceInfo)(const std::string&, int, FireboltSurfaceInfo& )=&CompositorController::getSurfaceInfo;
-    bool (*addFireboltExtensionListener)(const std::string&, std::shared_ptr<FireboltExtensionEventListener>) = &CompositorController::addFireboltExtensionListener;
-    bool (*removeFireboltExtensionListener)(const std::string&, std::shared_ptr<FireboltExtensionEventListener>) = &CompositorController::removeFireboltExtensionListener;
-    int (*addExtensionEventListener)(std::shared_ptr<ExtensionEventListener>) = &CompositorController::addExtensionEventListener;
-    bool (*removeExtensionEventListener)(int) = &CompositorController::removeExtensionEventListener;
 
 }

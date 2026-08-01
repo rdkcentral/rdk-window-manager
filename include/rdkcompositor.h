@@ -66,8 +66,7 @@ namespace RdkWindowManager
             RdkCompositor();
             virtual ~RdkCompositor();
             virtual bool createDisplay(const std::string& displayName, const std::string& clientName,
-                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId,
-                const std::string& capabilities = std::string()) = 0;
+                uint32_t width, uint32_t height, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight, int32_t ownerId, int32_t groupId) = 0;
             void draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata);
             void onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata);
@@ -78,12 +77,6 @@ namespace RdkWindowManager
             void position(int32_t &x, int32_t &y);
             void setSize(uint32_t width, uint32_t height);
             void size(uint32_t &width, uint32_t &height);
-            // Logical (reported) size: what was set via setClientInfo (tile or
-            // fullscreen dimensions). Returned by getClientInfo so that
-            // onClientConfigChanged events carry the correct width/height.
-            // Rendering always uses mWidth/mHeight (natural resolution).
-            void setLogicalSize(uint32_t width, uint32_t height);
-            void logicalSize(uint32_t &width, uint32_t &height);
             void setOpacity(double opacity);
             void scale(double &scaleX, double &scaleY);
             void setScale(double scaleX, double scaleY);
@@ -147,17 +140,14 @@ namespace RdkWindowManager
             void shutdownApplication();
             static bool loadExtensions(WstCompositor *compositor, const std::string& clientName);
             static bool loadfireboltExtensions(WstCompositor *compositor);
-            static bool loadAdditionalExtensions(WstCompositor *compositor, const std::string& capabilities);
             void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
             void updateWaylandState();
             
             std::string mDisplayName;
             WstCompositor *mWstContext;
-            uint32_t mWidth;          // Westeros render resolution (natural)
+            uint32_t mWidth;
             uint32_t mHeight;
-            uint32_t mLogicalWidth;    // Reported size (tile or fullscreen) for events
-            uint32_t mLogicalHeight;
             int32_t mPositionX;
             int32_t mPositionY;
             float mMatrix[16];
