@@ -2825,7 +2825,7 @@ namespace RdkWindowManager
         return true;
 #else
         Logger::log(LogLevel::Warn, "hideSplashScreen: splash screen support not compiled in");
-        return true;
+        return false;
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
