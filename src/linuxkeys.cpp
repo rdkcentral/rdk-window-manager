@@ -1029,6 +1029,28 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
       case RDK_WINDOW_MANAGER_KEY_F24:
          waylandKeyCode = WAYLAND_KEY_F24;
          break;
+      /* BLE RemoteUnit outbound mapping (keycodes originate from keymap JSON loaded via RDK_WINDOW_MANAGER_KEYMAP_FILE) */
+      case RDK_WINDOW_MANAGER_KEY_DEV_POWER:
+         waylandKeyCode = WAYLAND_KEY_POWER;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_SEARCH:
+         waylandKeyCode = WAYLAND_KEY_SEARCH;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_PROGRAM:
+         waylandKeyCode = WAYLAND_KEY_PROGRAM;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_CONTEXT_MENU:
+         waylandKeyCode = WAYLAND_KEY_CONTEXT_MENU;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_TV:
+         waylandKeyCode = WAYLAND_KEY_TV;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_PROFILE:
+         waylandKeyCode = WAYLAND_KEY_PROFILE;
+         break;
+      case RDK_WINDOW_MANAGER_KEY_RECORD:
+         waylandKeyCode = WAYLAND_KEY_RECORD;
+         break;
       default:
          RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "common key code not found %d",keyCode);
          waylandKeyCode= -1;
