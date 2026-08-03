@@ -1770,8 +1770,7 @@ namespace RdkWindowManager
             if (gSplashDisplayTimeInSeconds > 0)
             {
                 uint32_t splashShownTime = (uint32_t)(RdkWindowManager::seconds() - gSplashStartTime);
-                if (splashShownTime > gSplashDisplayTimeInSeconds)
-                {
+                if (splashShownTime >= gSplashDisplayTimeInSeconds)
                     Logger::log(LogLevel::Information, "hiding splash screen after timeout: %u s", gSplashDisplayTimeInSeconds);
                     gShowSplashImage = false;
                     gSplashImage = nullptr;
