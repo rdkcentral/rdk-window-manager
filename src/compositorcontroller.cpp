@@ -1758,16 +1758,6 @@ namespace RdkWindowManager
             }
         }
 
-#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
-        if (gVncServerEnabled && gVncBuffer)
-        {
-            gVncBuffer->publish();
-#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
-            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
-            gVncBuffer->end();
-#endif
-        }
-#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         if (gCursor)
         {
@@ -1798,6 +1788,16 @@ namespace RdkWindowManager
         }
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
 
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        if (gVncServerEnabled && gVncBuffer)
+        {
+            gVncBuffer->publish();
+#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
+            gVncBuffer->end();
+#endif
+        }
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
         return true;
     }
 
