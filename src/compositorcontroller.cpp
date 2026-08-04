@@ -763,6 +763,7 @@ namespace RdkWindowManager
                     const std::string& fallbackClient = gCompositorList.front().name;
                     Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: restoring focus to fallback client: %s", fallbackClient.c_str());
                     setFocus(fallbackClient);
+                    Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: focus restore result — gFocusedCompositor is now: %s", gFocusedCompositor.name.empty() ? "none" : gFocusedCompositor.name.c_str());
                 }
                 else
                 {
