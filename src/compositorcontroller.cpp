@@ -750,10 +750,24 @@ namespace RdkWindowManager
             compositorInfoList->erase(it);
             if (gFocusedCompositor.name == clientDisplayName)
             {
-                // this may be changed to next available compositor
                 gFocusedCompositor.name = "";
                 gFocusedCompositor.compositor = nullptr;
-                Logger::log(LogLevel::Information,  "rdkwindowmanager_focus kill: the focused client has been killed: %s.  there is no focused client.", clientDisplayName.c_str());
+                Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: the focused client has been killed: %s.", clientDisplayName.c_str());
+
+                // Restore focus to the first remaining compositor (home/EPG app).
+                // Mirrors GuiAppManagerV2::onAppDisconnected: when mActiveApp disconnects,
+                // setActiveApp(mHomeApp) is called immediately — the home app is always
+                // the first compositor created (front of gCompositorList).
+                if (!gCompositorList.empty())
+                {
+                    const std::string& fallbackClient = gCompositorList.front().name;
+                    Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: restoring focus to fallback client: %s", fallbackClient.c_str());
+                    setFocus(fallbackClient);
+                }
+                else
+                {
+                    Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: no remaining compositors — no focused client.");
+                }
             }
             return true;
         }
