@@ -25,6 +25,7 @@
 #include "logger.h"
 
 #include <iostream>
+#include <sys/sysmacros.h>
 
 #ifdef ENABLE_ERM
 #include <map>

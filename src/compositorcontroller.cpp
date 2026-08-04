@@ -2625,7 +2625,9 @@ namespace RdkWindowManager
             if (enable && it->isSuspended) //resuming from suspended
             {
                 //resetting Display size to original
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(it->previousWidth, it->previousHeight);
+#endif
                 it->isSuspended = false;
                 Logger::log(LogLevel::Information,  "resetting Display size to original for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
             }
@@ -2636,7 +2638,9 @@ namespace RdkWindowManager
                 it->isSuspended = true;
                 Logger::log(LogLevel::Information,  "saving Display size for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
                 //setting Display size to 1,1
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(1, 1);
+#endif
             }
 
             if (result && enable)
