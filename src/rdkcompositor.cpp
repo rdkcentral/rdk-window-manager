@@ -758,6 +758,15 @@ namespace RdkWindowManager
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
         WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+#ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
+        if (access("/disable/keymetadata", F_OK) != 0)
+        {
+            RdkWindowManager::InputEvent inputEvent(metadata, (uint32_t)RdkWindowManager::milliseconds(), RdkWindowManager::InputEvent::KeyEvent);
+            inputEvent.details.key.code = waylandKeyCode;
+            inputEvent.details.key.state = keyPressed ? RdkWindowManager::InputEvent::Details::Key::Pressed : RdkWindowManager::InputEvent::Details::Key::Released;
+            broadcastInputEvent(inputEvent);
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
     }
 
 
