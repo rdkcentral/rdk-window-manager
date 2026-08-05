@@ -149,7 +149,12 @@ static void drawPaneOverlays(const std::vector<std::string>& clients,
     glUniform2f(gFlatResUni, static_cast<float>(screenW),
                               static_cast<float>(screenH));
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // Blend RGB with standard src-alpha, but keep dest alpha untouched (GL_ZERO,
+    // GL_ONE).  Without this the alpha channel of the DRM framebuffer degrades
+    // with every semi-transparent quad, which on RPi4 DRM/ARGB8888 planes causes
+    // the plane to composite against black and appear black on the display.
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                        GL_ZERO,      GL_ONE);
 
     for (int i = 0; i < static_cast<int>(clients.size()); ++i)
     {
@@ -191,6 +196,7 @@ static void drawPaneOverlays(const std::vector<std::string>& clients,
     }
 
     glDisable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);  // restore WM pre-multiplied convention
     glUseProgram(0);
 }
 
