@@ -111,7 +111,11 @@ static void drawQuadGL(float x, float y, float w, float h)
     glDisableVertexAttribArray(gFlatPosAttr);
 }
 
-// Called every frame after RdkWindowManager::draw().
+// Called every frame AFTER RdkWindowManager::draw() but BEFORE present().
+//
+// Receives only the clients that are currently active in the split-screen
+// manager (from SplitScreenManager::getClients()) so that idle compositor
+// slots do not render full-screen coloured quads on top of the layout.
 //
 // scaleToFit() positions compositors via setPosition() + setScale().
 // getBounds() reads back position() and size() — but size() returns the
@@ -469,27 +473,46 @@ int main(int argc, char* argv[])
 
     // ── Main render loop ─────────────────────────────────────────────────────
     //
-    // Mirrors RdkWindowManager::run() but intercepts between update() and
-    // draw() to process demo commands before the frame is rendered.
+    // Each iteration:
+    //   1. Advance the split-screen animation and process input events.
+    //   2. Process interactive demo commands.
+    //   3. Clear + composite all pane FBOs into the back buffer.
+    //   4. Draw the coloured pane overlay so the layout is visible even
+    //      without real Wayland client applications connected.
+    //   5. Swap the back buffer to the display and run the Essos event loop.
+    //
+    // Keeping the swap (present) at the END of the frame ensures the overlay
+    // drawn in step 4 is always visible — placing it at the start of draw()
+    // would defer the overlay by one frame and can cause a blank screen on
+    // DRM platforms where the very first page-flip after a mode change
+    // presents an uninitialised buffer.
     //
     while (gRunning)
     {
-        // 1. Process Wayland events, key-repeats, and advance the
-        //    SplitScreenManager animation (wired inside update()).
+        // 1. Advance animation and process Wayland/key events.
         RdkWindowManager::update();
 
         // 2. Handle interactive demo commands from the input thread.
         processCmd(ss, screenW, screenH, focusedPane);
 
-        // 3. Draw — calls EssosInstance::update() (swap previous frame),
-        //    sets up the GL viewport, then composites all panes.
+        // 3. Clear back buffer and composite all pane FBOs.
         RdkWindowManager::draw();
 
         // 4. Overlay coloured quads so the pane layout is visible even
         //    without real Wayland client applications connected.
-        drawPaneOverlays(kDemoClients, screenW, screenH, focusedPane);
+        //    Only draw panes that are currently managed by the split-screen
+        //    manager so inactive slots don't cover the active layout.
+        {
+            std::vector<std::string> activeClients = ss.getClients();
+            drawPaneOverlays(activeClients, screenW, screenH,
+                             ss.isActive() ? ss.focusedPane() : focusedPane);
+        }
 
-        // 5. Pace to the target frame rate.
+        // 5. Swap the back buffer (which now contains composited FBOs +
+        //    overlay) to the display and pump the Wayland event loop.
+        RdkWindowManager::present();
+
+        // 6. Pace to the target frame rate.
         usleep(kFrameUs);
     }
 

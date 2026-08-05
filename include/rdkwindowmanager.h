@@ -30,6 +30,7 @@ namespace RdkWindowManager
     void run();
     void update();
     void draw();
+    void present();   ///< Swap the back buffer to front and process Essos events.
     void deinitialize();
     double seconds();
     double milliseconds();

@@ -217,6 +217,17 @@ float       SplitScreenManager::splitRatio()    const { return mSplitRatio; }
 int         SplitScreenManager::focusedPane()   const { return mFocusedPane; }
 std::size_t SplitScreenManager::paneCount()     const { return mPanes.size(); }
 
+std::vector<std::string> SplitScreenManager::getClients() const
+{
+    if (!mActive)
+        return {};
+    std::vector<std::string> clients;
+    clients.reserve(mPanes.size());
+    for (const auto& pane : mPanes)
+        clients.push_back(pane.client);
+    return clients;
+}
+
 void SplitScreenManager::setAnimationSpeed(float speed)
 {
     mAnimSpeed = std::max(0.01f, std::min(1.0f, speed));

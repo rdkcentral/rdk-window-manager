@@ -236,7 +236,6 @@ namespace RdkWindowManager
 
     void draw()
     {
-        RdkWindowManager::EssosInstance::instance()->update();
         uint32_t width = 0;
         uint32_t height = 0;
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
@@ -245,6 +244,11 @@ namespace RdkWindowManager
         glClear(GL_COLOR_BUFFER_BIT);
 
         RdkWindowManager::CompositorController::draw();
+    }
+
+    void present()
+    {
+        RdkWindowManager::EssosInstance::instance()->update();
     }
 
     void update()

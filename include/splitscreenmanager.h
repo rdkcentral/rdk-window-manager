@@ -109,6 +109,13 @@ public:
     std::size_t paneCount()     const;
 
     /**
+     * Return the client names of the active panes in their current display
+     * order (which may differ from the original activate() list after swapPanes()).
+     * Returns an empty vector when split-screen is not active.
+     */
+    std::vector<std::string> getClients() const;
+
+    /**
      * Lerp factor applied each frame.  Higher = faster animation.
      * Default 0.12 gives ~300 ms settle time at 40 fps.
      */
