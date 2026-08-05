@@ -693,6 +693,9 @@ namespace RdkWindowManager
             gPreviousFocusedCompositor = gFocusedCompositor;
             gFocusedCompositor = *it;
             gFocusedCompositor.compositor->setFocused(true);
+            Logger::log(LogLevel::Information, "rdkwindowmanager_focus setFocus: focus changed — previous: %s  new: %s",
+                gPreviousFocusedCompositor.name.empty() ? "none" : gPreviousFocusedCompositor.name.c_str(),
+                gFocusedCompositor.name.c_str());
 
             return true;
         }
