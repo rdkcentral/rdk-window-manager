@@ -123,6 +123,7 @@ namespace RdkWindowManager
     CompositorList gCompositorList;
     CompositorList gTopmostCompositorList;
     CompositorInfo gFocusedCompositor;
+    CompositorInfo gPreviousFocusedCompositor;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
     std::map<std::string, std::string> gClientAliasMap;
@@ -689,6 +690,7 @@ namespace RdkWindowManager
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
+            gPreviousFocusedCompositor = gFocusedCompositor;
             gFocusedCompositor = *it;
             gFocusedCompositor.compositor->setFocused(true);
 
@@ -754,15 +756,16 @@ namespace RdkWindowManager
                 gFocusedCompositor.compositor = nullptr;
                 Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: the focused client has been killed: %s.", clientDisplayName.c_str());
 
-                // Restore focus to the first remaining compositor (home/EPG app).
-                // Mirrors GuiAppManagerV2::onAppDisconnected: when mActiveApp disconnects,
-                // setActiveApp(mHomeApp) is called immediately — the home app is always
-                // the first compositor created (front of gCompositorList).
-                if (!gCompositorList.empty())
+                // Restore focus to the previously focused compositor (EPG/home app).
+                // gCompositorList.front() is unreliable — watermark/overlay compositors
+                // are created before EPG and appear first. Instead, use gPreviousFocusedCompositor
+                // which was saved in setFocus() when YouTube took focus from EPG.
+                // Mirrors GuiAppManagerV2::onAppDisconnected: setActiveApp(mHomeApp).
+                CompositorListIterator prevIt;
+                if (!gPreviousFocusedCompositor.name.empty() && getCompositorInfo(gPreviousFocusedCompositor.name, prevIt))
                 {
-                    const std::string& fallbackClient = gCompositorList.front().name;
-                    Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: restoring focus to fallback client: %s", fallbackClient.c_str());
-                    setFocus(fallbackClient);
+                    Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: restoring focus to previous client: %s", gPreviousFocusedCompositor.name.c_str());
+                    setFocus(gPreviousFocusedCompositor.name);
                     Logger::log(LogLevel::Information, "rdkwindowmanager_focus kill: focus restore result — gFocusedCompositor is now: %s", gFocusedCompositor.name.empty() ? "none" : gFocusedCompositor.name.c_str());
                 }
                 else
