@@ -1053,7 +1053,7 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
          break;
       default:
          RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "common key code not found %d",keyCode);
-         waylandKeyCode= -1;
+         waylandKeyCode= keyCode;
          break;
    }
 
