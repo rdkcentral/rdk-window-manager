@@ -31,6 +31,7 @@ struct RdkWindowManagerKeyMap
 };
 
 static std::map<uint32_t, struct RdkWindowManagerKeyMap> sRdkWindowManagerKeyMap;
+static std::map<uint32_t, uint32_t> sRdkWindowManagerReverseKeyMap;
 static std::map<std::string, struct RdkWindowManagerKeyMap> sRdkWindowManagerVirtualKeyMap;
 
 uint32_t getKeyFlag(std::string modifier)
@@ -117,6 +118,7 @@ void mapNativeKeyCodes()
                 keyMap.code = mappedKeyCode;
                 keyMap.flags = flags;
                 sRdkWindowManagerKeyMap[keyCode] = keyMap;
+                sRdkWindowManagerReverseKeyMap[mappedKeyCode] = keyCode;
               }
               else
               {
@@ -656,7 +658,13 @@ bool keyCodeFromVirtual(std::string& virtualKey, uint32_t &mappedKeyCode, uint32
 
 uint32_t keyCodeToWayland(uint32_t keyCode)
 {
-    uint32_t  waylandKeyCode = 0;
+      auto reverseIt = sRdkWindowManagerReverseKeyMap.find(keyCode);
+      if (reverseIt != sRdkWindowManagerReverseKeyMap.end())
+      {
+         return reverseIt->second;
+      }
+
+      uint32_t  waylandKeyCode = keyCode;
 
    switch( keyCode )
    {
