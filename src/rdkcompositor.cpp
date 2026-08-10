@@ -190,6 +190,8 @@ namespace RdkWindowManager
             }
             else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0)
             {
+                printf("MADANA GOPAL Application count before disconnect [%s] [%d]\n, mDisplayName.c_str(), mApplicationConnectionCount.load());
+                fflush(stdout);
                 if(mApplicationConnectionCount.fetch_sub(1) == 1)
                 {
                     RdkWindowManager::Logger::log(LogLevel::Information,  "sending event %s", eventName.c_str());
