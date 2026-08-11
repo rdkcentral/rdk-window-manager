@@ -54,7 +54,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false), 
+        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -170,18 +170,7 @@ namespace RdkWindowManager
                  break;
              case WstClient_firstFrame:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client first frame received");
-                 // Multiple VirtualEmbedded compositors (one per surface) each fire
-                 // WstClient_firstFrame independently.  Use mFirstFrameRendered as a
-                 // once-only gate so only the very first one emits the external event.
-                 if (!mFirstFrameRendered)
-                 {
-                     mFirstFrameRendered = true;
-                     eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
-                 }
-                 else
-                 {
-                     eventFound = false;
-                 }
+                 eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
                  break;
              default:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "unknown client status state");
@@ -553,10 +542,8 @@ namespace RdkWindowManager
                                     lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
                                     lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
 
-                                    WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                    matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                                    //WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                   // lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                    WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                    lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                                 }
                                 else
                                 {
@@ -599,10 +586,8 @@ namespace RdkWindowManager
                                 lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
                                 lMatrix[13] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->y, fireboltSurface->sy, 0.f);
 
-                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                                //WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
-                                //lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->sx, fireboltSurface->sy, fireboltSurface->swidth, fireboltSurface->sheight,
+                                lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
                             {
@@ -633,8 +618,6 @@ namespace RdkWindowManager
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
-//printf("MADANA this [%p] drawOverlays[%d] size[%d] \n", this, drawOverlays, mFireboltSurfaces.size());
-//fflush(stdout);
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
         if (mHolePunch)
@@ -664,17 +647,6 @@ namespace RdkWindowManager
             WstCompositorSetOutputSize(mWstContext, mWidth, mHeight);
         }
 
-        std::vector<int> surfaceIds;
-            WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
-if (surfaceIds.size() != 0)
-{
-printf("madana gopal LENGTH [%p][%d] [%d] \n", this, surfaceIds.size(), mFireboltSurfaces.size());
-fflush(stdout);
-for (int i=0; i<surfaceIds.size(); i++)
-{
-	printf("[%d] \n", surfaceIds[i]);
-}
-}
         if(!drawOverlays)
         {
             if(mFireboltSurfaces.empty())
@@ -692,7 +664,7 @@ for (int i=0; i<surfaceIds.size(); i++)
                         hints |= WstHints_hidden;
                     #else
                         continue;
-                    #endif
+                    #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
                     }
                     if (fireboltSurface->surfaceType == SurfaceType::Standard || fireboltSurface->surfaceType == SurfaceType::Video)
                     {
@@ -701,7 +673,7 @@ for (int i=0; i<surfaceIds.size(); i++)
                             bool clearVideoRegion = (fireboltSurface->surfaceType == SurfaceType::Video);
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
                             // In bridge mode, attempt to compose video surfaces into the capture path.
-//                            clearVideoRegion = false;
+                            clearVideoRegion = false;
 #endif
                             
                             if (clearVideoRegion)
@@ -709,32 +681,19 @@ for (int i=0; i<surfaceIds.size(); i++)
                                     GLenum error;
                                     glEnable( GL_SCISSOR_TEST );
                                     glClearColor(0.0f,0.0f,0.0f,0.0f);
-                                    // fireboltSurface bounds are compositor-local; mMatrix transforms
-                                    // to screen space — apply it so the hole-punch tracks the
-                                    // compositor's current position and scale exactly.
-                                    const int scX = (int)(mMatrix[12] + (float)fireboltSurface->x      * mMatrix[0]);
-                                    const int scY = (int)(mMatrix[13] + (float)fireboltSurface->y      * mMatrix[5]);
-                                    const int scW = (int)((float)fireboltSurface->width  * mMatrix[0]);
-                                    const int scH = (int)((float)fireboltSurface->height * mMatrix[5]);
-                                    glScissor(scX, scY, scW, scH);
+                                    glScissor(fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
                                     error = glGetError();
                                     if (error != GL_NO_ERROR)
                                     {
-                                        Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error, scX, scY, scW, scH);
+                                        Logger::log(LogLevel::Error, "glScissor: glGetError() = %X Co-Ordinates X: %d Y: %d width: %d  height:%d", error,fireboltSurface->x,fireboltSurface->y,fireboltSurface->width,fireboltSurface->height );
                                     }
                                     glClear(GL_COLOR_BUFFER_BIT); // Clear with transparency
                                     glDisable(GL_SCISSOR_TEST);
                             }
                             else
                             {
-printf("madana gopal LENGTH visible [%d] [%d] [%d] [%d] [%p]\n", surfaceIds.size(), fireboltSurface->visible, drawOverlays, fireboltSurface->surfaceId, this);
-fflush(stdout);
                                 WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                 mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
-                                if (needsHolePunch || (rects.size() > 0))
-				{
-                                    printf("MADANA video .. [%d] [%d] [%d]\n", needsHolePunch, fireboltSurface->surfaceId, rects.size()); fflush(stdout);
-                                }
                             }
                         }
                     }
@@ -753,14 +712,12 @@ fflush(stdout);
                         hints |= WstHints_hidden;
                     #else
                         continue;
-                    #endif 
+                    #endif /* RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT */
                     }
                     if (fireboltSurface->surfaceType == SurfaceType::Popup || fireboltSurface->surfaceType == SurfaceType::Notification )
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-//printf("MADANA inside draw overlay[%p]  size[%d] visible[%d] [%d] [%d]\n", this, fireboltSurface->visible, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
-//fflush(stdout);
                                 WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                 mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
                         }
@@ -800,24 +757,30 @@ fflush(stdout);
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-/*
-printf("MADANA mFireboltSurfaces [%p][%d] \n", this, mFireboltSurfaces.size()); fflush(stdout);
+
+        // If firebolt surfaces are present, check whether a Notification surface
+        // is currently visible.  If so, deliver the key event to that surface's
+        // virtual compositor so that the notification overlay receives input.
+        // Otherwise fall through to the main compositor (mWstContext).
+        WstCompositor *keyTarget = mWstContext;
         if (!mFireboltSurfaces.empty())
-	{
-        for (int i=0; i<mFireboltSurfaces.size(); i++)
-	{
-printf("MADANA sending key to [%d] [%d]\n", i, waylandKeyCode);
-fflush(stdout);
-        WstCompositorKeyEvent( mFireboltSurfaces[i].westerosCompositor, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+        {
+            for (const auto &fs : mFireboltSurfaces)
+            {
+                if (fs.surfaceType == SurfaceType::Notification && fs.visible
+                    && fs.westerosCompositor != nullptr)
+                {
+                    keyTarget = fs.westerosCompositor;
+                    Logger::log(LogLevel::Information,
+                        "processKeyEvent: routing key %d to Notification surface"
+                        " (surfaceId=%d) compositor display: %s",
+                        keycode, fs.surfaceId, mDisplayName.c_str());
+                    break;
+                }
+            }
         }
-	}
-	else
-	{
-*/
-//printf("MADANA sending key to main [%p] [%d]\n", this, waylandKeyCode);
-//fflush(stdout);
-        WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
-//	}
+
+        WstCompositorKeyEvent( keyTarget, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
 #ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
         if (access("/disable/keymetadata", F_OK) != 0)
         {
@@ -1304,42 +1267,28 @@ fflush(stdout);
         surfaceInfo.surfaceType = surfaceType;
         std::vector<int> surfaceIds;
 
-        printf("MADANA convertToFireboltSurface [%p][%d] [%d]\n", this, surfaceId, mFireboltSurfaces.size()); fflush(stdout);
         if(mFireboltSurfaces.empty())
         {
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
-//            printf("MADANA LENGTH of westeros surfaces [%d] \n", surfaceIds.size());
-//	    fflush(stdout);
             for (std::vector<int>::iterator id = surfaceIds.begin(); id != surfaceIds.end(); id++)
             {
-            printf("MADANA length [%d] [%d] [%d]\n", surfaceIds.size(), surfaceId, (surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup));
                 if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *id == surfaceId)
                 {
                     WstCompositor* overlayCompositor = NULL;
                     overlayCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-                    WstCompositorSetClientStatusCallback(overlayCompositor, clientStatus, this);
-                    WstCompositorSetInvalidateCallback(overlayCompositor, invalidate, this);
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner(overlayCompositor, surfaceId );
                     surfaceInfo.westerosCompositor = overlayCompositor;
                     mFireboltSurfaces.push_back(surfaceInfo);
-//            printf("MADANA pushing value3  [%d] \n", surfaceId);
-//	    fflush(stdout);
                 }
-                else if (*id == surfaceId)
-//		else
+                else
                 {
                     WstCompositor* westerosCompositor = NULL;
                     westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-                    WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
-                    WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
-                    //WstCompositorSetOutputSize(westerosCompositor, mWidth, mHeight);
-                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
+                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, *id );
                     FireboltSurfaceInfo mainSurfaceInfo;
-                    mainSurfaceInfo.surfaceId = surfaceId;
-                    mainSurfaceInfo.surfaceType = surfaceType;
+                    mainSurfaceInfo.surfaceId = *id;
+                    mainSurfaceInfo.surfaceType = SurfaceType::Standard;
                     mainSurfaceInfo.westerosCompositor = westerosCompositor;
-            printf("MADANA pushing value [%p][%d] \n", this, surfaceId);
-	    fflush(stdout);
                     mFireboltSurfaces.push_back(mainSurfaceInfo);
                 }
             }
@@ -1357,8 +1306,6 @@ fflush(stdout);
 
             WstCompositor* westerosCompositor = NULL;
             westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-            WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
-            WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
             result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
             if (result)
             {
@@ -1388,14 +1335,10 @@ fflush(stdout);
                 }
                 if (fireboltSurfaceIt == mFireboltSurfaces.end())
                 {
-            printf("MADANA pushing value1  [%d] \n", surfaceId);
-	    fflush(stdout);
                     mFireboltSurfaces.push_back(surfaceInfo);
                 }
                 else
                 {
-            printf("MADANA pushing value2  [%d] \n", surfaceId);
-	    fflush(stdout);
                     mFireboltSurfaces.insert(fireboltSurfaceIt, surfaceInfo);
                 }
             }
@@ -1465,39 +1408,12 @@ fflush(stdout);
                 fireboltSurface->y = y;
                 fireboltSurface->width = width;
                 fireboltSurface->height = height;
-                WstCompositorSetOutputSize(fireboltSurface->westerosCompositor, width, height);
-printf("MADANA UPDATED in setFireboltSurfaceBounds [%p][%d] [%d][%d][%d][%d]\n", this,surfaceId, x,y,width,height);
-fflush(stdout);
                 return true;
             }
         }
         return false;
     }
 
-    void RdkCompositor::syncAllFireboltSurfaces(bool visible, double opacity, double scaleX, double scaleY)
-    {
-        // Propagate all ClientInfo-driven properties to every firebolt VirtualEmbedded
-        // compositor so they stay in sync with the main compositor's state.
-        //
-        // - visible / opacity : mirror the main compositor so surfaces hide/fade together.
-        // - output size       : scale each surface's natural dimensions by (scaleX, scaleY)
-        //                       so the client (e.g. video decoder) re-renders immediately
-        //                       at the new resolution instead of holding a stale frame.
-        for (auto& fs : mFireboltSurfaces)
-        {
-            fs.visible = visible;
-            fs.opacity = opacity;
-
-            if (fs.westerosCompositor != nullptr && fs.width > 0 && fs.height > 0)
-            {
-                const uint32_t newW = (uint32_t)((double)fs.width  * scaleX);
-                const uint32_t newH = (uint32_t)((double)fs.height * scaleY);
-                if (newW > 0 && newH > 0)
-                    WstCompositorSetOutputSize(fs.westerosCompositor, newW, newH);
-            }
-        }
-    }
-		
     bool RdkCompositor::setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight)
     {
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
@@ -1521,8 +1437,6 @@ fflush(stdout);
             if (fireboltSurface->surfaceId == surfaceId )
             {
                 fireboltSurface->visible = visible;
-//printf("MADANA UPDATED VISIBILITY in setFireboltSurfaceVisibility [%p][%d] [%d]\n", this, surfaceId, visible);
-//fflush(stdout);
                 return true;
             }
         }
@@ -1590,11 +1504,7 @@ fflush(stdout);
         {
             if (fireboltSurfaceIt->surfaceId == surfaceId )
             {
-            printf("MADANA erasing  [%p][%d] \n", this, surfaceId);
-	    fflush(stdout);
                 mFireboltSurfaces.erase(fireboltSurfaceIt);
-            printf("MADANA erasing  [%p][%d][%d] \n", this, surfaceId, mFireboltSurfaces.size());
-	    fflush(stdout);
                 return true;
             }
         }

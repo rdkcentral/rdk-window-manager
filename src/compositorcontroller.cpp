@@ -2495,10 +2495,6 @@ namespace RdkWindowManager
         Logger::log(LogLevel::Information, "setClientInfo scale:(%f,%f) client:%s (output:%ux%u tile:%ux%u)",
             scaleX, scaleY, client.c_str(), curW, curH, ci.width, ci.height);
 
-        // Push all ClientInfo-derived state to every firebolt VirtualEmbedded compositor
-        // in one call: visibility, opacity, and proportionally-scaled output size.
-        it->compositor->syncAllFireboltSurfaces(ci.visible, ci.opacity, scaleX, scaleY);
-
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
 
