@@ -23,6 +23,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <shared_mutex>
 #include <functional>
 #include <unordered_map>
 #include <memory>
@@ -173,10 +174,10 @@ namespace RdkWindowManager
             int32_t mCropHeight;
             int32_t mOwnerId;
             int mInputListenerTags;
-            std::mutex mInputLock;
+            mutable std::shared_mutex mInputLock;
             std::unordered_map<int, std::function<void(const RdkWindowManager::InputEvent&)>> mInputListeners;
             int mStateChangeListenerTags;
-            std::mutex mStateChangeLock;
+            mutable std::shared_mutex mStateChangeLock;
             std::unordered_map<int, std::function<void(uint32_t)>> mStateChangeListeners;
             std::string mApplicationName;
             std::thread mApplicationThread;
