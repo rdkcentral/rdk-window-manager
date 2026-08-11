@@ -116,6 +116,9 @@ namespace RdkWindowManager
             bool getInputEventsEnabled() const;
             void setFocused(bool focused);
             bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
+            // Propagate all ClientInfo-driven properties (visibility, opacity, output size)
+            // to every firebolt VirtualEmbedded compositor in one call.
+            void syncAllFireboltSurfaces(bool visible, double opacity, double scaleX, double scaleY);
             bool setFireboltSurfaceZOrder(int surfaceId, int zOrder);
             bool setFireboltSurfaceOpacity(int surfaceId, double opacity);
             bool setFireboltSurfaceBounds(int surfaceId, int32_t x, int32_t y, uint32_t width, uint32_t height);

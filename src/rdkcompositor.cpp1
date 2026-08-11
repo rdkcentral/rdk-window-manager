@@ -649,12 +649,14 @@ namespace RdkWindowManager
         #ifdef RDK_WINDOW_MANAGER_ENABLE_FORCE_ANIMATE
         hints |= WstHints_animating;
         #endif //RDK_WINDOW_MANAGER_ENABLE_FORCE_ANIMATE
-        #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+        // Always propagate the compositor's visibility to Westeros via WstHints_hidden
+        // regardless of build flags — this is now required because every surface has
+        // its own VirtualEmbedded compositor whose ComposeEmbedded must be called even
+        // when invisible so Westeros can hide the surface properly.
         if (!mVisible)
         {
             hints |= WstHints_hidden;
         }
-        #endif //RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         std::vector<WstRect> rects;
 
         unsigned int width, height;
@@ -666,19 +668,23 @@ namespace RdkWindowManager
 
         std::vector<int> surfaceIds;
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
+/*
 if (surfaceIds.size() != 0)
 {
-printf("madana gopal LENGTH [%p][%d] [%d] \n", this, surfaceIds.size(), mFireboltSurfaces.size());
+printf("madana gopal LENGTH [%d] [%d] \n", surfaceIds.size(), mFireboltSurfaces.size());
 fflush(stdout);
 for (int i=0; i<surfaceIds.size(); i++)
 {
 	printf("[%d] \n", surfaceIds[i]);
 }
 }
+*/
         if(!drawOverlays)
         {
             if(mFireboltSurfaces.empty())
             {
+//printf("Madana inside whole embedded [%p]\n", this);
+//fflush(stdout);
                 WstCompositorComposeEmbedded( mWstContext, 0, 0, mWidth, mHeight,
                 mMatrix, mOpacity, hints, &needsHolePunch, rects );
             }
@@ -686,14 +692,23 @@ for (int i=0; i<surfaceIds.size(); i++)
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+printf("madana gopal LENGTH visible [%d] [%d] [%d] [%p]\n", fireboltSurface->visible, drawOverlays, fireboltSurface->surfaceId, this);
+fflush(stdout);
+                    // Use per-surface hints so that one invisible surface does not
+                    // poison the flags for subsequent surfaces or for mWstContext.
+                    // Do not call ComposeEmbedded for invisible surfaces — simply
+                    // not compositing them is how they are hidden (the GL framebuffer
+                    // is cleared each frame so their area shows the background).
+                    int surfaceHints = hints;
                     if (!fireboltSurface->visible)
                     {
                     #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-                        hints |= WstHints_hidden;
+                        surfaceHints |= WstHints_hidden;  // signal hidden but still compose
                     #else
-                        continue;
+                        continue;  // don't composite — surface not drawn this frame
                     #endif
                     }
+
                     if (fireboltSurface->surfaceType == SurfaceType::Standard || fireboltSurface->surfaceType == SurfaceType::Video)
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
@@ -703,15 +718,25 @@ for (int i=0; i<surfaceIds.size(); i++)
                             // In bridge mode, attempt to compose video surfaces into the capture path.
 //                            clearVideoRegion = false;
 #endif
-                            
                             if (clearVideoRegion)
                             {
+                                    // Call ComposeEmbedded first so Westeros sends the current
+                                    // position/size (encoded in mMatrix) to the video client via
+                                    // a configure event.  Without this call the video hardware
+                                    // overlay never learns about a position change from
+                                    // setClientInfo — matching what the mWstContext path did.
+                                    // The GL pixels it renders are immediately discarded below.
+                                    WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor,
+                                        fireboltSurface->x, fireboltSurface->y,
+                                        fireboltSurface->width, fireboltSurface->height,
+                                        mMatrix, fireboltSurface->opacity, surfaceHints, &needsHolePunch, rects );
+
+                                    // Punch the GL hole so the hardware video overlay shows through.
+                                    // Use mMatrix-transformed coords so the hole tracks the
+                                    // compositor's current screen position and scale exactly.
                                     GLenum error;
                                     glEnable( GL_SCISSOR_TEST );
                                     glClearColor(0.0f,0.0f,0.0f,0.0f);
-                                    // fireboltSurface bounds are compositor-local; mMatrix transforms
-                                    // to screen space — apply it so the hole-punch tracks the
-                                    // compositor's current position and scale exactly.
                                     const int scX = (int)(mMatrix[12] + (float)fireboltSurface->x      * mMatrix[0]);
                                     const int scY = (int)(mMatrix[13] + (float)fireboltSurface->y      * mMatrix[5]);
                                     const int scW = (int)((float)fireboltSurface->width  * mMatrix[0]);
@@ -727,10 +752,10 @@ for (int i=0; i<surfaceIds.size(); i++)
                             }
                             else
                             {
-printf("madana gopal LENGTH visible [%d] [%d] [%d] [%d] [%p]\n", surfaceIds.size(), fireboltSurface->visible, drawOverlays, fireboltSurface->surfaceId, this);
-fflush(stdout);
+//printf("Madana inside compose embedded [%p][%d][%d][%d][%d]\n", this, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
+//fflush(stdout);
                                 WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                                mMatrix, fireboltSurface->opacity, surfaceHints, &needsHolePunch, rects );
                                 if (needsHolePunch || (rects.size() > 0))
 				{
                                     printf("MADANA video .. [%d] [%d] [%d]\n", needsHolePunch, fireboltSurface->surfaceId, rects.size()); fflush(stdout);
@@ -739,6 +764,17 @@ fflush(stdout);
                         }
                     }
                 }
+                // Compose any surfaces that remain in mWstContext (e.g. a
+                // hardware overlay surface created by a sub-app like YouTube
+                // that was never moved to a VirtualEmbedded compositor via
+                // SetSurfaceOwner).  SetSurfaceOwner already detached owned
+                // surfaces from mWstContext, so this does NOT double-render
+                // the VirtualEmbedded-owned surfaces — it only picks up the
+                // unowned ones.  Without this call those surfaces would stay
+                // frozen at their old position after a setClientInfo move.
+                WstCompositorComposeEmbedded( mWstContext, 0, 0, mWidth, mHeight,
+                mMatrix, mOpacity, hints, &needsHolePunch, rects );
+
             }
         }
         else
@@ -747,14 +783,16 @@ fflush(stdout);
             {
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
+                    int surfaceHints = hints;
                     if (!fireboltSurface->visible)
                     {
                     #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-                        hints |= WstHints_hidden;
+                        surfaceHints |= WstHints_hidden;
                     #else
                         continue;
-                    #endif 
+                    #endif
                     }
+
                     if (fireboltSurface->surfaceType == SurfaceType::Popup || fireboltSurface->surfaceType == SurfaceType::Notification )
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
@@ -762,7 +800,7 @@ fflush(stdout);
 //printf("MADANA inside draw overlay[%p]  size[%d] visible[%d] [%d] [%d]\n", this, fireboltSurface->visible, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height);
 //fflush(stdout);
                                 WstCompositorComposeEmbedded( fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                mMatrix, fireboltSurface->opacity, hints, &needsHolePunch, rects );
+                                mMatrix, fireboltSurface->opacity, surfaceHints, &needsHolePunch, rects );
                         }
                     }
                 }
@@ -800,24 +838,22 @@ fflush(stdout);
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-/*
-printf("MADANA mFireboltSurfaces [%p][%d] \n", this, mFireboltSurfaces.size()); fflush(stdout);
-        if (!mFireboltSurfaces.empty())
-	{
-        for (int i=0; i<mFireboltSurfaces.size(); i++)
-	{
-printf("MADANA sending key to [%d] [%d]\n", i, waylandKeyCode);
-fflush(stdout);
-        WstCompositorKeyEvent( mFireboltSurfaces[i].westerosCompositor, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+        // Send key events to every VirtualEmbedded compositor that owns a surface
+        // for this app.  When a surface is moved to a VirtualEmbedded compositor via
+        // SetSurfaceOwner, WstCompositorKeyEvent(mWstContext) no longer reaches it
+        // because the surface is no longer in mWstContext's focus chain.
+        for (const auto& fs : mFireboltSurfaces)
+        {
+            if (fs.westerosCompositor != nullptr)
+            {
+                WstCompositorKeyEvent( fs.westerosCompositor, waylandKeyCode,
+                    keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released,
+                    (int32_t)modifiers );
+            }
         }
-	}
-	else
-	{
-*/
-//printf("MADANA sending key to main [%p] [%d]\n", this, waylandKeyCode);
-//fflush(stdout);
+        // Also send to mWstContext for any surfaces not yet owned by a VirtualEmbedded
+        // compositor (e.g. first frame before the idle callback fires).
         WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
-//	}
 #ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
         if (access("/disable/keymetadata", F_OK) != 0)
         {
