@@ -1025,12 +1025,12 @@ namespace RdkWindowManager
      {
          RdkWindowManager::Logger::log(LogLevel::Information,  "sending input metadata for device: %d", inputEvent.deviceId);
                
-         // Create a snapshot while holding the shared lock.
+         // Create a snapshot while holding the lock.
          // This protects against simultaneous unregisterInputEventListener() calls.
          std::vector<std::function<void(const RdkWindowManager::InputEvent&)>> listenersCopy;
 
          {
-             std::shared_lock<std::shared_mutex> lock(mInputLock);
+             std::lock_guard<std::mutex> lock(mInputLock);
 
              listenersCopy.reserve(mInputListeners.size());
 
@@ -1085,12 +1085,12 @@ namespace RdkWindowManager
          // eventData[0]["display"] = mDisplayName;
          // CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_APPLICATION_STATE_CHANGED, eventData);            
 
-         // Create a snapshot while holding the shared lock.
+         // Create a snapshot while holding the lock.
          // This protects against simultaneous unregisterStateChangeEventListener() calls.
          std::vector<std::function<void(uint32_t)>> listenersCopy;
 
          {
-             std::shared_lock<std::shared_mutex> lock(mStateChangeLock);
+             std::lock_guard<std::mutex> lock(mStateChangeLock);
 
              listenersCopy.reserve(mStateChangeListeners.size());
 
