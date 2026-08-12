@@ -1044,16 +1044,41 @@ namespace RdkWindowManager
         mInputListeners.erase(tag);
     }
 
-    void RdkCompositor::broadcastInputEvent(const RdkWindowManager::InputEvent &inputEvent)
-    {
-        RdkWindowManager::Logger::log(LogLevel::Information,  "sending input metadata for device: %d", inputEvent.deviceId);
-        std::lock_guard<std::mutex> locker(mInputLock);
-        for (const auto &listener : mInputListeners)
-        {
-            if (listener.second)
-                listener.second(inputEvent);
-        }
-    }
+     void RdkCompositor::broadcastInputEvent(const RdkWindowManager::InputEvent &inputEvent)
+     {
+         RdkWindowManager::Logger::log(LogLevel::Information,  "sending input metadata for device: %d", inputEvent.deviceId);
+               
+         // Create a snapshot while holding the lock.
+         // This protects against simultaneous unregisterInputEventListener() calls.
+         std::vector<std::function<void(const RdkWindowManager::InputEvent&)>> listenersCopy;
+
+         {
+             std::lock_guard<std::mutex> lock(mInputLock);
+
+             listenersCopy.reserve(mInputListeners.size());
+
+             for (const auto &listener : mInputListeners) {
+                 if (listener.second) {
+                     listenersCopy.push_back(listener.second);
+                 }
+             }
+         }
+
+          // Do not hold mInputLock while calling listeners.
+          for (const auto &listener : listenersCopy) {
+              if (listener) {
+                  try {
+                      listener(inputEvent);
+                  } catch (const std::exception& e) {
+                      Logger::log(LogLevel::Warn, "Exception in input event listener: %s", e.what());
+                  } catch (...) {
+                      Logger::log(LogLevel::Warn, "Unknown exception in input event listener");
+                  }
+              }
+          }
+
+         Logger::log(LogLevel::Information,  "input metadata sent for device: %d", inputEvent.deviceId);
+     }
 
     int RdkCompositor::registerStateChangeEventListener(std::function<void(uint32_t)> listener)
     {
@@ -1081,21 +1106,45 @@ namespace RdkWindowManager
         mStateChangeListeners.erase(tag);
     }
 
-    void RdkCompositor::broadcastStateChangeEvent(uint32_t state)
-    {
-        Logger::log(LogLevel::Information, "sending state event %d for %s", state, mDisplayName.c_str());
-        // std::vector<std::map<std::string, RdkWindowManagerData>> eventData(1);
-        // eventData[0] = std::map<std::string, RdkWindowManagerData>();
-        // eventData[0]["state"] = state;
-        // eventData[0]["display"] = mDisplayName;
-        // CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_APPLICATION_STATE_CHANGED, eventData);
-        std::lock_guard<std::mutex> locker(mStateChangeLock);
-        for (const auto &listener : mStateChangeListeners)
-        {
-            if (listener.second)
-                listener.second(state);
-        }
-    }
+     void RdkCompositor::broadcastStateChangeEvent(uint32_t state)
+     {
+         Logger::log(LogLevel::Information, "sending state event %d for %s", state, mDisplayName.c_str());
+
+         // std::vector<std::map<std::string, RdkWindowManagerData>> eventData(1);
+         // eventData[0] = std::map<std::string, RdkWindowManagerData>();
+         // eventData[0]["state"] = state;
+         // eventData[0]["display"] = mDisplayName;
+         // CompositorController::sendEvent(RDK_WINDOW_MANAGER_EVENT_APPLICATION_STATE_CHANGED, eventData);            
+
+         // Create a snapshot while holding the lock.
+         // This protects against simultaneous unregisterStateChangeEventListener() calls.
+         std::vector<std::function<void(uint32_t)>> listenersCopy;
+
+         {
+             std::lock_guard<std::mutex> lock(mStateChangeLock);
+
+             listenersCopy.reserve(mStateChangeListeners.size());
+
+             for (const auto &listener : mStateChangeListeners) {
+                 if (listener.second) {
+                     listenersCopy.push_back(listener.second);
+                 }
+             }
+         }
+
+         // Do not hold mStateChangeLock while calling listeners.
+         for (const auto &listener : listenersCopy) {
+             if (listener) {
+                 try {
+                     listener(state);
+                 } catch (const std::exception& e) {
+                     Logger::log(LogLevel::Warn, "Exception in state change listener: %s", e.what());
+                 } catch (...) {
+                     Logger::log(LogLevel::Warn, "Unknown exception in state change listener");
+                 }
+             }
+         }
+     }
 
     void RdkCompositor::displayName(std::string& name) const
     {
