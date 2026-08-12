@@ -1074,18 +1074,20 @@ namespace RdkWindowManager
              }
          }
 
-          // Do not hold mInputLock while calling listeners.
-          for (const auto &listener : listenersCopy) {
-              if (listener) {
-                  try {
-                      listener(inputEvent);
-                  } catch (const std::exception& e) {
-                      Logger::log(LogLevel::Warn, "Exception in input event listener: %s", e.what());
-                  } catch (...) {
-                      Logger::log(LogLevel::Warn, "Unknown exception in input event listener");
-                  }
-              }
-          }
+         LOGINFO("broadcastInputEvent: inputEvent.deviceId=%d, inputEvent.timestamp=%llu, inputEvent.type=%d", inputEvent.deviceId, inputEvent.timestamp, inputEvent.type);
+
+         // Do not hold mInputLock while calling listeners.
+         for (const auto &listener : listenersCopy) {
+             if (listener) {
+                 try {
+                     listener(inputEvent);
+                 } catch (const std::exception& e) {
+                     RdkWindowManager::Logger::log(LogLevel::Warning, "Exception in input event listener: %s", e.what());
+                 } catch (...) {
+                     RdkWindowManager::Logger::log(LogLevel::Warning, "Unknown exception in input event listener");
+                 }
+             }
+         }
 
          Logger::log(LogLevel::Information,  "input metadata sent for device: %d", inputEvent.deviceId);
      }
@@ -1148,9 +1150,9 @@ namespace RdkWindowManager
                  try {
                      listener(state);
                  } catch (const std::exception& e) {
-                     Logger::log(LogLevel::Warn, "Exception in state change listener: %s", e.what());
+                     Logger::log(LogLevel::Warning, "Exception in state change listener: %s", e.what());
                  } catch (...) {
-                     Logger::log(LogLevel::Warn, "Unknown exception in state change listener");
+                     Logger::log(LogLevel::Warning, "Unknown exception in state change listener");
                  }
              }
          }
