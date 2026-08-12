@@ -171,6 +171,16 @@ namespace RdkWindowManager
              case WstClient_firstFrame:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client first frame received");
                  eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 if (!mFirstFrameRendered)
+                 {
+                     mFirstFrameRendered = true;
+                     eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 }
+                 else
+                 {
+                     eventFound = false;
+                 }
+
                  break;
              default:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "unknown client status state");
@@ -1325,6 +1335,8 @@ namespace RdkWindowManager
                 {
                     WstCompositor* overlayCompositor = NULL;
                     overlayCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+                    WstCompositorSetClientStatusCallback(overlayCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(overlayCompositor, invalidate, this);
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner(overlayCompositor, surfaceId );
                     surfaceInfo.westerosCompositor = overlayCompositor;
                     mFireboltSurfaces.push_back(surfaceInfo);
@@ -1333,6 +1345,8 @@ namespace RdkWindowManager
                 {
                     WstCompositor* westerosCompositor = NULL;
                     westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+                    WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, *id );
                     FireboltSurfaceInfo mainSurfaceInfo;
                     mainSurfaceInfo.surfaceId = *id;
@@ -1355,6 +1369,8 @@ namespace RdkWindowManager
 
             WstCompositor* westerosCompositor = NULL;
             westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+            WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+            WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
             result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
             if (result)
             {
