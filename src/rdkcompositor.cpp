@@ -675,6 +675,7 @@ namespace RdkWindowManager
                             // In bridge mode, attempt to compose video surfaces into the capture path.
                             clearVideoRegion = false;
 #endif
+                            
                             if (clearVideoRegion)
                             {
                                     GLenum error;
@@ -697,7 +698,6 @@ namespace RdkWindowManager
                         }
                     }
                 }
-
             }
         }
         else
@@ -757,7 +757,30 @@ namespace RdkWindowManager
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-        WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+
+        // If firebolt surfaces are present, check whether a Notification surface
+        // is currently visible.  If so, deliver the key event to that surface's
+        // virtual compositor so that the notification overlay receives input.
+        // Otherwise fall through to the main compositor (mWstContext).
+        WstCompositor *keyTarget = mWstContext;
+        if (!mFireboltSurfaces.empty())
+        {
+            for (const auto &fs : mFireboltSurfaces)
+            {
+                if (fs.surfaceType == SurfaceType::Notification && fs.visible
+                    && fs.westerosCompositor != nullptr)
+                {
+                    keyTarget = fs.westerosCompositor;
+                    Logger::log(LogLevel::Information,
+                        "processKeyEvent: routing key %d to Notification surface"
+                        " (surfaceId=%d) compositor display: %s",
+                        keycode, fs.surfaceId, mDisplayName.c_str());
+                    break;
+                }
+            }
+        }
+
+        WstCompositorKeyEvent( keyTarget, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
 #ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
         if (access("/disable/keymetadata", F_OK) != 0)
         {
@@ -1247,7 +1270,6 @@ namespace RdkWindowManager
         if(mFireboltSurfaces.empty())
         {
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
-
             for (std::vector<int>::iterator id = surfaceIds.begin(); id != surfaceIds.end(); id++)
             {
                 if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *id == surfaceId)
@@ -1262,10 +1284,10 @@ namespace RdkWindowManager
                 {
                     WstCompositor* westerosCompositor = NULL;
                     westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
+                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, *id );
                     FireboltSurfaceInfo mainSurfaceInfo;
-                    mainSurfaceInfo.surfaceId = surfaceId;
-                    mainSurfaceInfo.surfaceType = surfaceType;
+                    mainSurfaceInfo.surfaceId = *id;
+                    mainSurfaceInfo.surfaceType = SurfaceType::Standard;
                     mainSurfaceInfo.westerosCompositor = westerosCompositor;
                     mFireboltSurfaces.push_back(mainSurfaceInfo);
                 }
