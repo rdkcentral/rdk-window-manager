@@ -31,6 +31,10 @@ struct RdkWindowManagerKeyMap
 };
 
 static std::map<uint32_t, struct RdkWindowManagerKeyMap> sRdkWindowManagerKeyMap;
+// Reverse of sRdkWindowManagerKeyMap: mappedKeyCode -> original waylandKeyCode.
+// Used by keyCodeToWayland so that keys translated via the JSON keymap file in
+// keyCodeFromWayland round-trip correctly back to a Wayland key code.
+static std::map<uint32_t, uint32_t> sRdkWindowManagerKeyMapReverse;
 static std::map<std::string, struct RdkWindowManagerKeyMap> sRdkWindowManagerVirtualKeyMap;
 
 uint32_t getKeyFlag(std::string modifier)
@@ -117,6 +121,11 @@ void mapNativeKeyCodes()
                 keyMap.code = mappedKeyCode;
                 keyMap.flags = flags;
                 sRdkWindowManagerKeyMap[keyCode] = keyMap;
+                // Populate the reverse map so keyCodeToWayland can round-trip
+                // keys that were translated via the JSON keymap.
+                // First-write-wins: if multiple wayland codes map to the same
+                // mapped code, keep the first registered mapping.
+                sRdkWindowManagerKeyMapReverse.emplace(mappedKeyCode, keyCode);
               }
               else
               {
@@ -657,6 +666,19 @@ bool keyCodeFromVirtual(std::string& virtualKey, uint32_t &mappedKeyCode, uint32
 uint32_t keyCodeToWayland(uint32_t keyCode)
 {
     uint32_t  waylandKeyCode = 0;
+
+    // If this key code was produced as a mapped output by keyCodeFromWayland
+    // (sRdkWindowManagerKeyMap, e.g. wayland 63 -> mapped 184), return it
+    // unchanged so the same value reaches the virtual compositor without any
+    // further switch-case transformation.
+    auto reverseIt = sRdkWindowManagerKeyMapReverse.find(keyCode);
+    if (reverseIt != sRdkWindowManagerKeyMapReverse.end())
+    {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
+            "keyCodeToWayland: %u is a keymap-mapped value, passing through as-is",
+            keyCode);
+        return keyCode;
+    }
 
    switch( keyCode )
    {
