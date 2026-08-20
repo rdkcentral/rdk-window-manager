@@ -667,6 +667,7 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
 {
     uint32_t  waylandKeyCode = 0;
 
+#ifdef RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS
     // If this key code was produced as a mapped output by keyCodeFromWayland
     // (sRdkWindowManagerKeyMap, e.g. wayland 63 -> mapped 184), return it
     // unchanged so the same value reaches the virtual compositor without any
@@ -679,7 +680,7 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
             keyCode);
         return keyCode;
     }
-
+#endif
    switch( keyCode )
    {
       case RDK_WINDOW_MANAGER_KEY_BACKSPACE:
