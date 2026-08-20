@@ -2330,7 +2330,31 @@ namespace RdkWindowManager
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
         size = 4 * width * height;
         data = (uint8_t *)malloc(size);
+	if (!data)
+    	{
+        Logger::log(LogLevel::Error,
+            "screenShot: malloc failed for %u bytes", size);
+        return false;
+    	}
+	Logger::log(LogLevel::Information,"Test Abi screenShot: starting glReadPixels width=%u height=%u",width, height);
         glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	Logger::log(LogLevel::Information, "screenShot: glReadPixels completed");
+
+	GLenum err = glGetError();
+   	if (err != GL_NO_ERROR)
+    	{
+        Logger::log(LogLevel::Error, "screenShot: glReadPixels failed, GL error=0x%x", err);
+
+        free(data);
+        data = nullptr;
+        size = 0;
+
+        return false;
+    	}
+
+    	Logger::log(LogLevel::Information, "screenShot: capture successful width=%u height=%u size=%u",
+			        width, height, size);
+
         return true;
     }
 
