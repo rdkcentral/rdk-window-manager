@@ -155,6 +155,7 @@ list( APPEND RDK_WINDOW_MANAGER_SOURCES
   src/VncServer/VncServer.cpp
   src/VncServer/VncServerFactory.cpp
   src/VncServer/VncFrameBuffer.cpp
+  src/VncServer/VncCaptureThread.cpp
   src/VncServer/VncClient.cpp
   src/VncServer/VncBuffer.cpp
   src/VncServer/VncSoupTcpServer.cpp

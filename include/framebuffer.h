@@ -33,6 +33,7 @@ namespace RdkWindowManager
         int height() const { return mHeight; }
 
         GLuint texture() const { return mTextureId; }
+        GLuint fboId() const { return mFboId; }
 
         void bind();
         void unbind();
