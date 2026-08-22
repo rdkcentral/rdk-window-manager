@@ -326,7 +326,7 @@ namespace RdkWindowManager
     {
         bool ret = false;
 
-	Logger::log(Debug, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
+	Logger::log(LogLevel::Information, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
 	    gKeyInterceptedMap.clear();
@@ -342,9 +342,13 @@ namespace RdkWindowManager
                     isFocused = true;
                 }
 
-		Logger::log(Debug, "inside for loop gKeyInterceptInfoMap and isFocused -%d info.compositorInfo.name - %s", isFocused,info.compositorInfo.name.c_str());
+		Logger::log(LogLevel::Information, "inside for loop gKeyInterceptInfoMap and isFocused -%d info.compositorInfo.name - %s", isFocused,info.compositorInfo.name.c_str());
                 if (info.flags == flags && info.compositorInfo.compositor->getInputEventsEnabled())
                 {
+		    Logger::log(LogLevel::Information,
+		        "Key intercept match: keyCode=%u flags=%u client=%s focusOnly=%d isFocused=%d focusedClient=%s",
+		        keycode, flags, info.compositorInfo.name.c_str(), info.focusOnly, isFocused,
+		        gFocusedCompositor.name.empty() ? "<none>" : gFocusedCompositor.name.c_str());
 		    if( (true == info.focusOnly))
 		    {
 
@@ -2953,4 +2957,5 @@ namespace RdkWindowManager
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
+
 
