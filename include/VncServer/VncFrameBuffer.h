@@ -52,21 +52,8 @@ namespace RdkWindowManager {
         bool initPBOs();
         void destroyPBOs();
 
-        /**
-         * Called from publish() – non-blocking on the GL thread.
-         * Kicks off glReadPixels into a PBO and posts the PBO to
-         * VncCaptureThread for async mapping and delivery.
-         *
-         * @param bridgeMode true when the frame is for VncBridgeServer.
-         */
         void startAsyncCapture(bool bridgeMode);
 
-        /**
-         * Callback installed into VncCaptureThread.
-         * Invoked on the capture thread once PBO mapping succeeds.
-         * Copies/scales pixels into mRGBAData then calls the appropriate
-         * send path (VNC socket or bridge server).
-         */
         void onFrameReady(const uint8_t* pixels,
                           uint32_t pboWidth,
                           uint32_t pboHeight,
@@ -74,9 +61,6 @@ namespace RdkWindowManager {
 
         // ---- Members ----
         std::shared_ptr<FrameBuffer> mFrameBuffer;
-        // Intermediate VNC-sized FBO used as the GPU blit destination.
-        // glBlitFramebuffer downscales the source (e.g. 1920x1080) to this
-        // FBO (mWidth x mHeight) so glReadPixels only DMA's the smaller buffer.
         std::shared_ptr<FrameBuffer> mCaptureFbo;
         uint32_t    mWidth;
         uint32_t    mHeight;
@@ -86,18 +70,13 @@ namespace RdkWindowManager {
         uint8_t*    mVncFrameBufferPtr;
         size_t      mVncFrameBufferSize;
 
-        // Intermediate RGBA buffer written by VncCaptureThread,
-        // consumed by readAndConvertPixelData on the same thread.
         std::vector<uint8_t> mRGBAData;
 
-        // Ping-pong PBOs – allocated on the GL thread, shared with the
-        // capture thread's EGL context.
         static constexpr int kPboCount = 2;
         GLuint   mPboIds[kPboCount];
         int      mPboWriteIndex;
         bool     mPboInitialized;
 
-        // Dedicated thread that owns glClientWaitSync + glMapBufferRange
         VncCaptureThread mCaptureThread;
     };
 
