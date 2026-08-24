@@ -55,6 +55,12 @@ bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
 
+#ifdef ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND
+const float gClearAlpha = 0.0f;
+#else
+const float gClearAlpha = 1.0f;
+#endif
+
 namespace RdkWindowManager
 {
 
@@ -194,6 +200,37 @@ namespace RdkWindowManager
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        {
+            char const *showSplash = getenv("RDKWINDOWMANAGER_SHOW_SPLASH_SCREEN");
+            if (showSplash && (strcmp(showSplash, "1") == 0))
+            {
+                std::ifstream splashDoneFile(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
+                if (!splashDoneFile.good())
+                {
+                    uint32_t splashTime = 0;
+                    char const *splashTimeValue = getenv("RDKWINDOWMANAGER_SPLASH_TIME_IN_SECONDS");
+                    if (splashTimeValue)
+                    {
+                        int value = atoi(splashTimeValue);
+                        if (value > 0)
+                            splashTime = (uint32_t)value;
+                    }
+                    if (CompositorController::showSplashScreen(splashTime))
+                    {
+                        // Touch the marker file so we don't re-show the splash
+                        // on subsequent WPEFramework restarts within the same boot.
+                        std::ofstream output(RDK_WINDOW_MANAGER_SPLASH_SCREEN_FILE_CHECK);
+                    }
+                }
+                else
+                {
+                    Logger::log(LogLevel::Information, "splash screen skipped — already shown since last boot");
+                }
+            }
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+
         CompositorController::initialize();
        //launchMemoryMonitorThread();
     }
@@ -213,7 +250,7 @@ namespace RdkWindowManager
             uint32_t height = 0;
             RdkWindowManager::EssosInstance::instance()->resolution(width, height);
             glViewport( 0, 0, width, height );
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClearColor(0.0f, 0.0f, 0.0f, gClearAlpha);
             glClear(GL_COLOR_BUFFER_BIT);
 
             const double maxSleepTime = (1000 / gCurrentFramerate) * 1000;
@@ -238,7 +275,7 @@ namespace RdkWindowManager
         uint32_t height = 0;
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
         glViewport( 0, 0, width, height );
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, gClearAlpha);
         glClear(GL_COLOR_BUFFER_BIT);
 
         RdkWindowManager::CompositorController::draw();

@@ -159,6 +159,8 @@ namespace RdkWindowManager
             static std::string getDisplayNameFromAlias(const std::string& alias);
             static std::string getAliasFromDisplayName(const std::string& clientId);
             static bool getCapabilities(const std::string& clientId, std::string& capabilities);
+            static bool showSplashScreen(uint32_t displayTimeInSeconds);
+            static bool hideSplashScreen();
     };
 }
 

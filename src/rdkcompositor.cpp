@@ -54,7 +54,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
+        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -171,6 +171,16 @@ namespace RdkWindowManager
              case WstClient_firstFrame:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client first frame received");
                  eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 if (!mFirstFrameRendered)
+                 {
+                     mFirstFrameRendered = true;
+                     eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 }
+                 else
+                 {
+                     eventFound = false;
+                 }
+
                  break;
              default:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "unknown client status state");
@@ -410,7 +420,7 @@ namespace RdkWindowManager
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-        if (!mVisible)
+        if (!mVisible && !drawOverlays)
         {
             return;
         }
@@ -675,6 +685,7 @@ namespace RdkWindowManager
                             // In bridge mode, attempt to compose video surfaces into the capture path.
                             clearVideoRegion = false;
 #endif
+                            
                             if (clearVideoRegion)
                             {
                                     GLenum error;
@@ -697,7 +708,6 @@ namespace RdkWindowManager
                         }
                     }
                 }
-
             }
         }
         else
@@ -757,7 +767,39 @@ namespace RdkWindowManager
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-        WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+
+        // If firebolt surfaces are present, check whether a Notification surface
+        // is currently visible.  If so, deliver the key event to that surface's
+        // virtual compositor so that the notification overlay receives input.
+        // Otherwise fall through to the main compositor (mWstContext).
+        WstCompositor *keyTarget = mWstContext;
+        if (!mFireboltSurfaces.empty())
+        {
+            for (const auto &fs : mFireboltSurfaces)
+            {
+                if (fs.surfaceType == SurfaceType::Notification && fs.visible
+                    && fs.westerosCompositor != nullptr)
+                {
+                    keyTarget = fs.westerosCompositor;
+                    Logger::log(LogLevel::Information,
+                        "processKeyEvent: routing key %d to Notification surface"
+                        " (surfaceId=%d) compositor display: %s",
+                        keycode, fs.surfaceId, mDisplayName.c_str());
+                    break;
+                }
+            }
+        }
+
+        WstCompositorKeyEvent( keyTarget, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+#ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
+        if (access("/disable/keymetadata", F_OK) != 0)
+        {
+            RdkWindowManager::InputEvent inputEvent(metadata, (uint32_t)RdkWindowManager::milliseconds(), RdkWindowManager::InputEvent::KeyEvent);
+            inputEvent.details.key.code = waylandKeyCode;
+            inputEvent.details.key.state = keyPressed ? RdkWindowManager::InputEvent::Details::Key::Pressed : RdkWindowManager::InputEvent::Details::Key::Released;
+            broadcastInputEvent(inputEvent);
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
     }
 
 
@@ -1238,13 +1280,14 @@ namespace RdkWindowManager
         if(mFireboltSurfaces.empty())
         {
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
-
             for (std::vector<int>::iterator id = surfaceIds.begin(); id != surfaceIds.end(); id++)
             {
                 if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *id == surfaceId)
                 {
                     WstCompositor* overlayCompositor = NULL;
                     overlayCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+                    WstCompositorSetClientStatusCallback(overlayCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(overlayCompositor, invalidate, this);
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner(overlayCompositor, surfaceId );
                     surfaceInfo.westerosCompositor = overlayCompositor;
                     mFireboltSurfaces.push_back(surfaceInfo);
@@ -1253,10 +1296,12 @@ namespace RdkWindowManager
                 {
                     WstCompositor* westerosCompositor = NULL;
                     westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
+                    WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
+                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, *id );
                     FireboltSurfaceInfo mainSurfaceInfo;
-                    mainSurfaceInfo.surfaceId = surfaceId;
-                    mainSurfaceInfo.surfaceType = surfaceType;
+                    mainSurfaceInfo.surfaceId = *id;
+                    mainSurfaceInfo.surfaceType = SurfaceType::Standard;
                     mainSurfaceInfo.westerosCompositor = westerosCompositor;
                     mFireboltSurfaces.push_back(mainSurfaceInfo);
                 }
@@ -1275,6 +1320,8 @@ namespace RdkWindowManager
 
             WstCompositor* westerosCompositor = NULL;
             westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+            WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+            WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
             result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
             if (result)
             {

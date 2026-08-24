@@ -30,6 +30,8 @@
 #include "rdkwindowmanagerrect.h"
 #include "cursor.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <map>
 #include <ctime>
 #include <mutex>
@@ -143,6 +145,13 @@ namespace RdkWindowManager
     double gLastKeyRepeatTime = 0.0;
     RdkWindowManagerCompositorType gRdkWindowManagerCompositorType = NESTED;
     bool gIgnoreKeyInputEnabled = false;
+
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+    std::shared_ptr<RdkWindowManager::Image> gSplashImage = nullptr;
+    bool gShowSplashImage = false;
+    uint32_t gSplashDisplayTimeInSeconds = 0;
+    double gSplashStartTime = 0;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
 
     std::shared_ptr<Cursor> gCursor = nullptr;
     KeyRepeatConfig gKeyRepeatConfig;
@@ -1749,6 +1758,36 @@ namespace RdkWindowManager
             }
         }
 
+
+        if (gCursor)
+        {
+            gCursor->draw();
+        }
+
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        if (gShowSplashImage && gSplashImage != nullptr)
+        {
+            if (gSplashDisplayTimeInSeconds > 0)
+            {
+                uint32_t splashShownTime = (uint32_t)(RdkWindowManager::seconds() - gSplashStartTime);
+                if (splashShownTime >= gSplashDisplayTimeInSeconds)
+                {
+                    Logger::log(LogLevel::Information, "hiding splash screen after timeout: %u s", gSplashDisplayTimeInSeconds);
+                    gShowSplashImage = false;
+                    gSplashImage = nullptr;
+                }
+                else
+                {
+                    gSplashImage->draw();
+                }
+            }
+            else
+            {
+                gSplashImage->draw();
+            }
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         if (gVncServerEnabled && gVncBuffer)
         {
@@ -1759,11 +1798,6 @@ namespace RdkWindowManager
 #endif
         }
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
-
-        if (gCursor)
-        {
-            gCursor->draw();
-        }
         return true;
     }
 
@@ -2625,7 +2659,9 @@ namespace RdkWindowManager
             if (enable && it->isSuspended) //resuming from suspended
             {
                 //resetting Display size to original
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(it->previousWidth, it->previousHeight);
+#endif
                 it->isSuspended = false;
                 Logger::log(LogLevel::Information,  "resetting Display size to original for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
             }
@@ -2636,7 +2672,9 @@ namespace RdkWindowManager
                 it->isSuspended = true;
                 Logger::log(LogLevel::Information,  "saving Display size for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
                 //setting Display size to 1,1
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(1, 1);
+#endif
             }
 
             if (result && enable)
@@ -2710,6 +2748,90 @@ namespace RdkWindowManager
     #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         return result;
+    }
+}
+
+namespace RdkWindowManager
+{
+    bool CompositorController::showSplashScreen(uint32_t displayTimeInSeconds)
+    {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        Logger::log(LogLevel::Information, "showSplashScreen: requested display time %u s", displayTimeInSeconds);
+        if (gShowSplashImage)
+        {
+            Logger::log(LogLevel::Information, "showSplashScreen: splash already visible, skipping");
+            return true;
+        }
+
+        const char* splashEnv = getenv("RDKWINDOWMANAGER_SPLASH_IMAGE");
+        if (splashEnv == nullptr)
+        {
+            Logger::log(LogLevel::Warn, "showSplashScreen: RDKWINDOWMANAGER_SPLASH_IMAGE not set");
+            return false;
+        }
+
+        // Iterate the comma-separated list and pick the first path that exists
+        std::string selectedPath;
+        std::istringstream stream(splashEnv);
+        std::string token;
+        while (std::getline(stream, token, ','))
+        {
+            const size_t start = token.find_first_not_of(" \t");
+            const size_t end   = token.find_last_not_of(" \t");
+            if (start == std::string::npos)
+                continue;
+            token = token.substr(start, end - start + 1);
+            if (std::ifstream(token).good())
+            {
+                selectedPath = token;
+                Logger::log(LogLevel::Information, "showSplashScreen: using splash image: %s", selectedPath.c_str());
+                break;
+            }
+            Logger::log(LogLevel::Information, "showSplashScreen: skipping '%s' (not found)", token.c_str());
+        }
+
+        if (selectedPath.empty())
+        {
+            Logger::log(LogLevel::Warn, "showSplashScreen: no usable splash image found in RDKWINDOWMANAGER_SPLASH_IMAGE");
+            return false;
+        }
+
+        gSplashImage = std::make_shared<RdkWindowManager::Image>();
+        gShowSplashImage = gSplashImage->loadLocalFile(selectedPath.c_str());
+        if (!gShowSplashImage)
+        {
+            Logger::log(LogLevel::Error, "showSplashScreen: failed to load image: %s", selectedPath.c_str());
+            gSplashImage = nullptr;
+            return false;
+        }
+
+        gSplashDisplayTimeInSeconds = displayTimeInSeconds;
+        gSplashStartTime = RdkWindowManager::seconds();
+        Logger::log(LogLevel::Information, "showSplashScreen: showing '%s' for %u s", selectedPath.c_str(), displayTimeInSeconds);
+        return true;
+#else
+        Logger::log(LogLevel::Warn, "showSplashScreen: splash screen support not compiled in");
+        return false;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+    }
+
+    bool CompositorController::hideSplashScreen()
+    {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        Logger::log(LogLevel::Information, "hideSplashScreen: hiding splash screen");
+        if (!gShowSplashImage)
+        {
+            Logger::log(LogLevel::Information, "hideSplashScreen: splash already hidden, skipping");
+            return true;
+        }
+        gShowSplashImage = false;
+        gSplashImage = nullptr;
+        Logger::log(LogLevel::Information, "hideSplashScreen: splash screen hidden");
+        return true;
+#else
+        Logger::log(LogLevel::Warn, "hideSplashScreen: splash screen support not compiled in");
+        return false;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
 
