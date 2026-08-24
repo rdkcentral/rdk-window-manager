@@ -70,10 +70,6 @@ namespace RdkWindowManager
             return;
         }
 
-        // Install the callback that the VncCaptureThread will invoke on each
-        // successfully mapped PBO frame.  All heavy work (pixel copy, format
-        // conversion, socket send) runs here on the capture thread, keeping
-        // the GL render thread free.
         mCaptureThread.setFrameReadyCallback(
             [this](const uint8_t* pixels, uint32_t pboW, uint32_t pboH, bool bridgeMode)
             {
@@ -85,13 +81,10 @@ namespace RdkWindowManager
     {
         Logger::log(LogLevel::Information, "%s VncFrameBuffer Destructor", __func__);
 
-        // Stop the capture thread first so it releases any PBO it may be
-        // mapping before we delete the GL buffer objects.
         mCaptureThread.stop();
 
         destroyPBOs();
 
-        // Explicitly release the capture FBO while the GL context is still active
         mCaptureFbo.reset();
 
         if (mVncFrameBufferPtr != nullptr)
@@ -163,15 +156,6 @@ namespace RdkWindowManager
                                               0, 0, mWidth, mHeight, mOpacity);
     }
 
-    // -------------------------------------------------------------------------
-    // publish() – called from the GL render thread on every compositor frame.
-    //
-    // The function is intentionally non-blocking: it only initiates a GPU→PBO
-    // DMA transfer (glReadPixels with a nullptr destination) and posts the PBO
-    // handle to VncCaptureThread.  All CPU-heavy work (waiting for the fence
-    // sync, mapping the PBO, pixel conversion, socket send) happens on the
-    // dedicated capture thread so the render pipeline is not stalled.
-    // -------------------------------------------------------------------------
     void VncFrameBuffer::publish()
     {
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
@@ -181,8 +165,6 @@ namespace RdkWindowManager
             return;
         }
 
-        // In VNCServer2 bridge mode, internal socket-based frame publishing
-        // is not used.  Clear the stale update flag and return.
         if (VncBridgeServer::getInstance().isRunning())
         {
             VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
@@ -211,16 +193,6 @@ namespace RdkWindowManager
         }
     }
 
-    // -------------------------------------------------------------------------
-    // startAsyncCapture() – GL thread, non-blocking.
-    //
-    // 1. Lazy-starts VncCaptureThread (creates a shared EGL context once).
-    // 2. Ensures PBOs are allocated at the correct resolution.
-    // 3. Binds a PBO and issues glReadPixels(nullptr) → GPU DMA begins.
-    // 4. Creates a glFenceSync and hands both the PBO id and the sync to the
-    //    capture thread (postFrame is a non-blocking call).
-    // 5. Advances the ping-pong PBO index and returns immediately.
-    // -------------------------------------------------------------------------
     void VncFrameBuffer::startAsyncCapture(bool bridgeMode)
     {
         // Lazy-start the capture thread using the GL thread's current EGL context
@@ -243,9 +215,6 @@ namespace RdkWindowManager
             }
         }
 
-        // Snapshot the currently bound FBO – this is the source for the GPU blit.
-        //   Bridge mode   : compositor has left its display FBO bound (typically 0).
-        //   Non-bridge    : begin() has bound mFrameBuffer (the VNC render target).
         GLint srcFboId = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &srcFboId);
 
@@ -272,11 +241,6 @@ namespace RdkWindowManager
         }
 #endif
 
-        // Lazy-create the intermediate capture FBO at VNC output dimensions.
-        // This mirrors AI1.0 (WesterosWindowManager) mCaptureFrameBuffer.
-        // glBlitFramebuffer will GPU-scale the source into this FBO so that
-        // glReadPixels only DMA's mWidth×mHeight pixels instead of the full
-        // source resolution (e.g. 1920×1080 → 960×540 = 4× less data).
         if (!mCaptureFbo)
         {
             mCaptureFbo = std::make_shared<FrameBuffer>(static_cast<int>(mWidth),
@@ -285,25 +249,14 @@ namespace RdkWindowManager
                         __func__, mWidth, mHeight);
         }
 
-        // ── GPU blit ───────────────────────────────────────────────────────────
-        // Bind the capture FBO as the draw target and the source FBO as the
-        // read source, then let the GPU scale the frame (hardware-accelerated,
-        // ~1 ms).  This is the same pattern as AI1.0's captureScreen():
-        //   glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        //   mCaptureFbo->bind(GL_DRAW_FRAMEBUFFER);
-        //   glBlitFramebuffer(full-res, vnc-res, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mCaptureFbo->fboId());
         glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(srcFboId));
         glBlitFramebuffer(0, 0, static_cast<GLint>(srcWidth),  static_cast<GLint>(srcHeight),
                           0, 0, static_cast<GLint>(mWidth),    static_cast<GLint>(mHeight),
                           GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-        // Switch read source to the (now populated) capture FBO
         glBindFramebuffer(GL_READ_FRAMEBUFFER, mCaptureFbo->fboId());
 
-        // Init PBOs at VNC output size on first use.  The GPU blit above has
-        // already resolved any source/destination dimension mismatch, so the
-        // PBO is always mWidth × mHeight regardless of the source resolution.
         if (!mPboInitialized)
         {
             if (!initPBOs())
@@ -324,8 +277,6 @@ namespace RdkWindowManager
 
         const int writeIdx = mPboWriteIndex;
 
-        // Non-blocking async GPU→PBO DMA at VNC output size.
-        // nullptr destination routes the transfer into the bound PBO.
         glBindBuffer(GL_PIXEL_PACK_BUFFER, mPboIds[writeIdx]);
         glReadPixels(0, 0, static_cast<GLsizei>(mWidth), static_cast<GLsizei>(mHeight),
                      GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -352,12 +303,8 @@ namespace RdkWindowManager
             return;
         }
 
-        // Hand PBO + sync to the capture thread (non-blocking).
-        // The capture thread calls glClientWaitSync, maps the PBO, and delivers
-        // the frame – all without stalling the GL render loop.
         mCaptureThread.postFrame(mPboIds[writeIdx], sync, mWidth, mHeight, bridgeMode);
 
-        // Advance the write index for the next call (ping-pong)
         mPboWriteIndex = (mPboWriteIndex + 1) % kPboCount;
     }
 
@@ -384,9 +331,6 @@ namespace RdkWindowManager
             return;
         }
 
-        // The GPU blit in startAsyncCapture() has already scaled the source frame
-        // to mWidth × mHeight, so pboWidth == mWidth and pboHeight == mHeight always.
-        // A simple memcpy is sufficient – no CPU scaling required.
         std::memcpy(mRGBAData.data(), pixels, mWidth * mHeight * 4);
 
         if (bridgeMode)

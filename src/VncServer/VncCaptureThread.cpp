@@ -39,12 +39,6 @@ void VncCaptureThread::setFrameReadyCallback(FrameReadyCallback cb)
     mFrameReadyCallback = std::move(cb);
 }
 
-// -----------------------------------------------------------------------------
-/*!
-    Starts the capture thread.  Must be called from the GL render thread
-    while its EGL context is current so we can query the config id and
-    create a shared context for this thread.
-*/
 bool VncCaptureThread::start(EGLDisplay display, EGLContext parentContext)
 {
     if (mRunning.load())
@@ -66,10 +60,6 @@ bool VncCaptureThread::start(EGLDisplay display, EGLContext parentContext)
     return true;
 }
 
-// -----------------------------------------------------------------------------
-/*!
-    Signals the capture thread to exit and waits for it to join.
-*/
 void VncCaptureThread::stop()
 {
     {
@@ -92,16 +82,6 @@ bool VncCaptureThread::isBusy() const
     return mBusy.load();
 }
 
-// -----------------------------------------------------------------------------
-/*!
-    Called from the GL render thread (non-blocking).
-
-    Transfers ownership of @a sync to the capture thread.  If a previous
-    frame has not yet been consumed its sync is deleted here on the GL thread
-    (it was created on the GL thread so it is safe to delete it here) and the
-    incoming frame replaces it — latest-frame-wins policy, matching the
-    reference ScreenCaptureThread::postPixelBuffer behaviour.
-*/
 void VncCaptureThread::postFrame(GLuint   pboId,
                                   GLsync   sync,
                                   uint32_t pboWidth,
@@ -127,22 +107,6 @@ void VncCaptureThread::postFrame(GLuint   pboId,
     mCond.notify_one();
 }
 
-// -----------------------------------------------------------------------------
-/*!
-    \internal
-
-    Main loop running on the dedicated capture thread.
-
-    Creates a shared GLES3 EGL context (surfaceless) so that PBO objects
-    allocated on the render thread are visible here and GL sync / map
-    operations can be performed without touching the render thread's context.
-
-    Flow per posted frame:
-      1. glClientWaitSync  – blocks until GPU DMA into the PBO is complete
-      2. glMapBufferRange  – maps PBO memory into CPU address space
-      3. FrameReadyCallback – delivers the raw pixel pointer to VncFrameBuffer
-      4. glUnmapBuffer / glDeleteSync – release resources
-*/
 void VncCaptureThread::captureLoop(EGLDisplay display, EGLContext parentContext)
 {
     // ------------------------------------------------------------------
