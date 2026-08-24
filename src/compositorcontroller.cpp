@@ -75,7 +75,7 @@ namespace RdkWindowManager
         std::string capabilities;
     };
 
-    struct KeyInterceptInfo
+    struct  KeyInterceptInfo
     {
         KeyInterceptInfo() : keyCode(-1), flags(0), focusOnly(false), propagate(false), compositorInfo() {}
         uint32_t keyCode;
@@ -327,10 +327,30 @@ namespace RdkWindowManager
         bool ret = false;
 
 	Logger::log(LogLevel::Information, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
-        const uint32_t kQamKeyCode = 125;
+        const uint32_t kQamKeyCode = 184;
         if (keycode == kQamKeyCode) {
             Logger::log(LogLevel::Information, "sona: interceptKey: QAM dispatch begins; keyCode=%u registered match count=%zu", keycode, gKeyInterceptInfoMap[keycode].size());
         }
+        auto it = gKeyInterceptInfoMap.find(keycode);
+        if (it == gKeyInterceptInfoMap.end()) {
+            Logger::log(LogLevel::Information, "sona: interceptKey: keyCode=%u has no intercept registration in gKeyInterceptInfoMap", keycode);
+            std::vector<uint32_t> nearbyKeys = {36, 39, 40, 110, 112, 116, 117, 119, 124, 125, 126, 184, 187, 190, 365, 377};
+            for (const uint32_t nearbyKey : nearbyKeys) {
+                auto nearbyIt = gKeyInterceptInfoMap.find(nearbyKey);
+                if (nearbyIt != gKeyInterceptInfoMap.end()) {
+                    Logger::log(LogLevel::Information, "sona: interceptKey: nearby keyCode=%u has %zu registrations", nearbyKey, nearbyIt->second.size());
+                    for (size_t idx = 0; idx < nearbyIt->second.size(); ++idx) {
+                        const auto& entry = nearbyIt->second[idx];
+                        Logger::log(LogLevel::Information, "sona: interceptKey: nearby keyCode=%u entry[%zu] client=%s flags=%u focusOnly=%d propagate=%d",
+                            nearbyKey, idx, entry.compositorInfo.name.c_str(), entry.flags, entry.focusOnly, entry.propagate);
+                    }
+                } else {
+                    Logger::log(LogLevel::Information, "sona: interceptKey: nearby keyCode=%u has no intercept registration", nearbyKey);
+                }
+            }
+            return ret;
+        }
+        Logger::log(LogLevel::Information, "sona: interceptKey: keyCode=%u has %zu candidate registrations", keycode, it->second.size());
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
 	    gKeyInterceptedMap.clear();
@@ -1495,6 +1515,9 @@ namespace RdkWindowManager
     void CompositorController::onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
         //Logger::log(LogLevel::Information,  "key press code " << keycode << " flags " << flags << std::endl;
+        if (keycode == 184 || keycode == 125) {
+            Logger::log(LogLevel::Information, "sona: onKeyPress: keyCode=%u before intercept check focusedClient=%s notificationSurface=%u", keycode, gFocusedCompositor.name.empty() ? "<none>" : gFocusedCompositor.name.c_str(), gNotificationSurfaceId);
+        }
         double currentTime = RdkWindowManager::seconds();
         if ((true == physicalKeyPress) && (0.0 == gLastKeyPressStartTime))
         {
@@ -1530,6 +1553,9 @@ namespace RdkWindowManager
     void CompositorController::onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
         //Logger::log(LogLevel::Information,  "key release code " << keycode << " flags " << flags << std::endl;
+        if (keycode == 184 || keycode == 125) {
+            Logger::log(LogLevel::Information, "sona: onKeyRelease: keyCode=%u before intercept check focusedClient=%s notificationSurface=%u", keycode, gFocusedCompositor.name.empty() ? "<none>" : gFocusedCompositor.name.c_str(), gNotificationSurfaceId);
+        }
 
         if (true == physicalKeyPress)
         {
