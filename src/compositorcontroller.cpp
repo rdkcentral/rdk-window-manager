@@ -327,8 +327,9 @@ namespace RdkWindowManager
         bool ret = false;
 
 	Logger::log(LogLevel::Information, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
-        if (keycode == KeyMap::strToKeyCode("qam")) {
-            Logger::log(LogLevel::Information, "interceptKey: QAM dispatch begins; registered match count=%zu", gKeyInterceptInfoMap[keycode].size());
+        const uint32_t kQamKeyCode = 125;
+        if (keycode == kQamKeyCode) {
+            Logger::log(LogLevel::Information, "sona: interceptKey: QAM dispatch begins; keyCode=%u registered match count=%zu", keycode, gKeyInterceptInfoMap[keycode].size());
         }
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
@@ -340,9 +341,9 @@ namespace RdkWindowManager
                 bool isFocused = false;
                 bool interceptFlag = false;
 
-                if (keycode == KeyMap::strToKeyCode("qam")) {
+                if (keycode == kQamKeyCode) {
                     Logger::log(LogLevel::Information,
-                        "interceptKey: QAM candidate client=%s flags=%u focusOnly=%d propagate=%d focused=%d currentFocused=%s",
+                        "sona: interceptKey: QAM candidate client=%s flags=%u focusOnly=%d propagate=%d focused=%d currentFocused=%s",
                         info.compositorInfo.name.c_str(),
                         info.flags,
                         info.focusOnly,
@@ -1181,8 +1182,8 @@ namespace RdkWindowManager
         for (const auto& clientAliasEntry : gClientAliasMap)
         {
             if (clientAliasEntry.second == alias)
-        {
-                    return clientAliasEntry.first;
+            {
+                return clientAliasEntry.first;
             }
         }
 
