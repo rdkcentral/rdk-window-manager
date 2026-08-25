@@ -54,6 +54,7 @@ endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
 option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
+option(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS "RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS" OFF)
 option(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND "Enable transparent background clear alpha for RDKWindowManager" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
@@ -176,6 +177,11 @@ if (RDK_WINDOW_MANAGER_LOGGER)
   add_definitions(-DRDK_WINDOW_MANAGER_LOGFILE=\"/opt/logs/rdkwindowmanager.log\")
   set(RDK_WINDOW_MANAGER_LOGGER_SOURCE tests/testlogmonitor.cpp)
 endif (RDK_WINDOW_MANAGER_LOGGER)
+
+if(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS)
+     message(STATUS "Enable keys mapped forwarding")
+     add_definitions("-DRDKWINDOWMANAGER_FORWARD_MAPPED_KEYS")
+endif()
 
 # Wayland Extensions files and extension server portion binded with RDK window manager.
 # Extension protocol interface as shared library to be linked with respective application
