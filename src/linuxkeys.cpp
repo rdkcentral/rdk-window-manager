@@ -667,19 +667,6 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
 {
     uint32_t  waylandKeyCode = 0;
 
-    // If this key code was produced as a mapped output by keyCodeFromWayland
-    // (sRdkWindowManagerKeyMap, e.g. wayland 63 -> mapped 184), return it
-    // unchanged so the same value reaches the virtual compositor without any
-    // further switch-case transformation.
-    auto reverseIt = sRdkWindowManagerKeyMapReverse.find(keyCode);
-    if (reverseIt != sRdkWindowManagerKeyMapReverse.end())
-    {
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
-            "keyCodeToWayland: %u is a keymap-mapped value, passing through as-is",
-            keyCode);
-        return keyCode;
-    }
-
    switch( keyCode )
    {
       case RDK_WINDOW_MANAGER_KEY_BACKSPACE:
@@ -1079,5 +1066,33 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
          break;
    }
 
+   // JSON-driven remaps are a separate compatibility layer. Keep them as a
+   // fallback only after the standard native mapping switch, so regular keys such
+   // as Home/F14 are not bypassed by a reverse-map hit.
+   if ((waylandKeyCode == 0) || (waylandKeyCode == static_cast<uint32_t>(-1)))
+   {
+      auto reverseIt = sRdkWindowManagerKeyMapReverse.find(keyCode);
+      if (reverseIt != sRdkWindowManagerKeyMapReverse.end())
+      {
+         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
+            "keyCodeToWayland fallback: keyCode=%u -> remapped waylandKeyCode=%u",
+            keyCode, reverseIt->second);
+         waylandKeyCode = reverseIt->second;
+      }
+      else
+      {
+         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
+            "keyCodeToWayland no standard or reverse mapping for keyCode=%u, final waylandKeyCode=%u",
+            keyCode, waylandKeyCode);
+      }
+   }
+   else
+   {
+      RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
+         "keyCodeToWayland standard mapping: keyCode=%u -> waylandKeyCode=%u",
+         keyCode, waylandKeyCode);
+   }
+
    return  waylandKeyCode;
  }
+
