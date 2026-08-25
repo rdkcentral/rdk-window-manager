@@ -243,13 +243,13 @@ void mapVirtualKeyCodes()
 
 bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t &mappedKeyCode, uint32_t &mappedFlags)
 {
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key event - keyCode: %u flags: %u", waylandKeyCode, waylandFlags);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "key event - keyCode: %u flags: %u", waylandKeyCode, waylandFlags);
     std::map<uint32_t, struct RdkWindowManagerKeyMap>::iterator it  = sRdkWindowManagerKeyMap.find(waylandKeyCode);
     if (it != sRdkWindowManagerKeyMap.end())
     {
       mappedKeyCode = it->second.code;
       mappedFlags = it->second.flags;
-      RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key mapped from config - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
+      RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "key mapped from config - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
       return true;
     }
     int standardKeyCode = 0;
@@ -645,7 +645,7 @@ bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t
     }
     mappedKeyCode = standardKeyCode;
     mappedFlags = waylandFlags;
-    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key mapped - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "key mapped - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
     return true;
 }
 
@@ -666,6 +666,10 @@ bool keyCodeFromVirtual(std::string& virtualKey, uint32_t &mappedKeyCode, uint32
 uint32_t keyCodeToWayland(uint32_t keyCode)
 {
     uint32_t  waylandKeyCode = 0;
+
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
+       "keyCodeToWayland start: inputKeyCode=%u",
+       keyCode);
 
    switch( keyCode )
    {
@@ -1062,34 +1066,34 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
          break;
       default:
          RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "common key code not found %d",keyCode);
-         waylandKeyCode= -1;
+         waylandKeyCode = 0;
          break;
    }
 
    // JSON-driven remaps are a separate compatibility layer. Keep them as a
    // fallback only after the standard native mapping switch, so regular keys such
    // as Home/F14 are not bypassed by a reverse-map hit.
-   if ((waylandKeyCode == 0) || (waylandKeyCode == static_cast<uint32_t>(-1)))
+   if (waylandKeyCode == 0)
    {
       auto reverseIt = sRdkWindowManagerKeyMapReverse.find(keyCode);
       if (reverseIt != sRdkWindowManagerKeyMapReverse.end())
       {
          RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
-            "keyCodeToWayland fallback: keyCode=%u -> remapped waylandKeyCode=%u",
+            "keyCodeToWayland fallback: inputKeyCode=%u -> remapped waylandKeyCode=%u",
             keyCode, reverseIt->second);
          waylandKeyCode = reverseIt->second;
       }
       else
       {
          RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
-            "keyCodeToWayland no standard or reverse mapping for keyCode=%u, final waylandKeyCode=%u",
+            "keyCodeToWayland no standard or reverse mapping: inputKeyCode=%u final waylandKeyCode=%u",
             keyCode, waylandKeyCode);
       }
    }
    else
    {
       RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
-         "keyCodeToWayland standard mapping: keyCode=%u -> waylandKeyCode=%u",
+         "keyCodeToWayland standard mapping: inputKeyCode=%u -> waylandKeyCode=%u",
          keyCode, waylandKeyCode);
    }
 
