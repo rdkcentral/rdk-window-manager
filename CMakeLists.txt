@@ -55,6 +55,7 @@ option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 in
 option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
 option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
 option(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS "RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS" OFF)
+option(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND "Enable transparent background clear alpha for RDKWindowManager" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -98,6 +99,11 @@ endif(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)
 if(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE)
      message(STATUS "Enable render minimize: resize window to 1x1 and maximize inside enableDisplayRender")
      add_definitions("-DENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE")
+endif()
+
+if(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND)
+  message(STATUS "Enable transparent background clear alpha")
+  add_definitions("-DENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND")
 endif()
 
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)

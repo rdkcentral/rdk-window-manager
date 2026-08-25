@@ -54,7 +54,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
+        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -420,7 +420,7 @@ namespace RdkWindowManager
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-        if (!mVisible)
+        if (!mVisible && !drawOverlays)
         {
             return;
         }
