@@ -639,9 +639,10 @@ bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t
         standardKeyCode = RDK_WINDOW_MANAGER_KEY_F24;
         break;
     default:
-        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "unknown key code %u", waylandKeyCode);
-        standardKeyCode = waylandKeyCode;
-        break;
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "unknown key code %u: leaving unresolved", waylandKeyCode);
+        mappedKeyCode = 0;
+        mappedFlags = 0;
+        return false;
     }
     mappedKeyCode = standardKeyCode;
     mappedFlags = waylandFlags;
