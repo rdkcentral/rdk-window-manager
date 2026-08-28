@@ -1655,14 +1655,14 @@ namespace RdkWindowManager
             bool bNotifyFocusEvent = false;
             CompositorInfo prevFocusedCompositor = gFocusedCompositor;
 
-/*
+
             if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
             {
                 gFocusedCompositor = compositorInfo;
                 bNotifyFocusEvent = true;
                 Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
             }
-            else*/ if (focus)
+            else if (focus)
             {
                 gFocusedCompositor = compositorInfo;
                 bNotifyFocusEvent = true;
