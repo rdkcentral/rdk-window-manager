@@ -1730,9 +1730,6 @@ namespace RdkWindowManager
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
         }
 
-        // Global hole punch: after apps but before subtitles/watermark, punch a
-        // transparent hole to expose the HW video layer beneath the composited
-        // output — mirrors the per-player hole punch in WesterosWindowManager.
         {
             std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
             if (gGlobalHolePunchEnabled)

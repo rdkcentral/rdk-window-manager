@@ -18,6 +18,7 @@
 **/
 
 #include <netdb.h>
+#include <cstring>
 
 #include "VncClient.h"
 #include "VncServer.h"
@@ -26,6 +27,9 @@
 #include "framebufferrenderer.h"
 #include "logger.h"
 #include "MemFd.h"
+
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
 
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
 #include "VncBridgeServer.h"
@@ -37,14 +41,16 @@ std::mutex mVNCFrameBufferContextLock;
 namespace RdkWindowManager
 {
     VncFrameBuffer::VncFrameBuffer(uint32_t width, uint32_t height)
-        : mPixelsProcessingInProgress(false),
-          mWidth(width),
+        : mWidth(width),
           mHeight(height),
           mMatrix(),
           mOpacity(1.0),
           mVncFrameBufferPtr(nullptr),
           mVncFrameBufferSize(0),
-                    mRGBAData(width * height * 4)
+          mRGBAData(width * height * 4),
+          mPboIds{0, 0},
+          mPboWriteIndex(0),
+          mPboInitialized(false)
     {
         Logger::log(LogLevel::Information, "In %s Constructor width: %d height: %d", __func__, width, height);
         mFrameBuffer = std::make_shared<FrameBuffer>(mWidth, mHeight);
@@ -63,20 +69,30 @@ namespace RdkWindowManager
             Logger::log(LogLevel::Error, "%s: initVncFrameBuffer Failed", __func__);
             return;
         }
+
+        mCaptureThread.setFrameReadyCallback(
+            [this](const uint8_t* pixels, uint32_t pboW, uint32_t pboH, bool bridgeMode)
+            {
+                this->onFrameReady(pixels, pboW, pboH, bridgeMode);
+            });
     }
 
     VncFrameBuffer::~VncFrameBuffer()
     {
         Logger::log(LogLevel::Information, "%s VncFrameBuffer Destructor", __func__);
 
-        mPixelsProcessingInProgress = false;
+        mCaptureThread.stop();
+
+        destroyPBOs();
+
+        mCaptureFbo.reset();
+
         if (mVncFrameBufferPtr != nullptr)
         {
             munmap(mVncFrameBufferPtr, mVncFrameBufferSize);
+            mVncFrameBufferPtr  = nullptr;
+            mVncFrameBufferSize = 0;
         }
-
-        mVncFrameBufferPtr = nullptr;
-        mVncFrameBufferSize = 0;
     }
 
     bool VncFrameBuffer::initVncFrameBuffer()
@@ -145,13 +161,10 @@ namespace RdkWindowManager
 #ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
         if (VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
         {
-            captureForBridge();
-            // Do not fall through – the VNCServer2 bridge handles its own response.
+            startAsyncCapture(true /* bridgeMode */);
             return;
         }
 
-        // In VNCServer2 bridge mode, internal socket-based frame publishing is not used.
-        // Avoid falling into sendFrameBufferToVNCClient() on stale update flags.
         if (VncBridgeServer::getInstance().isRunning())
         {
             VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
@@ -165,27 +178,171 @@ namespace RdkWindowManager
             {
                 auto socket = VncServer::getInstance().getVncSocket();
                 int socketState = (nullptr != socket) ? static_cast<int>(socket->state()) : -1;
-                Logger::log(LogLevel::Information, "%s is in progress SKIP VncSocket state %d", __func__, socketState);
-                return;
-            }
-            if (!readPixel())
-            {
-                Logger::log(LogLevel::Information, "%s - readPixel failed", __func__);
+                Logger::log(LogLevel::Information, "%s is in progress SKIP VncSocket state %d",
+                            __func__, socketState);
                 return;
             }
 
-            mPixelsProcessingInProgress = true;
-            std::thread pixelProcessThread([this] {
-                this->sendFrameBufferToVNCClient();
-                this->notifyPixelProcessDone();
-            });
-            pixelProcessThread.detach();
+            if (mCaptureThread.isBusy())
+            {
+                Logger::log(LogLevel::Information, "%s: capture thread busy, skipping frame", __func__);
+                return;
+            }
+
+            startAsyncCapture(false /* bridgeMode */);
         }
     }
 
-    void VncFrameBuffer::notifyPixelProcessDone()
+    void VncFrameBuffer::startAsyncCapture(bool bridgeMode)
     {
-        mPixelsProcessingInProgress = false;
+        // Lazy-start the capture thread using the GL thread's current EGL context
+        if (!mCaptureThread.isRunning())
+        {
+            EGLDisplay display = eglGetCurrentDisplay();
+            EGLContext context  = eglGetCurrentContext();
+
+            if ((display == EGL_NO_DISPLAY) || (context == EGL_NO_CONTEXT))
+            {
+                Logger::log(LogLevel::Error, "%s: no active EGL context – cannot start capture thread",
+                            __func__);
+                return;
+            }
+
+            if (!mCaptureThread.start(display, context))
+            {
+                Logger::log(LogLevel::Error, "%s: VncCaptureThread::start() failed", __func__);
+                return;
+            }
+        }
+
+        GLint srcFboId = 0;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &srcFboId);
+
+        // Determine source dimensions.
+        //   Bridge : full display viewport (e.g. 1920×1080).
+        //   Non-bridge : the VNC render target is already at mWidth×mHeight.
+        uint32_t srcWidth  = mWidth;
+        uint32_t srcHeight = mHeight;
+
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        if (bridgeMode)
+        {
+            GLint viewport[4] = {0, 0, 0, 0};
+            glGetIntegerv(GL_VIEWPORT, viewport);
+            srcWidth  = static_cast<uint32_t>(viewport[2]);
+            srcHeight = static_cast<uint32_t>(viewport[3]);
+
+            if ((0 == srcWidth) || (0 == srcHeight))
+            {
+                Logger::log(LogLevel::Error, "%s: invalid viewport size for bridge capture %u x %u",
+                            __func__, srcWidth, srcHeight);
+                return;
+            }
+        }
+#endif
+
+        if (!mCaptureFbo)
+        {
+            mCaptureFbo = std::make_shared<FrameBuffer>(static_cast<int>(mWidth),
+                                                        static_cast<int>(mHeight));
+            Logger::log(LogLevel::Information, "%s: created capture FBO %u x %u",
+                        __func__, mWidth, mHeight);
+        }
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mCaptureFbo->fboId());
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(srcFboId));
+        glBlitFramebuffer(0, 0, static_cast<GLint>(srcWidth),  static_cast<GLint>(srcHeight),
+                          0, 0, static_cast<GLint>(mWidth),    static_cast<GLint>(mHeight),
+                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, mCaptureFbo->fboId());
+
+        if (!mPboInitialized)
+        {
+            if (!initPBOs())
+            {
+                Logger::log(LogLevel::Error, "%s: PBO initialisation failed", __func__);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                return;
+            }
+        }
+
+        GLenum fbStatus = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
+        if (fbStatus != GL_FRAMEBUFFER_COMPLETE)
+        {
+            Logger::log(LogLevel::Error, "%s: capture FBO not complete (0x%X)", __func__, fbStatus);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return;
+        }
+
+        const int writeIdx = mPboWriteIndex;
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, mPboIds[writeIdx]);
+        glReadPixels(0, 0, static_cast<GLsizei>(mWidth), static_cast<GLsizei>(mHeight),
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        // Fence sync: capture thread waits on this before mapping the PBO
+        GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        // Restore default framebuffer so subsequent GL operations are unaffected
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        if (!sync)
+        {
+            Logger::log(LogLevel::Error, "%s: glFenceSync failed", __func__);
+            return;
+        }
+
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR)
+        {
+            Logger::log(LogLevel::Error, "%s: GL error after glReadPixels (0x%X)", __func__, err);
+            glDeleteSync(sync);
+            return;
+        }
+
+        mCaptureThread.postFrame(mPboIds[writeIdx], sync, mWidth, mHeight, bridgeMode);
+
+        mPboWriteIndex = (mPboWriteIndex + 1) % kPboCount;
+    }
+
+    // -------------------------------------------------------------------------
+    // onFrameReady() – called on VncCaptureThread after the PBO has been
+    // mapped.  Copies / scales the raw RGBA pixel data into mRGBAData, then
+    // dispatches to the correct send path.
+    // -------------------------------------------------------------------------
+    void VncFrameBuffer::onFrameReady(const uint8_t* pixels,
+                                       uint32_t pboWidth,
+                                       uint32_t pboHeight,
+                                       bool bridgeMode)
+    {
+        if (!pixels)
+        {
+            // Capture failure – signal bridge if applicable, otherwise skip
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+            if (bridgeMode)
+            {
+                Logger::log(LogLevel::Error, "%s: pixel capture failed, signalling bridge", __func__);
+                VncBridgeServer::getInstance().deliverFrame(nullptr, 0, 0);
+            }
+#endif
+            return;
+        }
+
+        std::memcpy(mRGBAData.data(), pixels, mWidth * mHeight * 4);
+
+        if (bridgeMode)
+        {
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+            VncBridgeServer::getInstance().deliverFrame(mRGBAData.data(), mWidth, mHeight);
+#endif
+        }
+        else
+        {
+            sendFrameBufferToVNCClient();
+        }
     }
 
     bool VncFrameBuffer::sendFrameBufferToVNCClient()
@@ -351,94 +508,49 @@ namespace RdkWindowManager
         return noOfPixelBytes;
     }
 
-    bool VncFrameBuffer::readPixel()
+    // initPBOs() – allocates both ping-pong PBOs at the VNC output size (mWidth × mHeight).
+    // The GPU blit in startAsyncCapture() always downscales the source to this fixed size
+    // before the readback, so PBOs never need to be reallocated between frames.
+    bool VncFrameBuffer::initPBOs()
     {
-        bool status = true;
-        GLenum valid = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (valid != GL_FRAMEBUFFER_COMPLETE)
+        destroyPBOs();
+
+        const GLsizeiptr bufSize = static_cast<GLsizeiptr>(mWidth) * mHeight * 4;
+
+        glGenBuffers(kPboCount, mPboIds);
+        for (int i = 0; i < kPboCount; ++i)
         {
-            Logger::log(LogLevel::Error, "%s: glCheckFramebufferStatus() = %X", __func__, valid);
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, mPboIds[i]);
+            // GL_DYNAMIC_READ: driver places the buffer in memory optimal for
+            // GPU writes and CPU reads (DMA-friendly).
+            glBufferData(GL_PIXEL_PACK_BUFFER, bufSize, nullptr, GL_DYNAMIC_READ);
         }
-
-        std::lock_guard<std::mutex> contextLock(mVNCFrameBufferContextLock);
-
-#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
-        if (VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
-        {
-            GLint viewport[4] = {0, 0, 0, 0};
-            glGetIntegerv(GL_VIEWPORT, viewport);
-
-            const uint32_t sourceWidth = static_cast<uint32_t>(viewport[2]);
-            const uint32_t sourceHeight = static_cast<uint32_t>(viewport[3]);
-
-            if ((0 == sourceWidth) || (0 == sourceHeight))
-            {
-                Logger::log(LogLevel::Error, "%s: invalid viewport size for bridge capture %u x %u", __func__, sourceWidth, sourceHeight);
-                return false;
-            }
-
-            if ((sourceWidth == mWidth) && (sourceHeight == mHeight))
-            {
-                glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
-            }
-            else
-            {
-                std::vector<uint8_t> sourcePixels(sourceWidth * sourceHeight * 4);
-                glReadPixels(0, 0, sourceWidth, sourceHeight, GL_RGBA, GL_UNSIGNED_BYTE, sourcePixels.data());
-
-                for (uint32_t y = 0; y < mHeight; ++y)
-                {
-                    const uint32_t srcY = (y * sourceHeight) / mHeight;
-                    for (uint32_t x = 0; x < mWidth; ++x)
-                    {
-                        const uint32_t srcX = (x * sourceWidth) / mWidth;
-
-                        const size_t sourceIndex = (static_cast<size_t>(srcY) * sourceWidth + srcX) * 4;
-                        const size_t destIndex = (static_cast<size_t>(y) * mWidth + x) * 4;
-
-                        mRGBAData[destIndex + 0] = sourcePixels[sourceIndex + 0];
-                        mRGBAData[destIndex + 1] = sourcePixels[sourceIndex + 1];
-                        mRGBAData[destIndex + 2] = sourcePixels[sourceIndex + 2];
-                        mRGBAData[destIndex + 3] = sourcePixels[sourceIndex + 3];
-                    }
-                }
-            }
-        }
-        else
-        {
-            glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
-        }
-#else
-        glReadPixels(0, 0, mWidth, mHeight, GL_RGBA, GL_UNSIGNED_BYTE, mRGBAData.data());
-#endif
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
         GLenum error = glGetError();
         if (error != GL_NO_ERROR)
         {
-            Logger::log(LogLevel::Error, "%s: glGetError() = %X\n", __func__, error);
-            status = false;
+            Logger::log(LogLevel::Error, "%s: failed to create PBOs, glGetError()=0x%X", __func__, error);
+            glDeleteBuffers(kPboCount, mPboIds);
+            mPboIds[0] = mPboIds[1] = 0;
+            return false;
         }
-        return status;
+
+        mPboWriteIndex  = 0;
+        mPboInitialized = true;
+        Logger::log(LogLevel::Information, "%s: PBOs initialised (%u x %u, %zu bytes each)",
+                    __func__, mWidth, mHeight, static_cast<size_t>(bufSize));
+        return true;
     }
 
-#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
-    void VncFrameBuffer::captureForBridge()
+    void VncFrameBuffer::destroyPBOs()
     {
-        if (!VncBridgeServer::getInstance().isBridgeFrameUpdatePending())
+        if (!mPboInitialized)
             return;
 
-        if (!readPixel())
-        {
-            Logger::log(LogLevel::Error, "%s: readPixel failed", __func__);
-            // deliverFrame with null data signals failure via mFrameResult
-            VncBridgeServer::getInstance().deliverFrame(nullptr, 0, 0);
-            return;
-        }
-
-        VncBridgeServer::getInstance().deliverFrame(mRGBAData.data(), mWidth, mHeight);
+        glDeleteBuffers(kPboCount, mPboIds);
+        mPboIds[0] = mPboIds[1] = 0;
+        mPboInitialized = false;
     }
-#endif
 
-}
-
-
+} // namespace RdkWindowManager
