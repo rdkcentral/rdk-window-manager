@@ -2557,7 +2557,6 @@ namespace RdkWindowManager
 
     bool CompositorController::getFireboltSurface(const std::string& client, int surfaceId, uint32_t type)
     {
-        (void)client;
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
