@@ -1510,6 +1510,15 @@ namespace RdkWindowManager
     {
         //Logger::log(LogLevel::Information,  "key press code " << keycode << " flags " << flags << std::endl;
         double currentTime = RdkWindowManager::seconds();
+        Logger::log(LogLevel::Information,
+                    "sona keyintercepts:onKeyPress pressedKeyCode=%u flags=%u metadata=%llu physical=%d focusedClient=%s topmostClient=%s interceptCount=%zu layer=wm-entry",
+                    keycode,
+                    flags,
+                    metadata,
+                    physicalKeyPress,
+                    gFocusedCompositor.name.c_str(),
+                    gTopmostCompositorList.empty() ? "none" : gTopmostCompositorList.front().name.c_str(),
+                    gKeyInterceptInfoMap.find(keycode) != gKeyInterceptInfoMap.end() ? gKeyInterceptInfoMap[keycode].size() : 0);
         if ((true == physicalKeyPress) && (0.0 == gLastKeyPressStartTime))
         {
             gLastKeyPressStartTime = currentTime;
@@ -1523,6 +1532,12 @@ namespace RdkWindowManager
         bool isInterceptAvailable = false;
 
         isInterceptAvailable = interceptKey(keycode, flags, metadata, true);
+
+        Logger::log(LogLevel::Information,
+                    "sona keyintercepts:onKeyPress routed pressedKeyCode=%u intercept=%d focusedClient=%s layer=wm-route",
+                    keycode,
+                    isInterceptAvailable,
+                    gFocusedCompositor.name.c_str());
 
         if (false == isInterceptAvailable && gFocusedCompositor.compositor)
         {
@@ -1545,6 +1560,15 @@ namespace RdkWindowManager
     {
         //Logger::log(LogLevel::Information,  "key release code " << keycode << " flags " << flags << std::endl;
 
+        Logger::log(LogLevel::Information,
+                    "sona keyintercepts:onKeyRelease keyCode=%u flags=%u metadata=%llu physical=%d focusedClient=%s interceptCount=%zu layer=wm-entry",
+                    keycode,
+                    flags,
+                    metadata,
+                    physicalKeyPress,
+                    gFocusedCompositor.name.c_str(),
+                    gKeyInterceptInfoMap.find(keycode) != gKeyInterceptInfoMap.end() ? gKeyInterceptInfoMap[keycode].size() : 0);
+
         if (true == physicalKeyPress)
         {
             double keyPressTime = RdkWindowManager::seconds() - gLastKeyPressStartTime;
@@ -1557,6 +1581,12 @@ namespace RdkWindowManager
 
         bool isInterceptAvailable = false;
         isInterceptAvailable = interceptKey(keycode, flags, metadata, false);
+
+        Logger::log(LogLevel::Information,
+                    "sona keyintercepts:onKeyRelease routed keyCode=%u intercept=%d focusedClient=%s layer=wm-route",
+                    keycode,
+                    isInterceptAvailable,
+                    gFocusedCompositor.name.c_str());
 
         if (false == isInterceptAvailable)
         {
