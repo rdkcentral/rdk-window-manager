@@ -327,8 +327,12 @@ namespace RdkWindowManager
         bool ret = false;
 
 	Logger::log(Debug, "interceptKey called Keycode - %u, flags - %u, metadata -%llu, isPressed- %d", keycode, flags, metadata, isPressed);
+        Logger::log(LogLevel::Information, "sona keyintercepts:dispatch keyCode=%u flags=%u metadata=%llu isPressed=%d focusedClient=%s layer=dispatch",
+                keycode, flags, metadata, isPressed, gFocusedCompositor.name.c_str());
         if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keycode))
         {
+    	    Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-match keyCode=%u interceptEntries=%zu layer=dispatch",
+                keycode, gKeyInterceptInfoMap[keycode].size());
 	    gKeyInterceptedMap.clear();
 
             for (int i=0; i<gKeyInterceptInfoMap[keycode].size(); i++)
@@ -343,6 +347,8 @@ namespace RdkWindowManager
                 }
 
 		Logger::log(Debug, "inside for loop gKeyInterceptInfoMap and isFocused -%d info.compositorInfo.name - %s", isFocused,info.compositorInfo.name.c_str());
+                Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-entry keyCode=%u client=%s focused=%d focusOnly=%d propagate=%d flags=%u layer=dispatch",
+                            keycode, info.compositorInfo.name.c_str(), isFocused, info.focusOnly, info.propagate, info.flags);
                 if (info.flags == flags && info.compositorInfo.compositor->getInputEventsEnabled())
                 {
 		    if( (true == info.focusOnly))
@@ -357,6 +363,7 @@ namespace RdkWindowManager
 			{
 			    //won't propagate to any listeners
 			    Logger::log(LogLevel::Information, "Key %d is not intercepted by client %s for app", keycode, info.compositorInfo.name.c_str());
+                    Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-skip keyCode=%u client=%s reason=not-focused layer=dispatch", keycode, info.compositorInfo.name.c_str());
 			    continue;
 			}
 		    }
@@ -370,6 +377,7 @@ namespace RdkWindowManager
                     if (interceptFlag && !gKeyInterceptedMap[info.compositorInfo.name] )
                     {
 			Logger::log(LogLevel::Information, "Key %d intercepted by client %s for app", keycode, info.compositorInfo.name.c_str());
+            Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-hit keyCode=%u client=%s pressed=%d layer=dispatch", keycode, info.compositorInfo.name.c_str(), isPressed);
                         if (isPressed)
                         {
                             info.compositorInfo.compositor->onKeyPress(keycode, flags, metadata);
@@ -387,6 +395,7 @@ namespace RdkWindowManager
                         //Propaget: send intercept to app which comes after focused app though its not focused.
 			std::vector<CompositorInfo>::iterator compositorIterator = gCompositorList.begin();
 			std::string currentCompositorName = info.compositorInfo.name;
+            Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-propagate keyCode=%u client=%s layer=dispatch", keycode, currentCompositorName.c_str());
 			for (compositorIterator = gCompositorList.begin();  compositorIterator != gCompositorList.end(); compositorIterator++)
 			{
                             if (compositorIterator->name == currentCompositorName)
@@ -401,6 +410,7 @@ namespace RdkWindowManager
 			{
 			    if (!compositorIterator->compositor->getInputEventsEnabled())
 			    {
+                        Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-propagate-skip keyCode=%u client=%s reason=input-disabled layer=dispatch", keycode, compositorIterator->name.c_str());
 			        compositorIterator++;
 				continue;
 			    }
@@ -408,6 +418,7 @@ namespace RdkWindowManager
 			    if(!gKeyInterceptedMap[compositorIterator->name])
 			    {
                                 Logger::log(LogLevel::Information, "Key %d intercepted by client %s for app with propagate enable", keycode, info.compositorInfo.name.c_str());
+                        Logger::log(LogLevel::Information, "sona keyintercepts:dispatch-propagate-hit keyCode=%u sourceClient=%s targetClient=%s layer=dispatch", keycode, info.compositorInfo.name.c_str(), compositorIterator->name.c_str());
                                 if (isPressed)
                                 {
                                     compositorIterator->compositor->onKeyPress(keycode, flags, metadata);
@@ -435,6 +446,9 @@ namespace RdkWindowManager
     {
         std::map<uint32_t, std::vector<KeyListenerInfo>>& keyListenerInfo = compositor.keyListenerInfo;
 
+                Logger::log(LogLevel::Information, "sona keyintercepts:listener-eval client=%s keyCode=%u flags=%u listenerKeys=%zu layer=listener",
+                                        compositor.name.c_str(), keycode, flags, keyListenerInfo.size());
+
         if (keyListenerInfo.end() != keyListenerInfo.find(keycode))
         {
           for (size_t i=0; i<keyListenerInfo[keycode].size(); i++)
@@ -446,6 +460,8 @@ namespace RdkWindowManager
               foundlistener  = true;
               activate = info.activate;
               propagate = info.propagate;
+                            Logger::log(LogLevel::Information, "sona keyintercepts:listener-hit client=%s keyCode=%u activate=%d propagate=%d layer=listener",
+                                                    compositor.name.c_str(), keycode, activate, propagate);
               break;
             }
           }
@@ -458,6 +474,8 @@ namespace RdkWindowManager
           foundlistener  = true;
           activate = info.activate;
           propagate = info.propagate;
+                    Logger::log(LogLevel::Information, "sona keyintercepts:listener-wildcard client=%s keyCode=%u activate=%d propagate=%d layer=listener",
+                                            compositor.name.c_str(), keycode, activate, propagate);
         }
     }
 
@@ -465,6 +483,9 @@ namespace RdkWindowManager
     {
         std::vector<CompositorInfo>::iterator compositorIterator = gCompositorList.begin();
         std::string focusedCompositorName = gFocusedCompositor.name;
+
+                Logger::log(LogLevel::Information, "sona keyintercepts:bubble-start keyCode=%u flags=%u isPressed=%d focusedClient=%s compositorCount=%zu layer=bubble",
+                                        keycode, flags, isPressed, focusedCompositorName.c_str(), gCompositorList.size());
         #ifndef RDK_WINDOW_MANAGER_ENABLE_KEYBUBBING_TOP_MODE
         for (compositorIterator = gCompositorList.begin();  compositorIterator != gCompositorList.end(); compositorIterator++)
         {
@@ -504,6 +525,8 @@ namespace RdkWindowManager
           if ((false == isFocusedCompositor) && (true == foundListener))
           {
             Logger::log(Debug, "Key %d sent to listener %s", keycode, compositorIterator->name.c_str());
+                        Logger::log(LogLevel::Information, "sona keyintercepts:bubble-listener keyCode=%u client=%s activate=%d propagate=%d isPressed=%d layer=bubble",
+                                                keycode, compositorIterator->name.c_str(), activateCompositor, propagateKey, isPressed);
             if (isPressed)
             {
               compositorIterator->compositor->onKeyPress(keycode, flags, metadata);
@@ -521,6 +544,8 @@ namespace RdkWindowManager
               {
                   std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
                   Logger::log(LogLevel::Information,  "rdkwindowmanager_focus bubbleKey: the focused client is now %s . previous: %s", (*compositorIterator).name.c_str(), previousFocusedClient.c_str());
+                  Logger::log(LogLevel::Information, "sona keyintercepts:bubble-focus-change newFocusedClient=%s previousFocusedClient=%s keyCode=%u layer=bubble",
+                              compositorIterator->name.c_str(), previousFocusedClient.c_str(), keycode);
                   if ((gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
                   {
                       gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
@@ -783,6 +808,8 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            Logger::log(LogLevel::Information, "sona keyintercepts:register-intercept client=%s keyCode=%u flags=%u focusOnly=%d propagate=%d layer=register",
+                        client.c_str(), keyCode, flags, focusOnly, propagate);
             struct KeyInterceptInfo info;
             info.keyCode = keyCode;
             info.flags = flags;
@@ -819,9 +846,11 @@ namespace RdkWindowManager
 
     bool CompositorController::removeKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags)
     {
+        Logger::log(LogLevel::Information, "sona keyintercepts:remove-request client=%s keyCode=%u flags=%u layer=register", client.c_str(), keyCode, flags);
         if (keyCode == RDK_WINDOW_MANAGER_WILDCARD_KEY_CODE)
         {
             std::string clientDisplayName = standardizeName(client);
+            Logger::log(LogLevel::Information, "sona keyintercepts:remove-wildcard client=%s normalizedClient=%s layer=register", client.c_str(), clientDisplayName.c_str());
             for (std::map<uint32_t, std::vector<KeyInterceptInfo>>::iterator keyInterceptIterator = gKeyInterceptInfoMap.begin(); keyInterceptIterator != gKeyInterceptInfoMap.end(); keyInterceptIterator++)
             {
                 std::vector<KeyInterceptInfo>& interceptInfo = keyInterceptIterator->second;
@@ -873,6 +902,8 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            Logger::log(LogLevel::Information, "sona keyintercepts:remove-mapped client=%s normalizedClient=%s keyCode=%u flags=%u layer=register",
+                        client.c_str(), clientDisplayName.c_str(), keyCode, flags);
             if (gKeyInterceptInfoMap.end() != gKeyInterceptInfoMap.find(keyCode))
             {
                 bool isEntryAvailable = false;
@@ -907,6 +938,8 @@ namespace RdkWindowManager
     bool CompositorController::addKeyListener(const std::string& client, const uint32_t& keyCode, const uint32_t& flags, std::map<std::string, RdkWindowManagerData> &listenerProperties)
     {
         bool activate = false, propagate = true;
+        Logger::log(LogLevel::Information, "sona keyintercepts:register-listener client=%s keyCode=%u flags=%u listenerProperties=%zu layer=register",
+                    client.c_str(), keyCode, flags, listenerProperties.size());
         for ( const auto &property : listenerProperties)
         {
           if (property.first == "activate")
@@ -2949,4 +2982,5 @@ namespace RdkWindowManager
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
+
 
