@@ -1075,10 +1075,15 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
          waylandKeyCode = WAYLAND_KEY_RECORD;
          break;
       default:
-         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "common key code not found %d",keyCode);
-         waylandKeyCode= -1;
+         // Intercept/listener paths may already provide raw Linux/Wayland keycodes
+         // (for example KEY_F14=184). Preserve those values instead of dropping
+         // the event with -1 so notification/compositor routing still receives them.
+         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,
+             "common key code not found %d, passing through as raw wayland key code", keyCode);
+         waylandKeyCode = keyCode;
          break;
    }
 
    return  waylandKeyCode;
  }
+
