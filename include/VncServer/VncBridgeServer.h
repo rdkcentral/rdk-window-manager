@@ -101,6 +101,8 @@ private:
     uint8_t*               mBridgeMemPtr;
     size_t                 mBridgeMemSize;
     int                    mBridgeMemFd;
+    uint8_t*               mScreenshotMemPtr;
+    size_t                 mScreenshotMemSize;
 
     // Pending RequestFrameUpdate state
     std::mutex             mFrameMutex;

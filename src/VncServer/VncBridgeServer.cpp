@@ -24,6 +24,8 @@
 #include "logger.h"
 #include "MemFd.h"
 
+#include <png.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/mman.h>
@@ -38,6 +40,171 @@
 #include <cassert>
 // Abstract Unix socket path (the leading '\0' makes it abstract)
 #define BRIDGE_SOCKET_PATH  "/tmp/rdkwindowmanager-vnc-bridge"
+
+namespace {
+
+enum class BridgeImageFormat : uint32_t
+{
+    PNG_RGBA8888 = 1,
+    PNG_RGB888 = 2,
+    PNG_Greyscale = 3,
+    PBM = 4
+};
+
+bool encodePngToFd(int fd, const uint8_t* bgr0Data, uint32_t width, uint32_t height, BridgeImageFormat format)
+{
+    int fdCopy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+    if (fdCopy < 0)
+        return false;
+
+    FILE* fp = fdopen(fdCopy, "wb");
+    if (!fp)
+    {
+        ::close(fdCopy);
+        return false;
+    }
+
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    if (!png)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    png_infop info = png_create_info_struct(png);
+    if (!info)
+    {
+        png_destroy_write_struct(&png, nullptr);
+        fclose(fp);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png)))
+    {
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return false;
+    }
+
+    int colorType = PNG_COLOR_TYPE_RGBA;
+    size_t rowBytes = static_cast<size_t>(width) * 4;
+    switch (format)
+    {
+        case BridgeImageFormat::PNG_RGB888:
+            colorType = PNG_COLOR_TYPE_RGB;
+            rowBytes = static_cast<size_t>(width) * 3;
+            break;
+        case BridgeImageFormat::PNG_RGBA8888:
+            colorType = PNG_COLOR_TYPE_RGBA;
+            rowBytes = static_cast<size_t>(width) * 4;
+            break;
+        case BridgeImageFormat::PNG_Greyscale:
+            colorType = PNG_COLOR_TYPE_GRAY;
+            rowBytes = static_cast<size_t>(width);
+            break;
+        default:
+            png_destroy_write_struct(&png, &info);
+            fclose(fp);
+            return false;
+    }
+
+    png_init_io(png, fp);
+    png_set_IHDR(png, info, width, height, 8, colorType,
+                 PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE,
+                 PNG_FILTER_TYPE_BASE);
+    png_write_info(png, info);
+
+    std::vector<uint8_t> row(rowBytes);
+    const size_t srcStride = static_cast<size_t>(width) * 4;
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        const uint8_t* src = bgr0Data + (static_cast<size_t>(y) * srcStride);
+        if (BridgeImageFormat::PNG_RGBA8888 == format)
+        {
+            for (uint32_t x = 0; x < width; ++x)
+            {
+                row[(x * 4) + 0] = src[(x * 4) + 2];
+                row[(x * 4) + 1] = src[(x * 4) + 1];
+                row[(x * 4) + 2] = src[(x * 4) + 0];
+                row[(x * 4) + 3] = 0xFF;
+            }
+        }
+        else if (BridgeImageFormat::PNG_RGB888 == format)
+        {
+            for (uint32_t x = 0; x < width; ++x)
+            {
+                row[(x * 3) + 0] = src[(x * 4) + 2];
+                row[(x * 3) + 1] = src[(x * 4) + 1];
+                row[(x * 3) + 2] = src[(x * 4) + 0];
+            }
+        }
+        else
+        {
+            for (uint32_t x = 0; x < width; ++x)
+            {
+                const uint8_t r = src[(x * 4) + 2];
+                const uint8_t g = src[(x * 4) + 1];
+                const uint8_t b = src[(x * 4) + 0];
+                row[x] = static_cast<uint8_t>((299 * r + 587 * g + 114 * b) / 1000);
+            }
+        }
+
+        png_write_row(png, reinterpret_cast<png_const_bytep>(row.data()));
+    }
+
+    png_write_end(png, nullptr);
+    png_destroy_write_struct(&png, &info);
+    fclose(fp);
+    return true;
+}
+
+bool encodePbmToFd(int fd, const uint8_t* bgr0Data, uint32_t width, uint32_t height)
+{
+    char header[64];
+    const int headerLen = snprintf(header, sizeof(header), "P4\n%u %u\n", width, height);
+    if (headerLen <= 0 || TEMP_FAILURE_RETRY(write(fd, header, headerLen)) != headerLen)
+        return false;
+
+    const size_t srcStride = static_cast<size_t>(width) * 4;
+    std::vector<uint8_t> row((width + 7) / 8);
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        std::fill(row.begin(), row.end(), 0);
+        const uint8_t* src = bgr0Data + (static_cast<size_t>(y) * srcStride);
+        for (uint32_t x = 0; x < width; ++x)
+        {
+            const uint8_t r = src[(x * 4) + 2];
+            const uint8_t g = src[(x * 4) + 1];
+            const uint8_t b = src[(x * 4) + 0];
+            const uint8_t grey = static_cast<uint8_t>((299 * r + 587 * g + 114 * b) / 1000);
+            if (grey <= 127)
+                row[x / 8] |= static_cast<uint8_t>(0x80 >> (x % 8));
+        }
+
+        if (TEMP_FAILURE_RETRY(write(fd, row.data(), row.size())) != static_cast<ssize_t>(row.size()))
+            return false;
+    }
+
+    return true;
+}
+
+bool encodeImageToFd(int fd, const uint8_t* bgr0Data, uint32_t width, uint32_t height, uint32_t format)
+{
+    const auto imageFormat = static_cast<BridgeImageFormat>(format);
+    switch (imageFormat)
+    {
+        case BridgeImageFormat::PNG_RGBA8888:
+        case BridgeImageFormat::PNG_RGB888:
+        case BridgeImageFormat::PNG_Greyscale:
+            return encodePngToFd(fd, bgr0Data, width, height, imageFormat);
+        case BridgeImageFormat::PBM:
+            return encodePbmToFd(fd, bgr0Data, width, height);
+        default:
+            return false;
+    }
+}
+
+}
 
 namespace RdkWindowManager {
 
@@ -56,6 +223,8 @@ VncBridgeServer::VncBridgeServer()
     , mBridgeMemPtr(nullptr)
     , mBridgeMemSize(0)
     , mBridgeMemFd(-1)
+    , mScreenshotMemPtr(nullptr)
+    , mScreenshotMemSize(0)
     , mFrameUpdatePending(false)
     , mFrameOffset(0)
     , mFrameMaxSize(0)
@@ -419,25 +588,43 @@ void VncBridgeServer::handleScreenshotRequest(int clientFd,
         return;
     }
 
-    // Capture the current frame into a fresh memfd and return it.
-    // We reuse the bridge frame update path: arm the update, wait, then
-    // dup the mapped buffer into a new memfd for the caller.
-    {
-        std::lock_guard<std::mutex> lock(mBufferMutex);
-        if (mBridgeMemPtr == nullptr)
-        {
-            VncBridgeProtocol::ScreenshotResp resp;
-            resp.success = 0;
-            resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
-            sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
-            return;
-        }
-    }
+    VncBridgeProtocol::ScreenshotReq req;
+    ::memcpy(&req, payload.data(), sizeof(req));
 
     // Use native width × height × 4 bytes (BGRA raw)
     const uint32_t w    = VncServer::getInstance().getFrameBufferWidth();
     const uint32_t h    = VncServer::getInstance().getFrameBufferHeight();
     const size_t   size = static_cast<size_t>(w) * h * 4;
+
+    // Capture into a temporary memfd so screenshot requests do not depend on a
+    // previously established SetBuffer call from an interactive VNC session.
+    int rawFd = RdkWindowManager::memfd_create("/vnc-screenshot-raw", MFD_CLOEXEC);
+    if (rawFd < 0 || ::ftruncate(rawFd, static_cast<off_t>(size)) != 0)
+    {
+        if (rawFd >= 0) ::close(rawFd);
+        VncBridgeProtocol::ScreenshotResp resp;
+        resp.success = 0;
+        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
+        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
+        return;
+    }
+
+    void* snapPtr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, rawFd, 0);
+    if (snapPtr == MAP_FAILED)
+    {
+        ::close(rawFd);
+        VncBridgeProtocol::ScreenshotResp resp;
+        resp.success = 0;
+        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
+        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mBufferMutex);
+        mScreenshotMemPtr = static_cast<uint8_t*>(snapPtr);
+        mScreenshotMemSize = size;
+    }
 
     // Arm a frame update into the shared buffer at offset 0
     {
@@ -458,43 +645,46 @@ void VncBridgeServer::handleScreenshotRequest(int clientFd,
     mFrameUpdatePending.store(false);
     VncServer::getInstance().setVncFrameUpdateRequestFlag(false);
 
-    if (mFrameResult <= 0)
-    {
-        VncBridgeProtocol::ScreenshotResp resp;
-        resp.success = 0;
-        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
-        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
-        return;
-    }
-
-    // Create a new memfd containing just the captured pixels and pass it
-    int snapFd = RdkWindowManager::memfd_create("/vnc-screenshot", MFD_CLOEXEC);
-    if (snapFd < 0 || ::ftruncate(snapFd, static_cast<off_t>(mFrameResult)) != 0)
-    {
-        if (snapFd >= 0) ::close(snapFd);
-        VncBridgeProtocol::ScreenshotResp resp;
-        resp.success = 0;
-        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
-        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
-        return;
-    }
-
     {
         std::lock_guard<std::mutex> lock(mBufferMutex);
-        void* snapPtr = ::mmap(nullptr, static_cast<size_t>(mFrameResult),
-                               PROT_WRITE, MAP_SHARED, snapFd, 0);
-        if (snapPtr != MAP_FAILED)
-        {
-            ::memcpy(snapPtr, mBridgeMemPtr, static_cast<size_t>(mFrameResult));
-            ::munmap(snapPtr, static_cast<size_t>(mFrameResult));
-        }
+        mScreenshotMemPtr = nullptr;
+        mScreenshotMemSize = 0;
     }
+
+    if (mFrameResult <= 0)
+    {
+        ::munmap(snapPtr, size);
+        ::close(rawFd);
+        VncBridgeProtocol::ScreenshotResp resp;
+        resp.success = 0;
+        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
+        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
+        return;
+    }
+
+    int imageFd = RdkWindowManager::memfd_create("/vnc-screenshot", MFD_CLOEXEC);
+    if (imageFd < 0 ||
+        !encodeImageToFd(imageFd, static_cast<const uint8_t*>(snapPtr), w, h, req.format))
+    {
+        if (imageFd >= 0)
+            ::close(imageFd);
+        ::munmap(snapPtr, size);
+        ::close(rawFd);
+        VncBridgeProtocol::ScreenshotResp resp;
+        resp.success = 0;
+        resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
+        sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp));
+        return;
+    }
+
+    ::munmap(snapPtr, size);
+    ::close(rawFd);
 
     VncBridgeProtocol::ScreenshotResp resp;
     resp.success = 1;
     resp._pad[0] = resp._pad[1] = resp._pad[2] = 0;
-    sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp), snapFd);
-    ::close(snapFd);
+    sendMsg(clientFd, VncBridgeProtocol::MSG_SCREENSHOT_RESP, &resp, sizeof(resp), imageFd);
+    ::close(imageFd);
 }
 
 void VncBridgeServer::handleAppScreenshotRequest(int clientFd,
@@ -534,17 +724,30 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
 
     {
         std::lock_guard<std::mutex> bufLock(mBufferMutex);
-        if (nullptr == mBridgeMemPtr)
+        uint8_t* dest = nullptr;
+        size_t maxBytes = 0;
+
+        if (nullptr != mScreenshotMemPtr)
         {
-            frameResult = -ENOMEM;
+            dest = mScreenshotMemPtr + frameOffset;
+            maxBytes = mScreenshotMemSize > frameOffset
+                       ? mScreenshotMemSize - frameOffset
+                       : 0;
+        }
+        else if (nullptr != mBridgeMemPtr)
+        {
+            dest = mBridgeMemPtr + frameOffset;
+            maxBytes = mBridgeMemSize > frameOffset
+                       ? mBridgeMemSize - frameOffset
+                       : 0;
         }
         else
         {
-            uint8_t* dest = mBridgeMemPtr + frameOffset;
-            size_t maxBytes = mBridgeMemSize > frameOffset
-                              ? mBridgeMemSize - frameOffset
-                              : 0;
+            frameResult = -ENOMEM;
+        }
 
+        if (nullptr != dest)
+        {
             // Respect the maxSize hint from the client.
             if ((frameMaxSize > 0) && (frameMaxSize < maxBytes))
                 maxBytes = frameMaxSize;
