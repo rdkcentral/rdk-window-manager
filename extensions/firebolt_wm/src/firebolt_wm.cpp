@@ -32,8 +32,6 @@
 #define FB_WM_DISPLAY_DEFAULT_ZORDER_FLAG       (true)
 #define FB_WM_DISPLAY_DEFAULT_CROP_XY_POSITION  (0)
 #define FB_WM_DISPLAY_DEFAULT_CROP_WH           (0)
-#define FIREBOLT_WM_EVENT_RETRY_INTERNAL_IN_MS    (30)
-#define FIREBOLT_WM_EVENT_RETRIES_MAX             (3)
 
 typedef std::map<WstCompositor*, FireboltWindowManager*> FireboltWMCompositorListMap;
 static FireboltWMCompositorListMap f_fireboltWmCompositorList;
@@ -258,14 +256,12 @@ void FireboltWindowManager::fireboltWMEventWorkerThread(void)
         auto eventIt = gFireboltWmEventMap.find(event.eventName);
         if (eventIt != gFireboltWmEventMap.end())
         {
-            for (int i = 0; i < FIREBOLT_WM_EVENT_RETRIES_MAX; ++i)
+            bool eventSent = notify_client_event(event.clientName.c_str(), event.eventName, eventIt->second);
+            if (false == eventSent)
             {
-                if(true == notify_client_event(event.clientName.c_str(), event.eventName, eventIt->second))
-                {
-                    /* Event sent successfully */
-                    break;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(FIREBOLT_WM_EVENT_RETRY_INTERNAL_IN_MS));
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Warn,
+                    " Failed to send firebolt_wm event '%s' for client '%s'",
+                    event.eventName.c_str(), event.clientName.c_str());
             }
         }
     }
