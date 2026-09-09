@@ -708,6 +708,8 @@ namespace RdkWindowManager
 
             gFocusedCompositor = *it;
             gFocusedCompositor.compositor->setFocused(true);
+			gPreviousFocusedCompositor = gFocusedCompositor;
+            gPreviousActiveClient = gFocusedCompositor.name;
 
             return true;
         }
