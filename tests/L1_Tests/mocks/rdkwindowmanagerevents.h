@@ -78,9 +78,26 @@ namespace RdkWindowManager
           virtual void client_disconnected(const char* clientName) {}
     };
 
+    class ExtensionEventListener
+    {
+        public:
+          virtual ~ExtensionEventListener() = default;
+          virtual void onClientConfigChanged(const std::string& clientName,
+                                             bool visible,
+                                             int zOrder,
+                                             double opacity,
+                                             int x,
+                                             int y,
+                                             uint32_t width,
+                                             uint32_t height) {}
+          virtual void onOwnerChanged(int ownerId, const std::string& clientName) {}
+    };
+
 
 const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS = "on_focus";
 const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR = "on_blur";
 const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED      = "client_connected";
 const std::string RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED = "client_disconnected";
+const std::string RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED = "onClientConfigChanged";
+const std::string RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED = "onOwnerChanged";
 }

@@ -33,6 +33,8 @@ namespace RdkWindowManager {
 
     public:
         static VncServer& getInstance();
+        void initializeContext(uint32_t width, uint32_t height);
+        void resetContext();
         bool start(uint32_t width, uint32_t height);
         void stop();
         uint32_t getFrameBufferWidth();
