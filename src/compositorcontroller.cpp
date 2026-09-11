@@ -2654,7 +2654,16 @@ namespace RdkWindowManager
                     gNotificationSurfaceId = surfaceId;
                     // Equivalent to AppManager onAppShownModalOverlay:
                     // focus shifts to notification app.
+                    if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }					
                     gFocusedCompositor = *it;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }
+
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
                 }
             }
@@ -2676,7 +2685,15 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }
                     gFocusedCompositor = gPreviousFocusedCompositor;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }					
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
                 }
                 else
