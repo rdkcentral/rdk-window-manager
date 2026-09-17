@@ -2111,11 +2111,32 @@ namespace RdkWindowManager
             return -1;
         }
 
-        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
-        const int listenerTag = ++gExtensionEventListenerTag;
-        gExtensionEventListenerMap[listenerTag] = listener;
+        int listenerTag = 0;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listenerTag = ++gExtensionEventListenerTag;
+            gExtensionEventListenerMap[listenerTag] = listener;
+        }
+
         Logger::log(LogLevel::Information,
             "addExtensionEventListener: Listener registered with tag %d", listenerTag);
+
+        // Initialize the newly loaded extension with the current client state.
+        std::vector<std::string> clients;
+        getClients(clients);
+        for (const auto& client : clients)
+        {
+            ClientInfo clientInfo{};
+            if (getClientInfo(client, clientInfo))
+            {
+                sendExtensionEvent(listener,
+                                   RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED,
+                                   client,
+                                   clientInfo,
+                                   clientInfo.ownerId);
+            }
+        }
+
         return listenerTag;
     }
 
@@ -2654,7 +2675,16 @@ namespace RdkWindowManager
                     gNotificationSurfaceId = surfaceId;
                     // Equivalent to AppManager onAppShownModalOverlay:
                     // focus shifts to notification app.
+                    if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }					
                     gFocusedCompositor = *it;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }
+
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
                 }
             }
@@ -2676,7 +2706,15 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }
                     gFocusedCompositor = gPreviousFocusedCompositor;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }					
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
                 }
                 else
