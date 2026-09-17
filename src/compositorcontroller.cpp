@@ -2111,11 +2111,32 @@ namespace RdkWindowManager
             return -1;
         }
 
-        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
-        const int listenerTag = ++gExtensionEventListenerTag;
-        gExtensionEventListenerMap[listenerTag] = listener;
+        int listenerTag = 0;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listenerTag = ++gExtensionEventListenerTag;
+            gExtensionEventListenerMap[listenerTag] = listener;
+        }
+
         Logger::log(LogLevel::Information,
             "addExtensionEventListener: Listener registered with tag %d", listenerTag);
+
+        // Initialize the newly loaded extension with the current client state.
+        std::vector<std::string> clients;
+        getClients(clients);
+        for (const auto& client : clients)
+        {
+            ClientInfo clientInfo{};
+            if (getClientInfo(client, clientInfo))
+            {
+                sendExtensionEvent(listener,
+                                   RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED,
+                                   client,
+                                   clientInfo,
+                                   clientInfo.ownerId);
+            }
+        }
+
         return listenerTag;
     }
 
