@@ -2652,9 +2652,15 @@ namespace RdkWindowManager
                 {
                     gNotificationClient = client;
                     gNotificationSurfaceId = surfaceId;
-                    // Equivalent to AppManager onAppShownModalOverlay:
-                    // focus shifts to notification app.
-                    gFocusedCompositor = *it;
+                    // Equivalent to AppManager onAppShownModalOverlay: move focus through
+                    // the normal focus transition path so the compositor focus flags and
+                    // any focus listeners remain consistent.
+                    if (!setFocus(client))
+                    {
+                        Logger::log(LogLevel::Warn,
+                                    "setFireboltSurfaceVisibility: failed to focus notification client '%s' while previous focused='%s'",
+                                    client.c_str(), gPreviousActiveClient.c_str());
+                    }
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
                 }
             }
@@ -2676,13 +2682,26 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
-                    gFocusedCompositor = gPreviousFocusedCompositor;
-                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
+                    // Use the normal focus transition so the previous compositor is
+                    // reactivated with the correct focused state instead of leaving a
+                    // stale gFocusedCompositor assignment behind.
+                    if (!setFocus(gPreviousFocusedCompositor.name))
+                    {
+                        Logger::log(LogLevel::Warn,
+                                    "setFireboltSurfaceVisibility: failed to restore previous focused client '%s' after notification hide",
+                                    gPreviousFocusedCompositor.name.c_str());
+                        gFocusedCompositor = gPreviousFocusedCompositor;
+                    }
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via setFocus()", gPreviousFocusedCompositor.name.c_str());
                 }
                 else
                 {
                     // AppManager parity: if there is no previous active app,
                     // clear focus instead of leaving focus on notification app.
+                    if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }
                     gFocusedCompositor = CompositorInfo();
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
                 }
@@ -2725,13 +2744,23 @@ namespace RdkWindowManager
 
                     if (!gPreviousActiveClient.empty())
                     {
-                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        if (!setFocus(gPreviousFocusedCompositor.name))
+                        {
+                            Logger::log(LogLevel::Warn,
+                                        "fireboltSurfaceDestroy: failed to restore previous focused client '%s' after notification destroy",
+                                        gPreviousFocusedCompositor.name.c_str());
+                            gFocusedCompositor = gPreviousFocusedCompositor;
+                        }
                         Logger::log(LogLevel::Information,
-                                    "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
-                                    gFocusedCompositor.name.c_str());
+                                    "fireboltSurfaceDestroy: restored previous focused client '%s' via setFocus()",
+                                    gPreviousFocusedCompositor.name.c_str());
                     }
                     else
                     {
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
                         gFocusedCompositor = CompositorInfo();
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: no previous focused client, focus cleared");
@@ -2951,4 +2980,5 @@ namespace RdkWindowManager
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
+
 
