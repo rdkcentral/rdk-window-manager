@@ -698,10 +698,10 @@ namespace RdkWindowManager
             Logger::log(LogLevel::Information,  "rdkwindowmanager_focus setFocus: the focused client is now %s.  previous: %s", it->name.c_str(), previousFocusedClient.c_str());
 
             bool isSameClient = false;
-	    if (previousFocusedClient == client)
-	    {
-                 isSameClient = true;		    
-	    }
+	        if (previousFocusedClient == client)
+	        {
+                isSameClient = true;		    
+	        }
 
             if ((!isSameClient) && (gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
             {
