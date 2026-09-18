@@ -1252,12 +1252,18 @@ namespace RdkWindowManager
     {
         if (!mWstContext || mDisplayName.empty())
         {
-            Logger::log(LogLevel::Warn, "focusKeyboard: no Westeros context or display name available");
+            Logger::log(LogLevel::Warn, "focusKeyboard: no Westeros context or display name available (context=%p, display='%s')",
+                        mWstContext, mDisplayName.c_str());
             return;
         }
 
-        Logger::log(LogLevel::Information, "focusKeyboard: moving native keyboard focus to %s", mDisplayName.c_str());
+        Logger::log(LogLevel::Information,
+                    "focusKeyboard: moving native keyboard focus to compositor '%s' (wstContext=%p)",
+                    mDisplayName.c_str(), mWstContext);
         WstCompositorFocusClientByName(mWstContext, mDisplayName.c_str());
+        Logger::log(LogLevel::Information,
+                    "focusKeyboard: issued WstCompositorFocusClientByName('%s')",
+                    mDisplayName.c_str());
     }
 
     void RdkCompositor::setFocused(bool focused)

@@ -695,24 +695,42 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it))
         {
             std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
-            Logger::log(LogLevel::Information,  "rdkwindowmanager_focus setFocus: the focused client is now %s.  previous: %s", it->name.c_str(), previousFocusedClient.c_str());
+            Logger::log(LogLevel::Information,
+                        "rdkwindowmanager_focus setFocus: target='%s', previous='%s', currentFocused='%s'",
+                        client.c_str(), previousFocusedClient.c_str(), gFocusedCompositor.name.c_str());
             if ((gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
             {
+                Logger::log(LogLevel::Information,
+                            "rdkwindowmanager_focus setFocus: transferring pending key-up from previous focused client '%s'",
+                            gFocusedCompositor.name.c_str());
                 gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
             }
 
             if (gFocusedCompositor.compositor)
             {
+                Logger::log(LogLevel::Information,
+                            "rdkwindowmanager_focus setFocus: blurring previous compositor '%s'",
+                            gFocusedCompositor.name.c_str());
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
             gFocusedCompositor = *it;
+            Logger::log(LogLevel::Information,
+                        "rdkwindowmanager_focus setFocus: activating new compositor '%s'",
+                        gFocusedCompositor.name.c_str());
             gFocusedCompositor.compositor->setFocused(true);
 			gPreviousFocusedCompositor = gFocusedCompositor;
             gPreviousActiveClient = gFocusedCompositor.name;
 
+            Logger::log(LogLevel::Information,
+                        "rdkwindowmanager_focus setFocus: focus handoff complete; active='%s'",
+                        gFocusedCompositor.name.c_str());
             return true;
         }
+
+        Logger::log(LogLevel::Warn,
+                    "rdkwindowmanager_focus setFocus: target '%s' not found in compositor list",
+                    client.c_str());
         return false;
     }
 
@@ -2647,11 +2665,17 @@ namespace RdkWindowManager
                 // save current focused compositor state
                 gPreviousFocusedCompositor = gFocusedCompositor;
                 gPreviousActiveClient = gFocusedCompositor.name;
+                Logger::log(LogLevel::Information,
+                            "setFireboltSurfaceVisibility: notification show begin; client='%s', surfaceId=%d, previousFocused='%s'",
+                            client.c_str(), surfaceId, gPreviousActiveClient.c_str());
 
                 if (client != gFocusedCompositor.name)
                 {
                     gNotificationClient = client;
                     gNotificationSurfaceId = surfaceId;
+                    Logger::log(LogLevel::Information,
+                                "setFireboltSurfaceVisibility: notification focus transfer requested to '%s'",
+                                client.c_str());
                     // Equivalent to AppManager onAppShownModalOverlay:
                     // move focus through the normal focus transition path so
                     // the compositor focus flags and any focus listeners remain
@@ -2683,6 +2707,9 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
+                    Logger::log(LogLevel::Information,
+                                "setFireboltSurfaceVisibility: restoring previous focused client '%s' after notification hide",
+                                gPreviousFocusedCompositor.name.c_str());
                     if (!setFocus(gPreviousFocusedCompositor.name))
                     {
                         Logger::log(LogLevel::Warn,
