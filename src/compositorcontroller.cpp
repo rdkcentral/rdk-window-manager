@@ -2111,32 +2111,11 @@ namespace RdkWindowManager
             return -1;
         }
 
-        int listenerTag = 0;
-        {
-            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
-            listenerTag = ++gExtensionEventListenerTag;
-            gExtensionEventListenerMap[listenerTag] = listener;
-        }
-
+        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+        const int listenerTag = ++gExtensionEventListenerTag;
+        gExtensionEventListenerMap[listenerTag] = listener;
         Logger::log(LogLevel::Information,
             "addExtensionEventListener: Listener registered with tag %d", listenerTag);
-
-        // Initialize the newly loaded extension with the current client state.
-        std::vector<std::string> clients;
-        getClients(clients);
-        for (const auto& client : clients)
-        {
-            ClientInfo clientInfo{};
-            if (getClientInfo(client, clientInfo))
-            {
-                sendExtensionEvent(listener,
-                                   RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED,
-                                   client,
-                                   clientInfo,
-                                   clientInfo.ownerId);
-            }
-        }
-
         return listenerTag;
     }
 
@@ -2674,17 +2653,15 @@ namespace RdkWindowManager
                     gNotificationClient = client;
                     gNotificationSurfaceId = surfaceId;
                     // Equivalent to AppManager onAppShownModalOverlay:
-                    // focus shifts to notification app.
-                    if (gFocusedCompositor.compositor)
+                    // move focus through the normal focus transition path so
+                    // the compositor focus flags and any focus listeners remain
+                    // consistent.
+                    if (!setFocus(client))
                     {
-                        gFocusedCompositor.compositor->setFocused(false);
-                    }					
-                    gFocusedCompositor = *it;
-					if (gFocusedCompositor.compositor)
-                    {
-                        gFocusedCompositor.compositor->setFocused(true);
+                        Logger::log(LogLevel::Warn,
+                                    "setFireboltSurfaceVisibility: failed to focus notification client '%s' while previous focused='%s'",
+                                    client.c_str(), gPreviousActiveClient.c_str());
                     }
-
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
                 }
             }
@@ -2697,7 +2674,7 @@ namespace RdkWindowManager
 
             // If a Notification surface for the tracked notification client
             // is being hidden, clear the tracking and restore the previous
-            // focused compositor directly.
+            // focused compositor through the normal focus transition.
             if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && !visible && client == gNotificationClient && (gNotificationSurfaceId == surfaceId))
             {
                 gNotificationClient.clear();
@@ -2706,16 +2683,14 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
-					if (gFocusedCompositor.compositor)
+                    if (!setFocus(gPreviousFocusedCompositor.name))
                     {
-                        gFocusedCompositor.compositor->setFocused(false);
+                        Logger::log(LogLevel::Warn,
+                                    "setFireboltSurfaceVisibility: failed to restore previous focused client '%s' after notification hide",
+                                    gPreviousFocusedCompositor.name.c_str());
+                        gFocusedCompositor = gPreviousFocusedCompositor;
                     }
-                    gFocusedCompositor = gPreviousFocusedCompositor;
-					if (gFocusedCompositor.compositor)
-                    {
-                        gFocusedCompositor.compositor->setFocused(true);
-                    }					
-                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via setFocus()", gPreviousFocusedCompositor.name.c_str());
                 }
                 else
                 {
@@ -2989,4 +2964,5 @@ namespace RdkWindowManager
 #endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
+
 
