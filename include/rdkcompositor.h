@@ -115,6 +115,7 @@ namespace RdkWindowManager
             void enableInputEvents(bool enable);
             bool getInputEventsEnabled() const;
             void setFocused(bool focused);
+            void focusKeyboard();
             bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
             bool setFireboltSurfaceZOrder(int surfaceId, int zOrder);
             bool setFireboltSurfaceOpacity(int surfaceId, double opacity);
@@ -202,3 +203,4 @@ namespace RdkWindowManager
 }
 
 #endif //RDK_WINDOW_MANAGER_RDK_COMPOSITOR_H
+
