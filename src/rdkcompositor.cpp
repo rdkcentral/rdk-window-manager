@@ -19,8 +19,10 @@
 
 #include "rdkcompositor.h"
 #include "compositorcontroller.h"
+#include "rdkwindowmanagerjson.h"
 
 #include <iostream>
+#include <sstream>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -46,12 +48,13 @@ namespace RdkWindowManager
     }
 
     RdkCompositor::RdkCompositor() : mDisplayName(), mWstContext(NULL), 
-        mWidth(1920), mHeight(1080), mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
+        mWidth(1920), mHeight(1080), mLogicalWidth(1920), mLogicalHeight(1080),
+        mPositionX(0), mPositionY(0), mMatrix(), mOpacity(1.0),
         mVisible(true), mAnimating(false), mHolePunch(true), mScaleX(1.0), mScaleY(1.0), mInputListenerTags(RDK_WINDOW_MANAGER_INITIAL_INPUT_LISTENER_TAG), mInputLock(), mInputListeners(),
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(0), mVirtualHeight(0), mSizeChangeRequestPresent(false), 
+        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -60,6 +63,8 @@ namespace RdkWindowManager
             RdkWindowManager::Logger::log(LogLevel::Information,  "forcing 720 for rdkc");
             mWidth = 1280;
             mHeight = 720;
+            mLogicalWidth = 1280;
+            mLogicalHeight = 720;
         }
         float* matrixPointer = mMatrix;
         float matrix[16] = 
@@ -166,6 +171,16 @@ namespace RdkWindowManager
              case WstClient_firstFrame:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client first frame received");
                  eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 if (!mFirstFrameRendered)
+                 {
+                     mFirstFrameRendered = true;
+                     eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_FIRST_FRAME;
+                 }
+                 else
+                 {
+                     eventFound = false;
+                 }
+
                  break;
              default:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "unknown client status state");
@@ -248,6 +263,103 @@ namespace RdkWindowManager
         return success;
     }
 
+    bool RdkCompositor::loadAdditionalExtensions(WstCompositor *compositor, const std::string& capabilities)
+    {
+        Logger::log(LogLevel::Information,  "loadAdditionalExtensions WstCompositor:%p", compositor);
+        bool success = true;
+
+#ifdef RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG
+        if (compositor)
+        {
+            rapidjson::Document document;
+            const char* configPath = RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG;
+            if (!RdkWindowManagerJson::readJsonFile(configPath, document))
+            {
+                Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to read config file: %s", configPath);
+                return true; // non-fatal: file may not exist on all platforms
+            }
+
+            if (!document.IsObject() || !document.HasMember("extensions") || !document["extensions"].IsArray())
+            {
+                Logger::log(LogLevel::Warn, "loadAdditionalExtensions: invalid JSON structure in %s", configPath);
+                return true;
+            }
+
+            const rapidjson::Value& extensions = document["extensions"];
+            for (rapidjson::SizeType i = 0; i < extensions.Size(); ++i)
+            {
+                const rapidjson::Value& entry = extensions[i];
+                if (!entry.IsObject() || !entry.HasMember("library") || !entry["library"].IsString())
+                {
+                    Logger::log(LogLevel::Warn, "loadAdditionalExtensions: extension entry %u missing 'library' field, skipping", i);
+                    continue;
+                }
+
+                const std::string libraryPath = entry["library"].GetString();
+
+                // Check extension capabilities against client capabilities
+                bool shouldLoad = true;
+                if (entry.HasMember("capabilities") && entry["capabilities"].IsArray())
+                {
+                    const rapidjson::Value& extCaps = entry["capabilities"];
+                    bool hasWildcard = false;
+                    bool hasMatch = false;
+                    for (rapidjson::SizeType j = 0; j < extCaps.Size(); ++j)
+                    {
+                        if (!extCaps[j].IsString()) continue;
+                        const std::string cap = extCaps[j].GetString();
+                        if (cap == "*") { hasWildcard = true; break; }
+                        // check if cap token is present in comma-separated capabilities
+                        std::istringstream capStream(capabilities);
+                        std::string token;
+                        while (std::getline(capStream, token, ','))
+                        {
+                            if (token == cap) { hasMatch = true; break; }
+                        }
+                        if (hasMatch) break;
+                    }
+                    shouldLoad = hasWildcard || hasMatch;
+                }
+
+                if (!shouldLoad)
+                {
+                    Logger::log(LogLevel::Information, "loadAdditionalExtensions: skipping extension '%s' (client lacks required capability)",
+                                libraryPath.c_str());
+                    continue;
+                }
+
+                // Determine module type: "renderer" uses WstCompositorSetRendererModule; default is "plugin"
+                bool isRenderer = false;
+                if (entry.HasMember("type") && entry["type"].IsString())
+                {
+                    isRenderer = (std::string(entry["type"].GetString()) == "renderer");
+                }
+
+                Logger::log(LogLevel::Information, "loadAdditionalExtensions: attempting to load extension: %s", libraryPath.c_str());
+                if (isRenderer)
+                {
+                    if (!WstCompositorSetRendererModule(compositor, libraryPath.c_str()))
+                    {
+                        Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to set renderer module: %s, westeros error: %s",
+                                    libraryPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                    }
+                }
+                else if (!WstCompositorAddModule(compositor, libraryPath.c_str()))
+                {
+                    Logger::log(LogLevel::Warn, "loadAdditionalExtensions: failed to load plugin: %s, westeros error: %s",
+                                libraryPath.c_str(), WstCompositorGetLastErrorDetail(compositor));
+                }
+            }
+        }
+        else
+        {
+            success = false;
+        }
+#endif /* RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG */
+
+        return success;
+    }
+
     bool RdkCompositor::loadExtensions(WstCompositor *compositor, const std::string& clientName)
     {
         Logger::log(LogLevel::Information,  "loadExtensions clientName: %s", clientName.c_str());
@@ -308,7 +420,7 @@ namespace RdkWindowManager
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-        if (!mVisible)
+        if (!mVisible && !drawOverlays)
         {
             return;
         }
@@ -400,7 +512,12 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            bool clearVideoRegion = (fireboltSurface->surfaceType == SurfaceType::Video);
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+                            // In bridge mode, attempt to compose video surfaces into the capture path.
+                            clearVideoRegion = false;
+#endif
+                            if (clearVideoRegion)
                             {
                                 GLenum error;
                                 glEnable( GL_SCISSOR_TEST );
@@ -563,7 +680,13 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-                            if (fireboltSurface->surfaceType == SurfaceType::Video)
+                            bool clearVideoRegion = (fireboltSurface->surfaceType == SurfaceType::Video);
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+                            // In bridge mode, attempt to compose video surfaces into the capture path.
+                            clearVideoRegion = false;
+#endif
+                            
+                            if (clearVideoRegion)
                             {
                                     GLenum error;
                                     glEnable( GL_SCISSOR_TEST );
@@ -585,7 +708,6 @@ namespace RdkWindowManager
                         }
                     }
                 }
-
             }
         }
         else
@@ -645,7 +767,39 @@ namespace RdkWindowManager
         }
 
         int32_t waylandKeyCode = (int32_t)keyCodeToWayland(keycode);
-        WstCompositorKeyEvent( mWstContext, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+
+        // If firebolt surfaces are present, check whether a Notification surface
+        // is currently visible.  If so, deliver the key event to that surface's
+        // virtual compositor so that the notification overlay receives input.
+        // Otherwise fall through to the main compositor (mWstContext).
+        WstCompositor *keyTarget = mWstContext;
+        if (!mFireboltSurfaces.empty())
+        {
+            for (const auto &fs : mFireboltSurfaces)
+            {
+                if (fs.surfaceType == SurfaceType::Notification && fs.visible
+                    && fs.westerosCompositor != nullptr)
+                {
+                    keyTarget = fs.westerosCompositor;
+                    Logger::log(LogLevel::Information,
+                        "processKeyEvent: routing key %d to Notification surface"
+                        " (surfaceId=%d) compositor display: %s",
+                        keycode, fs.surfaceId, mDisplayName.c_str());
+                    break;
+                }
+            }
+        }
+
+        WstCompositorKeyEvent( keyTarget, waylandKeyCode, keyPressed ? WstKeyboard_keyState_depressed : WstKeyboard_keyState_released, (int32_t)modifiers );
+#ifdef RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
+        if (access("/disable/keymetadata", F_OK) != 0)
+        {
+            RdkWindowManager::InputEvent inputEvent(metadata, (uint32_t)RdkWindowManager::milliseconds(), RdkWindowManager::InputEvent::KeyEvent);
+            inputEvent.details.key.code = waylandKeyCode;
+            inputEvent.details.key.state = keyPressed ? RdkWindowManager::InputEvent::Details::Key::Pressed : RdkWindowManager::InputEvent::Details::Key::Released;
+            broadcastInputEvent(inputEvent);
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_KEY_METADATA
     }
 
 
@@ -741,6 +895,18 @@ namespace RdkWindowManager
         height = mHeight;
     }
 
+    void RdkCompositor::setLogicalSize(uint32_t width, uint32_t height)
+    {
+        mLogicalWidth = width;
+        mLogicalHeight = height;
+    }
+
+    void RdkCompositor::logicalSize(uint32_t &width, uint32_t &height)
+    {
+        width = mLogicalWidth;
+        height = mLogicalHeight;
+    }
+
     void RdkCompositor::opacity(double& opacity)
     {
         opacity = mOpacity;
@@ -803,20 +969,18 @@ namespace RdkWindowManager
         if (cropWidth > 0 || cropHeight > 0)
         {
             Logger::log(LogLevel::Information,  "setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
+	    // Scale: map [0, mWidth] vertex space to [0, cropWidth] screen pixels
+	    mMatrix[0] = (mWidth > 0) ? ((float)cropWidth / (float)mWidth) : 1.f;
+            mMatrix[5] = (mHeight > 0) ? ((float)cropHeight / (float)mHeight) : 1.f;
+            // Translation: absolute screen position of the crop origin
+	    mMatrix[12] = (float)mPositionX + (float)cropX;
+            mMatrix[13] = (float)mPositionY + (float)cropY;
+            Logger::log(LogLevel::Information,  "setCrop matrix scale:(%f,%f) translate:(%f,%f)", mMatrix[0], mMatrix[5], mMatrix[12], mMatrix[13]);
 
-            mMatrix[0] = CONVERT_GL_FLOAT_SCALE(mWidth, cropWidth, 1.f);
-            mMatrix[5] = CONVERT_GL_FLOAT_SCALE(mHeight, cropHeight, 1.f);
-            mMatrix[12] = CONVERT_GL_FLOAT_SCALE(mPositionX, cropX, 0.f);
-            mMatrix[13] = CONVERT_GL_FLOAT_SCALE(mPositionY, cropY, 0.f);
         }
         else
         {
             Logger::log(LogLevel::Information,  "setCrop mWidth:%d mHeight:%d mPositionX:%d mPositionY:%d", mWidth, mHeight, mPositionX, mPositionY);
-
-            mMatrix[0] = 1.f;
-            mMatrix[5] = 1.f;
-            mMatrix[12] = 0.f;
-            mMatrix[13] = 0.f;
         }
     }
 
@@ -1116,13 +1280,14 @@ namespace RdkWindowManager
         if(mFireboltSurfaces.empty())
         {
             WstCompositorGetSurfaceIds(mWstContext, surfaceIds);
-
             for (std::vector<int>::iterator id = surfaceIds.begin(); id != surfaceIds.end(); id++)
             {
                 if((surfaceType == SurfaceType::Notification || surfaceType == SurfaceType::Popup) && *id == surfaceId)
                 {
                     WstCompositor* overlayCompositor = NULL;
                     overlayCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+                    WstCompositorSetClientStatusCallback(overlayCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(overlayCompositor, invalidate, this);
                     result = WstCompositorVirtualEmbeddedSetSurfaceOwner(overlayCompositor, surfaceId );
                     surfaceInfo.westerosCompositor = overlayCompositor;
                     mFireboltSurfaces.push_back(surfaceInfo);
@@ -1131,10 +1296,12 @@ namespace RdkWindowManager
                 {
                     WstCompositor* westerosCompositor = NULL;
                     westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
-                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
+                    WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+                    WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
+                    result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, *id );
                     FireboltSurfaceInfo mainSurfaceInfo;
-                    mainSurfaceInfo.surfaceId = surfaceId;
-                    mainSurfaceInfo.surfaceType = surfaceType;
+                    mainSurfaceInfo.surfaceId = *id;
+                    mainSurfaceInfo.surfaceType = SurfaceType::Standard;
                     mainSurfaceInfo.westerosCompositor = westerosCompositor;
                     mFireboltSurfaces.push_back(mainSurfaceInfo);
                 }
@@ -1153,6 +1320,8 @@ namespace RdkWindowManager
 
             WstCompositor* westerosCompositor = NULL;
             westerosCompositor = WstCompositorCreateVirtualEmbedded(mWstContext);
+            WstCompositorSetClientStatusCallback(westerosCompositor, clientStatus, this);
+            WstCompositorSetInvalidateCallback(westerosCompositor, invalidate, this);
             result = WstCompositorVirtualEmbeddedSetSurfaceOwner( westerosCompositor, surfaceId );
             if (result)
             {

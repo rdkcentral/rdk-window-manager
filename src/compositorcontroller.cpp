@@ -30,6 +30,8 @@
 #include "rdkwindowmanagerrect.h"
 #include "cursor.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <map>
 #include <ctime>
 #include <mutex>
@@ -38,6 +40,7 @@
 #include <sys/shm.h>
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
 #include "VncServer.h"
+#include "src/VncServer/VncServerFactory.h"
 #include "VncFrameBuffer.h"
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
@@ -59,7 +62,7 @@ namespace RdkWindowManager
 
     struct CompositorInfo
     {
-        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1), isSuspended(false), previousWidth(0), previousHeight(0) {}
+        CompositorInfo() : name(), compositor(nullptr), eventListeners(), mimeType(), zorder(-1), isSuspended(false), previousWidth(0), previousHeight(0), capabilities() {}
         std::string name;
         std::shared_ptr<RdkCompositor> compositor;
         std::map<uint32_t, std::vector<KeyListenerInfo>> keyListenerInfo;
@@ -69,6 +72,7 @@ namespace RdkWindowManager
         bool isSuspended;
         uint32_t previousWidth;
         uint32_t previousHeight;
+        std::string capabilities;
     };
 
     struct KeyInterceptInfo
@@ -123,6 +127,8 @@ namespace RdkWindowManager
     CompositorInfo gFocusedCompositor;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
+    std::map<std::string, std::string> gClientAliasMap;
+    std::mutex gClientAliasMapMutex;
 
     static std::map<uint32_t, std::vector<KeyInterceptInfo>> gKeyInterceptInfoMap;
     std::map<std::string, bool> gKeyInterceptedMap;
@@ -140,16 +146,49 @@ namespace RdkWindowManager
     RdkWindowManagerCompositorType gRdkWindowManagerCompositorType = NESTED;
     bool gIgnoreKeyInputEnabled = false;
 
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+    std::shared_ptr<RdkWindowManager::Image> gSplashImage = nullptr;
+    bool gShowSplashImage = false;
+    uint32_t gSplashDisplayTimeInSeconds = 0;
+    double gSplashStartTime = 0;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+
     std::shared_ptr<Cursor> gCursor = nullptr;
     KeyRepeatConfig gKeyRepeatConfig;
+
+    // Global hole-punch state: a single rect that applies to all compositors
+    // when global hole-punch is enabled (used when textured_video is not set).
+    std::mutex            gGlobalHolePunchMutex;
+    bool                  gGlobalHolePunchEnabled = false;
+    RdkWindowManagerRect  gGlobalHolePunchRect;
+
+    // Z-order threshold separating app-tier compositors (players, apps)
+    // from overlay-tier compositors (subtitles z=1000, watermark z=1001).
+    // The global hole punch must be applied between these two tiers.
+    static constexpr int32_t kOverlayZOrderThreshold = 1000;
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
     std::mutex gFireboltExtensionListenerMapMutex;
+    // Notification/popup tracking
+    // Client which caused a Notification surface to be created. Empty when none.
+    std::string gNotificationClient;
+    uint32_t gNotificationSurfaceId = 0;
+    // Previously focused client before notification was shown.
+    std::string gPreviousActiveClient;
+    // Previously focused CompositorInfo saved when a Notification is registered.
+    CompositorInfo gPreviousFocusedCompositor;
     const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_CONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_CONNECTED},
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED, RDK_WINDOW_MANAGER_FIREBOLT_EXTENSION_EVENT_CLIENT_DISCONNECTED}
+        };
+    std::unordered_map<int, std::shared_ptr<ExtensionEventListener>> gExtensionEventListenerMap;
+    std::mutex gExtensionListenerMapMutex;
+    int gExtensionEventListenerTag = 0;
+    const std::unordered_map<std::string, std::string> gExtensionEventMap = {
+            { RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED, RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED },
+            { RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED, RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED }
         };
 
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
@@ -163,6 +202,9 @@ namespace RdkWindowManager
         std::transform(displayName.begin(), displayName.end(), displayName.begin(), [](unsigned char c){ return std::tolower(c); });
         return displayName;
     }
+
+    void notifyExtensionClientConfigChanged(const std::string& clientName, const ClientInfo& clientInfo);
+    void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId);
 
     /*
         getCompositorInfo searches gCompositorList and gTopmostCompositoList for compositor info with
@@ -666,6 +708,8 @@ namespace RdkWindowManager
 
             gFocusedCompositor = *it;
             gFocusedCompositor.compositor->setFocused(true);
+			gPreviousFocusedCompositor = gFocusedCompositor;
+            gPreviousActiveClient = gFocusedCompositor.name;
 
             return true;
         }
@@ -706,6 +750,11 @@ namespace RdkWindowManager
                 {
                     entry++;
                 }
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+                gClientAliasMap.erase(clientDisplayName);
             }
 
             // cleanup key listeners
@@ -1087,6 +1136,73 @@ namespace RdkWindowManager
         return true;
     }
 
+    bool CompositorController::setAlias(const std::string& clientId, const std::string& alias)
+    {
+        CompositorListIterator it;
+        if (!getCompositorInfo(clientId, it))
+        {
+            Logger::log(LogLevel::Error, "Client '%s' not found. Cannot set alias", clientId.c_str());
+            return false;
+        }
+
+        const std::string standardizedClientId = standardizeName(clientId);
+        {
+            std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+            gClientAliasMap[standardizedClientId] = alias;
+        }
+
+        return true;
+    }
+
+    std::string CompositorController::getDisplayNameFromAlias(const std::string& alias)
+    {
+        if (alias.empty())
+        {
+            return "";
+        }
+
+        std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+        for (const auto& clientAliasEntry : gClientAliasMap)
+        {
+            if (clientAliasEntry.second == alias)
+            {
+                return clientAliasEntry.first;
+            }
+        }
+
+        return "";
+    }
+
+    std::string CompositorController::getAliasFromDisplayName(const std::string& clientId)
+    {
+        if (clientId.empty())
+        {
+            return "";
+        }
+
+        const std::string standardizedClientId = standardizeName(clientId);
+        std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+        const auto aliasEntry = gClientAliasMap.find(standardizedClientId);
+        if (aliasEntry != gClientAliasMap.end())
+        {
+            return aliasEntry->second;
+        }
+
+        return "";
+    }
+
+    bool CompositorController::getCapabilities(const std::string& clientId, std::string& capabilities)
+    {
+        CompositorListIterator it;
+        if (!getCompositorInfo(clientId, it))
+        {
+            Logger::log(LogLevel::Error, "Client '%s' not found. Cannot get capabilities", clientId.c_str());
+            return false;
+        }
+        capabilities = it->capabilities;
+        return true;
+    }
+
     bool CompositorController::getZOrder(const std::string& client, int32_t &zorder)
     {
         CompositorListIterator it;
@@ -1193,7 +1309,18 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            bool currentVisibility = false;
+            it->compositor->visible(currentVisibility);
             it->compositor->setVisible(visible);
+
+            if (currentVisibility != visible)
+            {
+                ClientInfo updatedInfo{};
+                if (CompositorController::getClientInfo(client, updatedInfo))
+                {
+                    notifyExtensionClientConfigChanged(client, updatedInfo);
+                }
+            }
             return true;
         }
         return false;
@@ -1276,6 +1403,32 @@ namespace RdkWindowManager
             return true;
         }
         return false;
+    }
+
+    bool CompositorController::setGlobalHolePunch(const RdkWindowManagerRect& rect)
+    {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
+        gGlobalHolePunchRect = rect;
+        Logger::log(LogLevel::Information,
+                    "setGlobalHolePunch: x=%u y=%u width=%u height=%u",
+                    rect.x, rect.y, rect.width, rect.height);
+        return true;
+    }
+
+    bool CompositorController::getGlobalHolePunch(RdkWindowManagerRect& rect)
+    {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
+        rect = gGlobalHolePunchRect;
+        return true;
+    }
+
+    bool CompositorController::enableGlobalHolePunch(bool enable)
+    {
+        std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
+        gGlobalHolePunchEnabled = enable;
+        Logger::log(LogLevel::Information,
+                    "enableGlobalHolePunch: %s", enable ? "enabled" : "disabled");
+        return true;
     }
 
     bool CompositorController::getCrop(const std::string& client, int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight)
@@ -1442,7 +1595,7 @@ namespace RdkWindowManager
 
     bool CompositorController::createDisplay(const std::string& client, const std::string& displayName,
         uint32_t displayWidth, uint32_t displayHeight, bool virtualDisplayEnabled, uint32_t virtualWidth, uint32_t virtualHeight,
-        bool topmost, bool focus , int32_t ownerId, int32_t groupId)
+        bool topmost, bool focus , int32_t ownerId, int32_t groupId, const std::string& capabilities)
     {
         Logger::log(LogLevel::Information,
             "rdkwindowmanager createDisplay client: %s, displayName: %s, res: %d x %d, virtualDisplayEnabled: %d, virtualRes: %d x %d, topmost: %d, focus: %d\n",
@@ -1465,6 +1618,7 @@ namespace RdkWindowManager
         CompositorInfo compositorInfo;
         compositorInfo.name = clientDisplayName;
         compositorInfo.compositor = std::make_shared<RdkCompositorNested>();
+        compositorInfo.capabilities = capabilities;
 
         uint32_t width = 0;
         uint32_t height = 0;
@@ -1496,12 +1650,13 @@ namespace RdkWindowManager
             topmost, focus);
 
         bool ret = compositorInfo.compositor->createDisplay(compositorDisplayName, clientDisplayName, width, height,
-            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId);
+            virtualDisplayEnabled, virtualWidth, virtualHeight, ownerId, groupId, capabilities);
 
         if (ret)
         {
             bool bNotifyFocusEvent = false;
             CompositorInfo prevFocusedCompositor = gFocusedCompositor;
+
 
             if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
             {
@@ -1558,14 +1713,44 @@ namespace RdkWindowManager
         gDeletedCompositors.clear();
 
 #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
         if (gVncServerEnabled && gVncBuffer)
         {
             gVncBuffer->begin();
         }
+#endif
 #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
+        // Base pass — draw app-tier compositors (players + apps, z < kOverlayZOrderThreshold)
+        // in ascending z-order (background → foreground).
         for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
         {
+            if (reverseIterator->zorder >= kOverlayZOrderThreshold)
+                continue;
+            bool needsHolePunch = false;
+            RdkWindowManagerRect rect;
+            reverseIterator->compositor->draw(needsHolePunch, rect, false);
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
+            if (gGlobalHolePunchEnabled)
+            {
+                glEnable(GL_SCISSOR_TEST);
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                glScissor(gGlobalHolePunchRect.x, gGlobalHolePunchRect.y,
+                          gGlobalHolePunchRect.width, gGlobalHolePunchRect.height);
+                glClear(GL_COLOR_BUFFER_BIT);
+                glDisable(GL_SCISSOR_TEST);
+            }
+        }
+
+        // Base pass — draw overlay-tier compositors (subtitles, watermark,
+        // z >= kOverlayZOrderThreshold) on top of the hole-punched frame.
+        for (auto reverseIterator = gCompositorList.rbegin(); reverseIterator != gCompositorList.rend(); reverseIterator++)
+        {
+            if (reverseIterator->zorder < kOverlayZOrderThreshold)
+                continue;
             bool needsHolePunch = false;
             RdkWindowManagerRect rect;
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
@@ -1581,19 +1766,46 @@ namespace RdkWindowManager
             }
         }
 
-#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
-        if (gVncServerEnabled && gVncBuffer)
-        {
-            gVncBuffer->publish();
-            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
-            gVncBuffer->end();
-        }
-#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         if (gCursor)
         {
             gCursor->draw();
         }
+
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        if (gShowSplashImage && gSplashImage != nullptr)
+        {
+            if (gSplashDisplayTimeInSeconds > 0)
+            {
+                uint32_t splashShownTime = (uint32_t)(RdkWindowManager::seconds() - gSplashStartTime);
+                if (splashShownTime >= gSplashDisplayTimeInSeconds)
+                {
+                    Logger::log(LogLevel::Information, "hiding splash screen after timeout: %u s", gSplashDisplayTimeInSeconds);
+                    gShowSplashImage = false;
+                    gSplashImage = nullptr;
+                }
+                else
+                {
+                    gSplashImage->draw();
+                }
+            }
+            else
+            {
+                gSplashImage->draw();
+            }
+        }
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+
+#ifdef RDK_WINDOW_MANAGER_VNC_SERVER
+        if (gVncServerEnabled && gVncBuffer)
+        {
+            gVncBuffer->publish();
+#ifndef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+            // Extra draw call is disabled for now as it leads to TV Blank issue RDKEMW-6814 gVncBuffer->draw();
+            gVncBuffer->end();
+#endif
+        }
+#endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
         return true;
     }
 
@@ -1703,6 +1915,85 @@ namespace RdkWindowManager
         }
     }
 
+    void sendExtensionEvent(const std::shared_ptr<ExtensionEventListener>& listener,
+                                   const std::string& eventName,
+                                   const std::string& clientName,
+                                   const ClientInfo& clientInfo,
+                                   int ownerId)
+    {
+        std::string eventClientName = CompositorController::getAliasFromDisplayName(clientName);
+        if (eventClientName.empty())
+        {
+            eventClientName = clientName;
+        }
+
+        Logger::log(LogLevel::Information, "sendExtensionEvent - client:%s eventName:%s", eventClientName.c_str(), eventName.c_str());
+        if (eventName == RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED)
+        {
+            listener->onClientConfigChanged(eventClientName,
+                                            clientInfo.visible,
+                                            clientInfo.zorder,
+                                            clientInfo.opacity,
+                                            clientInfo.x,
+                                            clientInfo.y,
+                                            clientInfo.width,
+                                            clientInfo.height);
+        }
+        else if (eventName == RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED)
+        {
+            listener->onOwnerChanged(ownerId, eventClientName);
+        }
+    }
+
+    void notifyExtensionClientConfigChanged(const std::string& clientName, const ClientInfo& clientInfo)
+    {
+        const auto eventIt = gExtensionEventMap.find(RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED);
+        if (eventIt == gExtensionEventMap.end())
+        {
+            return;
+        }
+
+        std::vector<std::pair<int, std::shared_ptr<ExtensionEventListener>>> listeners;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listeners.reserve(gExtensionEventListenerMap.size());
+            for (const auto& entry : gExtensionEventListenerMap)
+            {
+                listeners.emplace_back(entry.first, entry.second);
+            }
+        }
+
+        for (const auto& entry : listeners)
+        {
+            sendExtensionEvent(entry.second, eventIt->second, clientName, clientInfo, clientInfo.ownerId);
+        }
+    }
+
+    void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId)
+    {
+        const auto eventIt = gExtensionEventMap.find(RDK_WINDOW_MANAGER_EXTENSION_EVENT_OWNER_CHANGED);
+        if (eventIt == gExtensionEventMap.end())
+        {
+            return;
+        }
+
+        ClientInfo noopInfo{};
+        std::vector<std::pair<int, std::shared_ptr<ExtensionEventListener>>> listeners;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listeners.reserve(gExtensionEventListenerMap.size());
+            for (const auto& entry : gExtensionEventListenerMap)
+            {
+                listeners.emplace_back(entry.first, entry.second);
+            }
+        }
+
+        for (const auto& entry : listeners)
+        {
+            sendExtensionEvent(entry.second, eventIt->second, clientName, noopInfo, ownerId);
+        }
+    }
+
     bool CompositorController::addFireboltExtensionListener(const std::string& fbExtensionName, std::shared_ptr<FireboltExtensionEventListener> listener)
     {
         bool success = false;
@@ -1806,6 +2097,66 @@ namespace RdkWindowManager
         {
             Logger::log(LogLevel::Error,
                 "onFireboltExtensionEvent - Invalid eventCompositor[%p] or eventName[%s]", eventCompositor, eventName.c_str());
+        }
+
+        return success;
+    }
+
+    int CompositorController::addExtensionEventListener(std::shared_ptr<ExtensionEventListener> listener)
+    {
+        if (!listener)
+        {
+            Logger::log(LogLevel::Error,
+                "addExtensionEventListener: listener is null!");
+            return -1;
+        }
+
+        int listenerTag = 0;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listenerTag = ++gExtensionEventListenerTag;
+            gExtensionEventListenerMap[listenerTag] = listener;
+        }
+
+        Logger::log(LogLevel::Information,
+            "addExtensionEventListener: Listener registered with tag %d", listenerTag);
+
+        // Initialize the newly loaded extension with the current client state.
+        std::vector<std::string> clients;
+        getClients(clients);
+        for (const auto& client : clients)
+        {
+            ClientInfo clientInfo{};
+            if (getClientInfo(client, clientInfo))
+            {
+                sendExtensionEvent(listener,
+                                   RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED,
+                                   client,
+                                   clientInfo,
+                                   clientInfo.ownerId);
+            }
+        }
+
+        return listenerTag;
+    }
+
+    bool CompositorController::removeExtensionEventListener(int listenerTag)
+    {
+        bool success = false;
+
+        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+        auto it = gExtensionEventListenerMap.find(listenerTag);
+        if (it == gExtensionEventListenerMap.end())
+        {
+            Logger::log(LogLevel::Warn,
+                "removeExtensionEventListener: no listener found for tag %d", listenerTag);
+        }
+        else
+        {
+            gExtensionEventListenerMap.erase(it);
+            Logger::log(LogLevel::Information,
+                "removeExtensionEventListener: Listener removed for tag %d", listenerTag);
+            success = true;
         }
 
         return success;
@@ -2112,9 +2463,10 @@ namespace RdkWindowManager
         ci.zorder = it->zorder;
         c->opacity(ci.opacity);
         c->position(ci.x, ci.y);
-        c->size(ci.width, ci.height);
+        c->logicalSize(ci.width, ci.height);  // tile/fullscreen dims set by setClientInfo
+        c->scale(ci.sx, ci.sy);              // computed scale retained from setClientInfo
         c->crop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
-        c->ownerId(ci.ownerId);
+        //c->ownerId(ci.ownerId);
         return true;
     }
 
@@ -2125,16 +2477,91 @@ namespace RdkWindowManager
             return false;
         auto c = it->compositor;
 
+        ClientInfo currentInfo{};
+        const bool hasCurrentInfo = CompositorController::getClientInfo(client, currentInfo);
+
+        Logger::log(LogLevel::Information, "setClientInfo client:%s x:%d y:%d w:%u h:%u sx:%f sy:%f visible:%d opacity:%f zorder:%d",
+            client.c_str(), ci.x, ci.y, ci.width, ci.height, ci.sx, ci.sy, (int)ci.visible, ci.opacity, ci.zorder);
+
         c->setVisible(ci.visible);
         c->setOpacity(ci.opacity);
         c->setPosition(ci.x, ci.y);
-        c->setSize(ci.width, ci.height);
+
+        // drawDirect composes with bounds=(0,0,mWidth,mHeight). If we called
+        // setSize(ci.width, ci.height) here, mWidth would change to the tile size
+        // (e.g. 456) and WstCompositorSetOutputSize would ask the app to resize.
+        // If the app does NOT re-render at the new size, Westeros clips its
+        // full-resolution output to the first 456 pixels -- showing only the
+        // top-left corner instead of a scaled-down thumbnail.
+        //
+        // Solution: keep mWidth/mHeight at the app's natural render resolution and
+        // compute scale = tile_size / natural_size so the full output is scaled
+        // down to fit the tile in the matrix transform.
+        uint32_t curW = 0, curH = 0;
+        c->size(curW, curH);  // returns mWidth/mHeight (natural render resolution)
+        if (curW == 0 || curH == 0)
+        {
+            // Fall back to actual screen resolution — not hardcoded 1920/1080
+            // so that 720p and 4K screens are handled correctly.
+            uint32_t screenW = 0, screenH = 0;
+            getScreenResolution(screenW, screenH);
+            if (curW == 0) curW = (screenW > 0) ? screenW : 1920;
+            if (curH == 0) curH = (screenH > 0) ? screenH : 1080;
+        }
+
+        double scaleX, scaleY;
+        if (ci.sx > 0.0)
+            scaleX = ci.sx;
+        else
+            scaleX = (ci.width > 0) ? ((double)ci.width / curW) : 1.0;
+
+        if (ci.sy > 0.0)
+            scaleY = ci.sy;
+        else
+            scaleY = (ci.height > 0) ? ((double)ci.height / curH) : 1.0;
+
+        it->compositor->setScale(scaleX, scaleY);
+        Logger::log(LogLevel::Information, "setClientInfo scale:(%f,%f) client:%s (output:%ux%u tile:%ux%u)",
+            scaleX, scaleY, client.c_str(), curW, curH, ci.width, ci.height);
+
         c->setCrop(ci.cropX, ci.cropY, ci.cropWidth, ci.cropHeight);
         setZorder(client, ci.zorder);
-        if (!(c->setOwner(ci.ownerId, -1)))
+
+        // Store the logical (tile or fullscreen) dimensions and scale so that
+        // getClientInfo returns consistent values in onClientConfigChanged events.
+        // EPG needs these to match what it originally sent.
+        const uint32_t logicalW = (ci.width > 0) ? ci.width
+                                : (ci.sx > 0.0)   ? static_cast<uint32_t>(curW * ci.sx)
+                                :                   curW;
+        const uint32_t logicalH = (ci.height > 0) ? ci.height
+                                : (ci.sy > 0.0)    ? static_cast<uint32_t>(curH * ci.sy)
+                                :                    curH;
+        c->setLogicalSize(logicalW, logicalH);
+        Logger::log(LogLevel::Information, "setClientInfo logicalSize:(%ux%u) scale:(%f,%f) client:%s",
+            logicalW, logicalH, scaleX, scaleY, client.c_str());
+
+        ClientInfo updatedInfo{};
+        if (CompositorController::getClientInfo(client, updatedInfo))
         {
-            Logger::log(LogLevel::Error,  "could not set owner %d for display %s", ci.ownerId, client.c_str());
+            const bool nonOwnerConfigChanged = !hasCurrentInfo ||
+                (currentInfo.visible != updatedInfo.visible) ||
+                (currentInfo.zorder != updatedInfo.zorder) ||
+                (currentInfo.opacity != updatedInfo.opacity) ||
+                (currentInfo.x != updatedInfo.x) ||
+                (currentInfo.y != updatedInfo.y) ||
+                (currentInfo.width != updatedInfo.width) ||
+                (currentInfo.height != updatedInfo.height) ||
+                (currentInfo.cropX != updatedInfo.cropX) ||
+                (currentInfo.cropY != updatedInfo.cropY) ||
+                (currentInfo.cropWidth != updatedInfo.cropWidth) ||
+                (currentInfo.cropHeight != updatedInfo.cropHeight);
+
+            if (nonOwnerConfigChanged)
+            {
+                notifyExtensionClientConfigChanged(client, updatedInfo);
+            }
         }
+
         return true;
     }
 
@@ -2156,8 +2583,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            bool result = it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
-            return result;
+            return it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
         }
         return false;
     }
@@ -2222,6 +2648,93 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            // Query surface info to check type/visibility so we can apply
+            // notification/popup handling in addition to setting visibility.
+            FireboltSurfaceInfo fs;
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
+
+            // If we couldn't get info, fall back to default behavior.
+            if (!haveInfo)
+            {
+                bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
+                return result;
+            }
+
+            // If no notification client is currently tracked and this is a
+            // Notification surface being made visible, register it similarly
+            // to getFireboltSurface flow.
+            if (gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && visible)
+            {
+                // save current focused compositor state
+                gPreviousFocusedCompositor = gFocusedCompositor;
+                gPreviousActiveClient = gFocusedCompositor.name;
+
+                if (client != gFocusedCompositor.name)
+                {
+                    gNotificationClient = client;
+                    gNotificationSurfaceId = surfaceId;
+                    // Equivalent to AppManager onAppShownModalOverlay:
+                    // focus shifts to notification app.
+                    if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }					
+                    gFocusedCompositor = *it;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }
+
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
+                }
+            }
+            else if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && visible && client != gNotificationClient)
+            {
+                Logger::log(LogLevel::Warn,
+                            "setFireboltSurfaceVisibility: Notification visible for '%s' while '%s' is already registered, ignoring",
+                            client.c_str(), gNotificationClient.c_str());
+            }
+
+            // If a Notification surface for the tracked notification client
+            // is being hidden, clear the tracking and restore the previous
+            // focused compositor directly.
+            if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && !visible && client == gNotificationClient && (gNotificationSurfaceId == surfaceId))
+            {
+                gNotificationClient.clear();
+                gNotificationSurfaceId = 0;
+                Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification hidden for client '%s' - clearing notification client", client.c_str());
+
+                if (!gPreviousActiveClient.empty())
+                {
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }
+                    gFocusedCompositor = gPreviousFocusedCompositor;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }					
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
+                }
+                else
+                {
+                    // AppManager parity: if there is no previous active app,
+                    // clear focus instead of leaving focus on notification app.
+                    gFocusedCompositor = CompositorInfo();
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
+                }
+
+                gPreviousActiveClient.clear();
+                gPreviousFocusedCompositor = CompositorInfo();
+            }
+            else if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && !visible && client != gNotificationClient)
+            {
+                Logger::log(LogLevel::Warn,
+                            "setFireboltSurfaceVisibility: Notification hide from '%s' ignored, expected owner '%s'",
+                            client.c_str(), gNotificationClient.c_str());
+            }
+
             bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
             return result;
         }
@@ -2233,6 +2746,46 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            FireboltSurfaceInfo fs;
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
+
+            // If a tracked Notification surface is destroyed, treat it as
+            // HiddenModalOverlay equivalent so focus/tracking state is restored.
+            if (haveInfo && (gNotificationSurfaceId == surfaceId))
+            {
+                if (!gNotificationClient.empty() && client == gNotificationClient)
+                {
+                    gNotificationClient.clear();
+                    gNotificationSurfaceId = 0;
+                    Logger::log(LogLevel::Information,
+                                "fireboltSurfaceDestroy: Notification surface destroyed for client '%s' - clearing notification client",
+                                client.c_str());
+
+                    if (!gPreviousActiveClient.empty())
+                    {
+                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        Logger::log(LogLevel::Information,
+                                    "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
+                                    gFocusedCompositor.name.c_str());
+                    }
+                    else
+                    {
+                        gFocusedCompositor = CompositorInfo();
+                        Logger::log(LogLevel::Information,
+                                    "fireboltSurfaceDestroy: no previous focused client, focus cleared");
+                    }
+
+                    gPreviousActiveClient.clear();
+                    gPreviousFocusedCompositor = CompositorInfo();
+                }
+                else if (!gNotificationClient.empty() && client != gNotificationClient)
+                {
+                    Logger::log(LogLevel::Warn,
+                                "fireboltSurfaceDestroy: Notification destroy from '%s' ignored, expected owner '%s'",
+                                client.c_str(), gNotificationClient.c_str());
+                }
+            }
+
             bool result = it->compositor->fireboltSurfaceDestroy(surfaceId);
             return result;
         }
@@ -2261,7 +2814,9 @@ namespace RdkWindowManager
             if (enable && it->isSuspended) //resuming from suspended
             {
                 //resetting Display size to original
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(it->previousWidth, it->previousHeight);
+#endif
                 it->isSuspended = false;
                 Logger::log(LogLevel::Information,  "resetting Display size to original for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
             }
@@ -2272,7 +2827,18 @@ namespace RdkWindowManager
                 it->isSuspended = true;
                 Logger::log(LogLevel::Information,  "saving Display size for %s, width: %d, height: %d", client.c_str(), it->previousWidth, it->previousHeight);
                 //setting Display size to 1,1
+#ifdef ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE
                 it->compositor->setSize(1, 1);
+#endif
+            }
+
+            if (result && enable)
+            {
+                ClientInfo updatedInfo{};
+                if (CompositorController::getClientInfo(client, updatedInfo))
+                {
+                    notifyExtensionClientConfigChanged(client, updatedInfo);
+                }
             }
             return result;
         }
@@ -2295,8 +2861,16 @@ namespace RdkWindowManager
 
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         uint32_t width = 0, height = 0;
+#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
+        // Match capture dimensions in VNCServer2 bridge mode.
+        constexpr uint32_t kVncBridgeCaptureWidth = 960;
+        constexpr uint32_t kVncBridgeCaptureHeight = 540;
+        width = kVncBridgeCaptureWidth;
+        height = kVncBridgeCaptureHeight;
+#else
         getScreenResolution(width, height);
-        result = VncServer::getInstance().start(width, height);
+#endif
+        result = VncServerFactory::getInstance().initializeVncServer(width, height);
         if (result)
         {
             gVncBuffer = std::make_shared<RdkWindowManager::VncFrameBuffer>(width, height);
@@ -2320,7 +2894,7 @@ namespace RdkWindowManager
 
     #ifdef RDK_WINDOW_MANAGER_VNC_SERVER
         gVncServerEnabled = false;
-        VncServer::getInstance().stop();
+        VncServerFactory::getInstance().stopVncServer();
         gVncBuffer.reset();
         Logger::log(LogLevel::Information,  "VNC server stopped successfully");
         result = true;
@@ -2329,6 +2903,90 @@ namespace RdkWindowManager
     #endif /* RDK_WINDOW_MANAGER_VNC_SERVER */
 
         return result;
+    }
+}
+
+namespace RdkWindowManager
+{
+    bool CompositorController::showSplashScreen(uint32_t displayTimeInSeconds)
+    {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        Logger::log(LogLevel::Information, "showSplashScreen: requested display time %u s", displayTimeInSeconds);
+        if (gShowSplashImage)
+        {
+            Logger::log(LogLevel::Information, "showSplashScreen: splash already visible, skipping");
+            return true;
+        }
+
+        const char* splashEnv = getenv("RDKWINDOWMANAGER_SPLASH_IMAGE");
+        if (splashEnv == nullptr)
+        {
+            Logger::log(LogLevel::Warn, "showSplashScreen: RDKWINDOWMANAGER_SPLASH_IMAGE not set");
+            return false;
+        }
+
+        // Iterate the comma-separated list and pick the first path that exists
+        std::string selectedPath;
+        std::istringstream stream(splashEnv);
+        std::string token;
+        while (std::getline(stream, token, ','))
+        {
+            const size_t start = token.find_first_not_of(" \t");
+            const size_t end   = token.find_last_not_of(" \t");
+            if (start == std::string::npos)
+                continue;
+            token = token.substr(start, end - start + 1);
+            if (std::ifstream(token).good())
+            {
+                selectedPath = token;
+                Logger::log(LogLevel::Information, "showSplashScreen: using splash image: %s", selectedPath.c_str());
+                break;
+            }
+            Logger::log(LogLevel::Information, "showSplashScreen: skipping '%s' (not found)", token.c_str());
+        }
+
+        if (selectedPath.empty())
+        {
+            Logger::log(LogLevel::Warn, "showSplashScreen: no usable splash image found in RDKWINDOWMANAGER_SPLASH_IMAGE");
+            return false;
+        }
+
+        gSplashImage = std::make_shared<RdkWindowManager::Image>();
+        gShowSplashImage = gSplashImage->loadLocalFile(selectedPath.c_str());
+        if (!gShowSplashImage)
+        {
+            Logger::log(LogLevel::Error, "showSplashScreen: failed to load image: %s", selectedPath.c_str());
+            gSplashImage = nullptr;
+            return false;
+        }
+
+        gSplashDisplayTimeInSeconds = displayTimeInSeconds;
+        gSplashStartTime = RdkWindowManager::seconds();
+        Logger::log(LogLevel::Information, "showSplashScreen: showing '%s' for %u s", selectedPath.c_str(), displayTimeInSeconds);
+        return true;
+#else
+        Logger::log(LogLevel::Warn, "showSplashScreen: splash screen support not compiled in");
+        return false;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+    }
+
+    bool CompositorController::hideSplashScreen()
+    {
+#ifdef RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
+        Logger::log(LogLevel::Information, "hideSplashScreen: hiding splash screen");
+        if (!gShowSplashImage)
+        {
+            Logger::log(LogLevel::Information, "hideSplashScreen: splash already hidden, skipping");
+            return true;
+        }
+        gShowSplashImage = false;
+        gSplashImage = nullptr;
+        Logger::log(LogLevel::Information, "hideSplashScreen: splash screen hidden");
+        return true;
+#else
+        Logger::log(LogLevel::Warn, "hideSplashScreen: splash screen support not compiled in");
+        return false;
+#endif // RDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN
     }
 }
 
