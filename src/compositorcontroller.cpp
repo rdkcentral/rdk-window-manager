@@ -701,14 +701,22 @@ namespace RdkWindowManager
                 gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
             }
 
-            if (gFocusedCompositor.compositor)
+            bool isSameClient = false;
+	    if (gFocusedCompositor.name == client)
+	    {
+                 isSameClient = true;		    
+	    }
+            if (gFocusedCompositor.compositor && !isSameClient)
             {
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
             gFocusedCompositor = *it;
-            gFocusedCompositor.compositor->setFocused(true);
-			gPreviousFocusedCompositor = gFocusedCompositor;
+            if (gFocusedCompositor.compositor && !isSameClient)
+            {
+                 gFocusedCompositor.compositor->setFocused(true);
+            }
+	    gPreviousFocusedCompositor = gFocusedCompositor;
             gPreviousActiveClient = gFocusedCompositor.name;
 
             return true;
