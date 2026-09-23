@@ -52,7 +52,7 @@ static bool setFocus(const std::string& client);
 static bool draw();
 ```
 
-Source: [include/compositorcontroller.h](../include/compositorcontroller.h).
+Source: [include/compositorcontroller.h](../../include/compositorcontroller.h).
 
 The base class requires derived classes to implement `createDisplay`; its event callbacks are static adapters that forward into instance methods.
 

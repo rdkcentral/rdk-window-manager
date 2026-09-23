@@ -42,7 +42,7 @@ Representative request name:
 firebolt_shell_get_firebolt_surface(surfaceId, type)
 ```
 
-Source: [extensions/firebolt_shell/src/firebolt_shell.cpp](../extensions/firebolt_shell/src/firebolt_shell.cpp).
+Source: [extensions/firebolt_shell/src/firebolt_shell.cpp](../../extensions/firebolt_shell/src/firebolt_shell.cpp).
 
 Lifecycle is bind -> request surface -> use returned protocol object -> destroy resource. Exact validation of whether the referenced surface exists is implementation-dependent and should be checked in the plugin.
 

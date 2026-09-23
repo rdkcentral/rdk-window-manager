@@ -85,15 +85,15 @@ These self-contained documents were generated from the C/C++ source, headers, bu
 
 | Subsystem | Document |
 |-----------|----------|
-| Core window manager | [Core](./docs/subsystem-core.md) |
-| Compositor and window control | [Compositor](./docs/subsystem-compositor.md) |
-| Input, display bridge, and rendering | [Input and Rendering](./docs/subsystem-input-rendering.md) |
-| Optional VNC server | [VNC Server](./docs/subsystem-vnc-server.md) |
-| Firebolt Window Manager protocol | [Firebolt WM](./docs/subsystem-firebolt-wm.md) |
-| Firebolt Shell protocol | [Firebolt Shell](./docs/subsystem-firebolt-shell.md) |
-| Firebolt Surface protocol | [Firebolt Surface](./docs/subsystem-firebolt-surface.md) |
-| Utility and cross-cutting support | [Utilities](./docs/subsystem-utilities.md) |
-| Build, integration, and test surface | [Build and Testing](./docs/subsystem-build-testing.md) |
+| Core window manager | [Core](./docs/core/core.md) |
+| Compositor and window control | [Compositor](./docs/compositor/compositor.md) |
+| Input, display bridge, and rendering | [Input and Rendering](./docs/input-rendering/input-rendering.md) |
+| Optional VNC server | [VNC Server](./docs/vnc-server/vnc-server.md) |
+| Firebolt Window Manager protocol | [Firebolt WM](./docs/firebolt-wm/firebolt-wm.md) |
+| Firebolt Shell protocol | [Firebolt Shell](./docs/firebolt-shell/firebolt-shell.md) |
+| Firebolt Surface protocol | [Firebolt Surface](./docs/firebolt-surface/firebolt-surface.md) |
+| Utility and cross-cutting support | [Utilities](./docs/utilities/utilities.md) |
+| Build, integration, and test surface | [Build and Testing](./docs/build-testing/build-testing.md) |
 
 ---
 

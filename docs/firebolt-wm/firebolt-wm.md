@@ -50,7 +50,7 @@ firebolt_wm_set_opacity
 firebolt_wm_set_focus
 ```
 
-Source: [extensions/firebolt_wm/src/firebolt_wm.cpp](../extensions/firebolt_wm/src/firebolt_wm.cpp).
+Source: [extensions/firebolt_wm/src/firebolt_wm.cpp](../../extensions/firebolt_wm/src/firebolt_wm.cpp).
 
 ## 5. Configuration & Build Integration
 

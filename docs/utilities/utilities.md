@@ -52,7 +52,7 @@ enum LogLevel {
 };
 ```
 
-Source: [include/logger.h](../include/logger.h).
+Source: [include/logger.h](../../include/logger.h).
 
 Lifecycle is simple construction/use/destruction for value helpers; logger/file lifetime and string ownership are implemented in their `.cpp` files.
 

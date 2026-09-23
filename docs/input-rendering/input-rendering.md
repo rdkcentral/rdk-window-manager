@@ -56,7 +56,7 @@ InputEvent(uint32_t id, uint32_t ts, Type t)
 { }
 ```
 
-Source: [include/inputevent.h](../include/inputevent.h).
+Source: [include/inputevent.h](../../include/inputevent.h).
 
 ## 5. Configuration & Build Integration
 

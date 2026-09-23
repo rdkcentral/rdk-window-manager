@@ -55,7 +55,7 @@ RdkWindowManager::initialize();
 RdkWindowManager::run();
 ```
 
-Source: [src/main.cpp](../src/main.cpp).
+Source: [src/main.cpp](../../src/main.cpp).
 
 Lifecycle is initialize -> run/update/draw -> deinitialize. The exact loop pacing and shutdown conditions are implemented in `src/rdkwindowmanager.cpp`; callers should not assume that `run()` returns only on normal shutdown.
 

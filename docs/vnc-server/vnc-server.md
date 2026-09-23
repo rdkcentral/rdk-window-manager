@@ -53,7 +53,7 @@ static bool startVncServer();
 static bool stopVncServer();
 ```
 
-Source: [include/compositorcontroller.h](../include/compositorcontroller.h).
+Source: [include/compositorcontroller.h](../../include/compositorcontroller.h).
 
 The code does not make a complete timing contract between capture completion and RFB update requests; that is a key integration detail to verify on target hardware.
 

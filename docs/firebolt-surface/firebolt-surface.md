@@ -38,7 +38,7 @@ The handwritten server implementation is the authority for validation and contro
 
 `FireboltSurface` owns per-resource behavior. The request set includes `destroy`, `set_name`, `set_visible`, `set_bounds`, `set_crop`, `set_zorder`, `set_opacity`, and `get_properties`. `FireboltSurfaceClientInfo` stores resource/client association.
 
-The corresponding controller methods are explicit in [include/compositorcontroller.h](../include/compositorcontroller.h): `setFireboltSurfaceBounds`, `setFireboltSurfaceCrop`, `setFireboltSurfaceVisibility`, `setFireboltSurfaceOpacity`, `setFireboltSurfaceZorder`, and `fireboltSurfaceDestroy`.
+The corresponding controller methods are explicit in [include/compositorcontroller.h](../../include/compositorcontroller.h): `setFireboltSurfaceBounds`, `setFireboltSurfaceCrop`, `setFireboltSurfaceVisibility`, `setFireboltSurfaceOpacity`, `setFireboltSurfaceZorder`, and `fireboltSurfaceDestroy`.
 
 Representative protocol operation names:
 
@@ -50,7 +50,7 @@ set_opacity
 get_properties
 ```
 
-Source: [extensions/firebolt_surface/src/firebolt_surface.cpp](../extensions/firebolt_surface/src/firebolt_surface.cpp).
+Source: [extensions/firebolt_surface/src/firebolt_surface.cpp](../../extensions/firebolt_surface/src/firebolt_surface.cpp).
 
 ## 5. Configuration & Build Integration
 

@@ -49,7 +49,7 @@ add_library(rdkwindowmanager_shared SHARED ${RDK_WINDOW_MANAGER_SOURCES})
 add_executable(rdkwindowmanager src/main.cpp)
 ```
 
-Source: [CMakeLists.txt](../CMakeLists.txt).
+Source: [CMakeLists.txt](../../CMakeLists.txt).
 
 Lifecycle is configure -> compile/link -> install -> execute tests. Feature definitions must remain consistent with source inclusion and link libraries.
 
