@@ -40,7 +40,7 @@ flowchart LR
 - `include/cursor.h`, `src/cursor.cpp`: cursor position, hotspot, size, and inactivity behavior.
 - `include/rdkwindowmanagerimage.h`, `src/rdkwindowmanagerimage.cpp`: image decode/load support.
 
-The Linux input configuration path is `/etc/rdkwindowmanager/linuxinput.config`, but its grammar is not documented in the repository.
+The Linux input configuration path is supplied by `RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG`; the implementation parses that file as JSON.
 
 ## 4. Class & Interface Documentation
 
