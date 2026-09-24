@@ -3,7 +3,7 @@
 ## 1. High-Level Purpose & Architecture
 
 ### Role in ENT / RDK infrastructure
-The optional VNC subsystem exposes the composed display to a remote RFB/VNC client and routes remote input back toward the window manager. It is a diagnostic, support, or remote-control integration rather than the primary compositor.
+The optional VNC subsystem exposes the composed display to a remote RFB/VNC client for frame-buffer access; current VNC input messages are decoded but ignored. It is a diagnostic/support integration rather than the primary compositor.
 
 ### Responsibilities
 - Start and stop a TCP VNC service, normally on port 5900.
