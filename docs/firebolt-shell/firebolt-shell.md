@@ -92,11 +92,9 @@ classDiagram
 ```mermaid
 flowchart TD
     Bind[Bind shell global] --> Request[Request typed surface]
-    Request --> Check{Surface reference valid?}
-    Check -->|no| Reject[Reject request]
-    Check -->|yes| Create[Create protocol association]
-    Create --> Active[Active surface resource]
-    Active --> Destroy[Resource destruction]
+    Check{Controller conversion succeeds?}
+    Check -->|no| Failure[Log failure and return]
+    Check -->|yes| Active[Controller surface state]
 ```
 
 ## 8. Testing & Quality Analysis
