@@ -92,7 +92,7 @@ classDiagram
 ```mermaid
 flowchart TD
     Bind[Bind shell global] --> Request[Request typed surface]
-    Check{Controller conversion succeeds?}
+    Request --> Check{Controller conversion succeeds?}
     Check -->|no| Failure[Log failure and return]
     Check -->|yes| Active[Controller surface state]
 ```

@@ -102,8 +102,8 @@ classDiagram
       +draw()
       +setVisible()
       +setFireboltSurfaceBounds()
-      -WstCompositor* mWstContext
-      -vector~FireboltSurfaceInfo~ mFireboltSurfaces
+            -mWstContext
+            -mFireboltSurfaces
     }
     class RdkCompositorNested
     CompositorController --> RdkCompositor

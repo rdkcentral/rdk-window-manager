@@ -91,7 +91,7 @@ classDiagram
       +clientId
       +clientName
       +display
-      +wl_resource* resource
+            +resource
     }
     class CompositorController
     FireboltWindowManager --> FireboltWmClientInfo
