@@ -33,7 +33,7 @@ flowchart TD
 - `CMakeLists.txt`: top-level options, source lists, definitions, dependencies, targets, and install paths.
 - `CMake/FindGLIB.cmake`, `CMake/FindLibSoup.cmake`: optional VNC dependency discovery.
 - `extensions/*/CMakeLists.txt`: client and Westeros plugin target definitions.
-- `tests/CMakeLists.txt`, `tests/L1_Tests/CMakeLists.txt`, `tests/L1_Tests/l1tests.cmake`: test assembly.
+- `tests/L1_Tests/CMakeLists.txt`, `tests/L1_Tests/l1tests.cmake`: L1 test assembly.
 - `tests/testmain.cpp`: interactive test executable entry.
 - `tests/testrdkwm.cpp`: curl-based/API harness.
 - `tests/L1_Tests/*`: protocol-focused suites, common helpers, and mocks.

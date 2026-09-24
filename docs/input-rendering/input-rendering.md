@@ -127,4 +127,4 @@ Start with `InputEvent`, then follow one key from Essos to controller. For rende
 Study virtual versus natural resolution, metadata feature gating, cursor inactivity, and the interaction between FBO rendering and hole-punch overlays. Then inspect GLES error handling and resource destruction.
 
 ### Missing or ambiguous
-The repository does not define the exact `/etc/rdkwindowmanager/linuxinput.config` syntax, 64-bit key metadata layout, or a complete contract for cursor inactivity timing.
+The repository does not provide a formal schema document for the JSON selected by `RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG`; the implementation expects `inputDevices` and optionally `irInputDeviceTypeMapping`. The 64-bit key metadata layout and a complete contract for cursor inactivity timing also remain undocumented.

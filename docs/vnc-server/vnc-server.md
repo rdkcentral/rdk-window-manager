@@ -12,7 +12,7 @@ The optional VNC subsystem exposes the composed display to a remote RFB/VNC clie
 - Optionally bridge to VNCServer2 using the bridge protocol.
 
 ### Interacting subsystems and what it does not do
-It consumes rendered frames and delegates input routing to the window manager. It does not replace Westeros composition or define application/window policy.
+It consumes rendered frames. Current VNC key and pointer messages are decoded or consumed but are not routed to the window manager. It does not replace Westeros composition or define application/window policy.
 
 ## 2. Architectural Overview
 
@@ -69,7 +69,7 @@ The CMake file links the VNC libraries only when the feature is enabled. No runt
 2. `VncServer` creates transport/main-loop resources and listens on the configured port.
 3. A connection becomes a `VncClient`, negotiates protocol and pixel format, and requests updates.
 4. Capture obtains a frame into `VncFrameBuffer`; the client serializes it as an RFB update.
-5. Remote key events are decoded and routed back to controller input.
+5. Remote key events are decoded and ignored by the current implementation; they are not routed to controller input.
 6. Stop closes clients, capture, transport, and loop resources.
 
 Failures should be logged and must not leave owned sockets or capture threads active. The exact synchronization between buffer reuse and network writes is not fully documented by interfaces alone.
