@@ -62,7 +62,7 @@ The client library links `wayland-client`; the plugin links `wayland-server` and
 
 1. An application binds the Firebolt WM global through the client library.
 2. A request creates or updates a WM resource.
-3. The server validates the resource/client association and calls controller APIs.
+3. The server dispatches requests and forwards the relevant arguments to `CompositorController`; handlers perform limited checks such as testing for a null ID.
 4. Controller state changes reach the compositor and may emit lifecycle/focus events.
 5. Resource destruction removes registrations and emits disconnect behavior where applicable.
 
