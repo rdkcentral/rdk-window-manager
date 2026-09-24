@@ -45,7 +45,7 @@ The core has a namespace API rather than a public manager class:
 - `RdkWindowManager::initialize()`: prepares shared services.
 - `RdkWindowManager::run()`: owns the runtime loop.
 - `RdkWindowManager::update()` and `draw()`: advance state and render a frame.
-- `RdkWindowManager::deinitialize()`: releases runtime state.
+- `RdkWindowManager::deinitialize()`: currently an empty stub.
 - `seconds`, `milliseconds`, and `microseconds`: time helpers.
 
 The executable entry is an intentionally small adapter:
