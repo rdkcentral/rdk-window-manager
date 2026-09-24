@@ -7,7 +7,7 @@ Firebolt Shell bridges ordinary Wayland surfaces to RDK's typed Firebolt surface
 
 ### Responsibilities
 - Provide the `firebolt_shell_get_firebolt_surface` request.
-- Validate and associate a surface ID and Firebolt surface type.
+- Associate the requested surface ID and type with compositor state; the handler does not validate the enum value beyond the controller result.
 - Emit or manage resource lifecycle for shell clients.
 
 ### Interacting subsystems and what it does not do
