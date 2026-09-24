@@ -128,4 +128,4 @@ Learn the RFB idea of negotiated pixel format and update request, then follow on
 Study PBO/asynchronous capture, buffer ownership, LibSoup callbacks, and the optional VNCServer2 bridge. Validate thread shutdown and lifetime ordering before changing capture code.
 
 ### Missing or ambiguous
-The repository does not fully specify authentication/security policy, capture-to-update synchronization, or runtime port configuration beyond the CMake default of 5900.
+The built-in RFB server advertises only `SecurityType::None` (no authentication); deployment must provide network access control. Capture-to-update synchronization and runtime port configuration beyond 5900 remain ambiguous.
