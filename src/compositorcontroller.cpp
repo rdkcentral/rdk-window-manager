@@ -703,7 +703,7 @@ namespace RdkWindowManager
                 isSameClient = true;		    
 	        }
 
-            if ((!isSameClient) && (gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
+            if ((gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
             {
                 gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
             }
