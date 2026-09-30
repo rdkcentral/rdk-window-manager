@@ -23,7 +23,28 @@ cd "${GITHUB_WORKSPACE}"
 echo "======================================================================================"
 echo "building rdk-window-manager"
 
+set --
+EXCLUDED_PATHS=""
+for coverity_path in \
+    "${GITHUB_WORKSPACE}/tests"; do
+    if [ -d "${coverity_path}" ]; then
+        set -- "$@" --exclude-path "$coverity_path"
+        if [ -n "${EXCLUDED_PATHS}" ]; then
+            EXCLUDED_PATHS="${EXCLUDED_PATHS} ${coverity_path}"
+        else
+            EXCLUDED_PATHS="${coverity_path}"
+        fi
+    fi
+done
+
+echo "Coverity exclude paths: ${EXCLUDED_PATHS}"
+
 export LIB_PATH="${GITHUB_WORKSPACE}/thirdparty/westeros/external/install/lib/"
 cmake -DINCLUDE_HEADER_DIR="${GITHUB_WORKSPACE}/thirdparty/westeros/external/install/include" -S . -B build
-cmake --build build -j $(nproc)
+if command -v cov-build >/dev/null 2>&1; then
+    cov-build --dir "${GITHUB_WORKSPACE}/cov-int" "$@" -- cmake --build build -j $(nproc)
+else
+    cmake --build build -j $(nproc)
+fi
 echo "======================================================================================"
+
