@@ -16,35 +16,36 @@ set -e
 ##############################
 GITHUB_WORKSPACE="${PWD}"
 ls -la "${GITHUB_WORKSPACE}"
-cd "${GITHUB_WORKSPACE}"
+
+# Exclude non-product directories from the build source tree so the scan prep
+# are run against a clean product build without those folders. Keep the build
+# rooted outside the repo checkout to avoid CMake generating include paths that
+# point back into the original source directory.
+COV_BUILD_ROOT="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+COV_BUILD_SOURCE="${COV_BUILD_ROOT}/rdk-window-manager-cov"
+rm -rf "${COV_BUILD_SOURCE}"
+mkdir -p "${COV_BUILD_SOURCE}"
+
+echo "DEBUG: repo root: ${GITHUB_WORKSPACE}"
+echo "DEBUG: using external filtered source tree for scan prep: ${COV_BUILD_SOURCE}"
+find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 \
+    ! -name '.git' \
+    ! -name '.cov_build_source' \
+    ! -name 'build' \
+    ! -name 'tests' \
+    -exec cp -a {} "${COV_BUILD_SOURCE}/" \;
+
+echo "DEBUG: excluded directories: .git .cov_build_source build tests; keeping install for dependency resolution"
+
+cd "${COV_BUILD_SOURCE}"
 
 ############################
 # Build rdk-window-manager
 echo "======================================================================================"
 echo "building rdk-window-manager"
 
-set --
-EXCLUDED_PATHS=""
-for coverity_path in \
-    "${GITHUB_WORKSPACE}/tests"; do
-    if [ -d "${coverity_path}" ]; then
-        set -- "$@" --exclude-path "$coverity_path"
-        if [ -n "${EXCLUDED_PATHS}" ]; then
-            EXCLUDED_PATHS="${EXCLUDED_PATHS} ${coverity_path}"
-        else
-            EXCLUDED_PATHS="${coverity_path}"
-        fi
-    fi
-done
-
-echo "Coverity exclude paths: ${EXCLUDED_PATHS}"
-
-export LIB_PATH="${GITHUB_WORKSPACE}/thirdparty/westeros/external/install/lib/"
-cmake -DINCLUDE_HEADER_DIR="${GITHUB_WORKSPACE}/thirdparty/westeros/external/install/include" -S . -B build
-if command -v cov-build >/dev/null 2>&1; then
-    cov-build --dir "${GITHUB_WORKSPACE}/cov-int" "$@" -- cmake --build build -j $(nproc)
-else
-    cmake --build build -j $(nproc)
-fi
+export LIB_PATH="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/lib/"
+cmake -DINCLUDE_HEADER_DIR="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/include" -S . -B build
+cmake --build build -j $(nproc)
 echo "======================================================================================"
 
