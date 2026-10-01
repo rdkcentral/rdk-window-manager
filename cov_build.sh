@@ -37,6 +37,8 @@ find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 \
 
 echo "DEBUG: excluded directories: .git .cov_build_source build tests; keeping install for dependency resolution"
 
+echo "DEBUG: disabling test-app targets in scan-prep build because the excluded tests directory is intentionally not present"
+
 cd "${COV_BUILD_SOURCE}"
 
 ############################
@@ -45,7 +47,9 @@ echo "==========================================================================
 echo "building rdk-window-manager"
 
 export LIB_PATH="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/lib/"
-cmake -DINCLUDE_HEADER_DIR="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/include" -S . -B build
+cmake -DINCLUDE_HEADER_DIR="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/include" \
+    -DRDK_WINDOW_MANAGER_BUILD_TEST_APP=OFF \
+    -S . -B build
 cmake --build build -j $(nproc)
 echo "======================================================================================"
 
