@@ -49,6 +49,7 @@ echo "building rdk-window-manager"
 export LIB_PATH="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/lib/"
 cmake -DINCLUDE_HEADER_DIR="${COV_BUILD_SOURCE}/thirdparty/westeros/external/install/include" \
     -DRDK_WINDOW_MANAGER_BUILD_TEST_APP=OFF \
+    -DRDK_WINDOW_MANAGER_LOGGER=ON \
     -S . -B build
 cmake --build build -j $(nproc)
 echo "======================================================================================"
