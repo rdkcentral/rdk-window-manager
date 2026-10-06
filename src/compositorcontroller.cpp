@@ -696,19 +696,29 @@ namespace RdkWindowManager
         {
             std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
             Logger::log(LogLevel::Information,  "rdkwindowmanager_focus setFocus: the focused client is now %s.  previous: %s", it->name.c_str(), previousFocusedClient.c_str());
+
+            bool isSameClient = false;
+	        if (previousFocusedClient == client)
+	        {
+                isSameClient = true;		    
+	        }
+
             if ((gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
             {
                 gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
             }
 
-            if (gFocusedCompositor.compositor)
+            if (gFocusedCompositor.compositor && !isSameClient)
             {
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
             gFocusedCompositor = *it;
-            gFocusedCompositor.compositor->setFocused(true);
-			gPreviousFocusedCompositor = gFocusedCompositor;
+            if (gFocusedCompositor.compositor && !isSameClient)
+            {
+                 gFocusedCompositor.compositor->setFocused(true);
+            }
+	        gPreviousFocusedCompositor = gFocusedCompositor;
             gPreviousActiveClient = gFocusedCompositor.name;
 
             return true;
