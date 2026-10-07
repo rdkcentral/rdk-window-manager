@@ -718,8 +718,16 @@ namespace RdkWindowManager
             {
                  gFocusedCompositor.compositor->setFocused(true);
             }
+            if (isSameClient)
+	    {
+                gPreviousActiveClient.clear();
+                gPreviousFocusedCompositor = CompositorInfo();
+	    }
+	    else
+	    {
 	        gPreviousFocusedCompositor = gFocusedCompositor;
-            gPreviousActiveClient = gFocusedCompositor.name;
+                gPreviousActiveClient = gFocusedCompositor.name;
+            }
 
             return true;
         }
@@ -2731,7 +2739,6 @@ namespace RdkWindowManager
                 {
                     // AppManager parity: if there is no previous active app,
                     // clear focus instead of leaving focus on notification app.
-                    gFocusedCompositor = CompositorInfo();
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
                 }
 
@@ -2780,7 +2787,6 @@ namespace RdkWindowManager
                     }
                     else
                     {
-                        gFocusedCompositor = CompositorInfo();
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: no previous focused client, focus cleared");
                     }
