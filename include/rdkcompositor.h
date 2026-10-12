@@ -194,6 +194,14 @@ namespace RdkWindowManager
             bool mInputEventsEnabled;
             bool mSuspendedBeforeStart;
             bool mFocused;
+            // Guards mFireboltSurfaces against concurrent mutation (convertToFireboltSurface,
+            // fireboltSurfaceDestroy, setFireboltSurfaceXxx - invoked from Thunder worker
+            // pool threads handling JSON-RPC requests) racing with iteration (drawDirect,
+            // processKeyEvent - invoked from the render loop thread). Without this, a
+            // push_back/insert/erase reallocating or shifting the vector while another
+            // thread iterates it (and dereferences its WstCompositor* members) is
+            // undefined behaviour and can segfault deep inside Westeros/the GPU driver.
+            std::mutex mFireboltSurfacesMutex;
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
             bool mRendererEnabled;
             bool mFirstFrameRendered;
