@@ -95,7 +95,7 @@ jobs:
         if: ${{ !env.ACT && matrix.coverage == 'with-coverage' }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-L1
+          name: artifacts-L1-rdk-window-manager
           path: |
             coverage/
             filtered_coverage.info
