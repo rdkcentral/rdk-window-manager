@@ -138,7 +138,6 @@ namespace RdkWindowManager
     // that the whole lookup+mutate sequence is atomic with respect to the
     // render thread's CompositorController::draw(), which also takes this
     // lock while iterating the same lists.
-    std::recursive_mutex gCompositorListMutex;
     CompositorInfo gFocusedCompositor;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
@@ -234,7 +233,6 @@ namespace RdkWindowManager
     bool getCompositorInfo(const std::string& clientName, CompositorListIterator& foundIt,
         CompositorList** compositorList = nullptr)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         std::string stdClientName = standardizeName(clientName);
 
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
@@ -271,7 +269,6 @@ namespace RdkWindowManager
     */
     bool getCompositorInfo(const RdkCompositor* compositor, CompositorListIterator& foundIt)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
         {
             if (it->compositor.get() == compositor)
@@ -295,7 +292,6 @@ namespace RdkWindowManager
 
     size_t getNumCompositorInfo()
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         return gCompositorList.size() + gTopmostCompositorList.size();
     }
 
@@ -604,7 +600,6 @@ namespace RdkWindowManager
 
     bool addCompositor(CompositorList* compositorList, CompositorInfo compositorInfo)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         if (compositorList->empty())
         {
             compositorList->push_back(compositorInfo);
@@ -633,7 +628,6 @@ namespace RdkWindowManager
 
     std::shared_ptr<RdkCompositor> CompositorController::getCompositor(const std::string& displayName)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         auto lambda = [displayName](CompositorInfo& info)
         {
             std::string compositorDisplayName;
@@ -760,7 +754,6 @@ namespace RdkWindowManager
         // below) so this can't race with CompositorController::draw() or
         // another addCompositor()/kill() call on a different thread. Recursive
         // because getCompositorInfo() below also takes this lock.
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         CompositorListIterator it;
         CompositorList* compositorInfoList;
         if (getCompositorInfo(client, it, &compositorInfoList))
@@ -1745,7 +1738,6 @@ namespace RdkWindowManager
         // handling a JSON-RPC request). Previously this function took no lock
         // at all, so an erase()/push_back() racing with this iteration could
         // invalidate iterators/reallocate the vector while it's being read.
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
 
         //first render deleted compositors to ensure there is no memory leak
         //mfnote: todo - come back and revisit this approach to prevent a memory leak
@@ -2618,7 +2610,6 @@ namespace RdkWindowManager
 
     bool CompositorController::getClientName(WstCompositor* compositor, std::string& clientName)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
         {
             if(it->compositor->hasCompositor(compositor))

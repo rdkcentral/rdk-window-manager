@@ -201,8 +201,12 @@ namespace RdkWindowManager
             // push_back/insert/erase reallocating or shifting the vector while another
             // thread iterates it (and dereferences its WstCompositor* members) is
             // undefined behaviour and can segfault deep inside Westeros/the GPU driver.
+            // The render loop snapshots the list under this lock and then composes from the
+            // snapshot, while actual compositor destruction is deferred until the frame is
+            // complete to avoid using a freed WstCompositor while still in the render path.
             std::mutex mFireboltSurfacesMutex;
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
+            std::vector<WstCompositor*> mPendingFireboltSurfaceDestroy;
             bool mRendererEnabled;
             bool mFirstFrameRendered;
             std::atomic<int> mApplicationConnectionCount;
