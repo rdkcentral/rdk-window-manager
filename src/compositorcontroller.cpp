@@ -124,21 +124,6 @@ namespace RdkWindowManager
 
     CompositorList gCompositorList;
     CompositorList gTopmostCompositorList;
-    // Guards gCompositorList/gTopmostCompositorList against concurrent
-    // mutation (addCompositor, called when a new app surface is registered)
-    // racing with lookups (getCompositorInfo/getCompositor/getNumCompositorInfo),
-    // which can be triggered from the Westeros renderer callbacks
-    // (e.g. SkyRendererWrapperModule::surfaceCreate/surfaceDestroy ->
-    // CompositorController::getFireboltSurface/fireboltSurfaceDestroy).
-    // Without this, a concurrent push_back/insert reallocating the vector
-    // while another call iterates it is undefined behaviour and can segfault.
-    //
-    // Recursive because kill() needs to hold this lock across both the
-    // getCompositorInfo() lookup and the subsequent erase()/push_back() so
-    // that the whole lookup+mutate sequence is atomic with respect to the
-    // render thread's CompositorController::draw(), which also takes this
-    // lock while iterating the same lists.
-    std::recursive_mutex gCompositorListMutex;
     CompositorInfo gFocusedCompositor;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
@@ -234,7 +219,6 @@ namespace RdkWindowManager
     bool getCompositorInfo(const std::string& clientName, CompositorListIterator& foundIt,
         CompositorList** compositorList = nullptr)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         std::string stdClientName = standardizeName(clientName);
 
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
@@ -271,7 +255,6 @@ namespace RdkWindowManager
     */
     bool getCompositorInfo(const RdkCompositor* compositor, CompositorListIterator& foundIt)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
         {
             if (it->compositor.get() == compositor)
@@ -295,7 +278,6 @@ namespace RdkWindowManager
 
     size_t getNumCompositorInfo()
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         return gCompositorList.size() + gTopmostCompositorList.size();
     }
 
@@ -604,7 +586,6 @@ namespace RdkWindowManager
 
     bool addCompositor(CompositorList* compositorList, CompositorInfo compositorInfo)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         if (compositorList->empty())
         {
             compositorList->push_back(compositorInfo);
@@ -633,7 +614,6 @@ namespace RdkWindowManager
 
     std::shared_ptr<RdkCompositor> CompositorController::getCompositor(const std::string& displayName)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         auto lambda = [displayName](CompositorInfo& info)
         {
             std::string compositorDisplayName;
@@ -756,11 +736,6 @@ namespace RdkWindowManager
 
     bool CompositorController::kill(const std::string& client)
     {
-        // Held across the whole lookup+mutate sequence (including the erase()
-        // below) so this can't race with CompositorController::draw() or
-        // another addCompositor()/kill() call on a different thread. Recursive
-        // because getCompositorInfo() below also takes this lock.
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         CompositorListIterator it;
         CompositorList* compositorInfoList;
         if (getCompositorInfo(client, it, &compositorInfoList))
@@ -1739,14 +1714,6 @@ namespace RdkWindowManager
 
     bool CompositorController::draw()
     {
-        // Protects the whole frame against concurrent mutation of
-        // gCompositorList/gTopmostCompositorList/gDeletedCompositors (e.g. by
-        // addCompositor()/kill() running on a Thunder worker-pool thread
-        // handling a JSON-RPC request). Previously this function took no lock
-        // at all, so an erase()/push_back() racing with this iteration could
-        // invalidate iterators/reallocate the vector while it's being read.
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
-
         //first render deleted compositors to ensure there is no memory leak
         //mfnote: todo - come back and revisit this approach to prevent a memory leak
 
@@ -2618,7 +2585,6 @@ namespace RdkWindowManager
 
     bool CompositorController::getClientName(WstCompositor* compositor, std::string& clientName)
     {
-        std::lock_guard<std::recursive_mutex> lock(gCompositorListMutex);
         for (auto it = gCompositorList.begin(); it != gCompositorList.end(); ++it)
         {
             if(it->compositor->hasCompositor(compositor))
@@ -2635,8 +2601,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            return c->convertToFireboltSurface(surfaceId, (SurfaceType) type);
+            return it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
         }
         return false;
     }
@@ -2646,8 +2611,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            bool result = c->setFireboltSurfaceZOrder(surfaceId, zOrder);
+            bool result = it->compositor->setFireboltSurfaceZOrder(surfaceId, zOrder);
             return result;
         }
         return false;
@@ -2658,8 +2622,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            bool result = c->setFireboltSurfaceName(surfaceId, surfaceName);
+            bool result = it->compositor->setFireboltSurfaceName(surfaceId, surfaceName);
             return result;
         }
         return false;
@@ -2670,8 +2633,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            bool result = c->setFireboltSurfaceOpacity(surfaceId, opacity);
+            bool result = it->compositor->setFireboltSurfaceOpacity(surfaceId, opacity);
             return result;
         }
         return false;
@@ -2682,8 +2644,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            bool result = c->setFireboltSurfaceBounds(surfaceId, x, y, width, height);
+            bool result = it->compositor->setFireboltSurfaceBounds(surfaceId, x, y, width, height);
             return result;
         }
         return false;
@@ -2694,8 +2655,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
-            bool result = c->setFireboltSurfaceCrop(surfaceId, sx, sy, swidth, sheight);
+            bool result = it->compositor->setFireboltSurfaceCrop(surfaceId, sx, sy, swidth, sheight);
             return result;
         }
         return false;
@@ -2706,16 +2666,15 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
             // Query surface info to check type/visibility so we can apply
             // notification/popup handling in addition to setting visibility.
             FireboltSurfaceInfo fs;
-            bool haveInfo = c->getSurfaceInfo(surfaceId, fs);
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
 
             // If we couldn't get info, fall back to default behavior.
             if (!haveInfo)
             {
-                bool result = c->setFireboltSurfaceVisibility(surfaceId, visible);
+                bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
                 return result;
             }
 
@@ -2793,7 +2752,7 @@ namespace RdkWindowManager
                             client.c_str(), gNotificationClient.c_str());
             }
 
-            bool result = c->setFireboltSurfaceVisibility(surfaceId, visible);
+            bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
             return result;
         }
         return false;
@@ -2804,9 +2763,8 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            auto c = it->compositor;
             FireboltSurfaceInfo fs;
-            bool haveInfo = c->getSurfaceInfo(surfaceId, fs);
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
 
             // If a tracked Notification surface is destroyed, treat it as
             // HiddenModalOverlay equivalent so focus/tracking state is restored.
@@ -2844,7 +2802,7 @@ namespace RdkWindowManager
                 }
             }
 
-            bool result = c->fireboltSurfaceDestroy(surfaceId);
+            bool result = it->compositor->fireboltSurfaceDestroy(surfaceId);
             return result;
         }
         return false;
