@@ -434,11 +434,6 @@ namespace RdkWindowManager
 
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
-        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
-        {
-            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
-            fireboltSurfaces = mFireboltSurfaces;
-        }
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible && !drawOverlays)
         {
@@ -452,17 +447,22 @@ namespace RdkWindowManager
 
         if (mVirtualDisplayEnabled)
         {
-            drawFbo(needsHolePunch, rect, drawOverlays, fireboltSurfaces);
+            drawFbo(needsHolePunch, rect, drawOverlays);
         }
         else
         {
-            drawDirect(needsHolePunch, rect, drawOverlays, fireboltSurfaces);
+            drawDirect(needsHolePunch, rect, drawOverlays);
         }
     }
 
-    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays,
-        const std::vector<FireboltSurfaceInfo>& fireboltSurfaces)
+    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays)
     {
+        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
+        {
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            fireboltSurfaces = mFireboltSurfaces;
+        }
+
         // create the FBO if it's not created yet or its size was changed
         if (!mFbo ||
             mFbo->width() != mVirtualWidth ||
@@ -647,9 +647,14 @@ namespace RdkWindowManager
                                               mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
     }
 
-    void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays,
-        const std::vector<FireboltSurfaceInfo>& fireboltSurfaces)
+    void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
+        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
+        {
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            fireboltSurfaces = mFireboltSurfaces;
+        }
+
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
         if (mHolePunch)
