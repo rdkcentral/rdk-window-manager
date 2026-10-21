@@ -148,8 +148,10 @@ namespace RdkWindowManager
             static bool loadExtensions(WstCompositor *compositor, const std::string& clientName);
             static bool loadfireboltExtensions(WstCompositor *compositor);
             static bool loadAdditionalExtensions(WstCompositor *compositor, const std::string& capabilities);
-            void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
-            void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays);
+            void drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays,
+                const std::vector<FireboltSurfaceInfo>& fireboltSurfaces);
+            void drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays,
+                const std::vector<FireboltSurfaceInfo>& fireboltSurfaces);
             void updateWaylandState();
             
             std::string mDisplayName;

@@ -86,15 +86,26 @@ namespace RdkWindowManager
             WstCompositorSetClientStatusCallback(mWstContext, NULL, NULL);
             WstCompositorSetDispatchCallback( mWstContext, NULL, NULL);
             closeApplication();
+
+            std::vector<WstCompositor*> fireboltCompositorsToDestroy;
             {
                 std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
                 for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
                 {
-                    WstCompositorDestroy(fireboltSurface->westerosCompositor);
-                    fireboltSurface->westerosCompositor = NULL;
+                    if (fireboltSurface->westerosCompositor != NULL)
+                    {
+                        fireboltCompositorsToDestroy.push_back(fireboltSurface->westerosCompositor);
+                        fireboltSurface->westerosCompositor = NULL;
+                    }
                 }
                 mFireboltSurfaces.clear();
             }
+
+            for (auto* fireboltCompositor : fireboltCompositorsToDestroy)
+            {
+                WstCompositorDestroy(fireboltCompositor);
+            }
+
             WstCompositorDestroy(mWstContext);
 
             //shutdownApplication();
@@ -423,7 +434,11 @@ namespace RdkWindowManager
 
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
-        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
+        {
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            fireboltSurfaces = mFireboltSurfaces;
+        }
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible && !drawOverlays)
         {
@@ -437,15 +452,16 @@ namespace RdkWindowManager
 
         if (mVirtualDisplayEnabled)
         {
-            drawFbo(needsHolePunch, rect, drawOverlays);
+            drawFbo(needsHolePunch, rect, drawOverlays, fireboltSurfaces);
         }
         else
         {
-            drawDirect(needsHolePunch, rect, drawOverlays);
+            drawDirect(needsHolePunch, rect, drawOverlays, fireboltSurfaces);
         }
     }
 
-    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays)
+    void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays,
+        const std::vector<FireboltSurfaceInfo>& fireboltSurfaces)
     {
         // create the FBO if it's not created yet or its size was changed
         if (!mFbo ||
@@ -488,7 +504,7 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-            if(mFireboltSurfaces.empty())
+            if(fireboltSurfaces.empty())
             {
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
@@ -503,7 +519,7 @@ namespace RdkWindowManager
             }
             else
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -573,9 +589,9 @@ namespace RdkWindowManager
         }
         else
         {
-            if(!mFireboltSurfaces.empty())
+            if(!fireboltSurfaces.empty())
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -631,7 +647,8 @@ namespace RdkWindowManager
                                               mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
     }
 
-    void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
+    void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays,
+        const std::vector<FireboltSurfaceInfo>& fireboltSurfaces)
     {
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
@@ -664,14 +681,14 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-            if(mFireboltSurfaces.empty())
+            if(fireboltSurfaces.empty())
             {
                 WstCompositorComposeEmbedded( mWstContext, 0, 0, mWidth, mHeight,
                 mMatrix, mOpacity, hints, &needsHolePunch, rects );
             }
             else
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -717,9 +734,9 @@ namespace RdkWindowManager
         }
         else
         {
-            if(!mFireboltSurfaces.empty())
+            if(!fireboltSurfaces.empty())
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
