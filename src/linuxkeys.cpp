@@ -59,8 +59,10 @@ void mapNativeKeyCodes()
 {
   //populate from the key map file
   const char* keyMapFile = getenv("RDK_WINDOW_MANAGER_KEYMAP_FILE");
+  RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt10");
   if (keyMapFile)
   {
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt11");
     rapidjson::Document document;
     bool ret = RdkWindowManager::RdkWindowManagerJson::readJsonFile(keyMapFile, document);
     if (false == ret)
@@ -116,7 +118,7 @@ void mapNativeKeyCodes()
                     }
                   }
                 }
-
+                RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt12");
                 struct RdkWindowManagerKeyMap keyMap;
                 keyMap.code = mappedKeyCode;
                 keyMap.flags = flags;
@@ -244,14 +246,17 @@ void mapVirtualKeyCodes()
 bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t &mappedKeyCode, uint32_t &mappedFlags)
 {
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key event - keyCode: %u flags: %u", waylandKeyCode, waylandFlags);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt9");
     std::map<uint32_t, struct RdkWindowManagerKeyMap>::iterator it  = sRdkWindowManagerKeyMap.find(waylandKeyCode);
     if (it != sRdkWindowManagerKeyMap.end())
     {
       mappedKeyCode = it->second.code;
       mappedFlags = it->second.flags;
       RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key mapped from config - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
+      RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt8");
       return true;
     }
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt7");
     int standardKeyCode = 0;
     switch (waylandKeyCode)
     {
@@ -646,6 +651,8 @@ bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t
     mappedKeyCode = standardKeyCode;
     mappedFlags = waylandFlags;
     RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "key mapped - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "key mapped - mappedKeyCode: %u mappedFlags: %u", mappedKeyCode, mappedFlags);
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt6");
     return true;
 }
 
@@ -666,21 +673,24 @@ bool keyCodeFromVirtual(std::string& virtualKey, uint32_t &mappedKeyCode, uint32
 uint32_t keyCodeToWayland(uint32_t keyCode)
 {
     uint32_t  waylandKeyCode = 0;
-
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt1");
 #ifdef RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS
     // If this key code was produced as a mapped output by keyCodeFromWayland
     // (sRdkWindowManagerKeyMap, e.g. wayland 63 -> mapped 184), return it
     // unchanged so the same value reaches the virtual compositor without any
     // further switch-case transformation.
+    RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt2");
     auto reverseIt = sRdkWindowManagerKeyMapReverse.find(keyCode);
     if (reverseIt != sRdkWindowManagerKeyMapReverse.end())
     {
+        RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt3");
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug,
             "keyCodeToWayland: %u is a keymap-mapped value, passing through as-is",
             keyCode);
         return keyCode;
     }
 #endif
+   RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt4");
    switch( keyCode )
    {
       case RDK_WINDOW_MANAGER_KEY_BACKSPACE:
@@ -1079,6 +1089,6 @@ uint32_t keyCodeToWayland(uint32_t keyCode)
          waylandKeyCode= -1;
          break;
    }
-
+   RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "chkpnt5");
    return  waylandKeyCode;
  }
