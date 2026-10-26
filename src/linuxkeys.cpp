@@ -23,6 +23,7 @@
 #include "logger.h"
 
 #include <map>
+#include <string>
 
 struct RdkWindowManagerKeyMap
 {
@@ -58,9 +59,16 @@ uint32_t getKeyFlag(std::string modifier)
 void mapNativeKeyCodes()
 {
   //populate from the key map file
-  const char* keyMapFile = getenv("RDK_WINDOW_MANAGER_KEYMAP_FILE");
-  if (keyMapFile)
+  const char* keyMapFileEnv = getenv("RDK_WINDOW_MANAGER_KEYMAP_FILE");
+  if (keyMapFileEnv)
   {
+    std::string keyMapPath;
+    if (!RdkWindowManager::RdkWindowManagerJson::resolveConfigPath(keyMapFileEnv, keyMapPath))
+    {
+      RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information,  "RDKWindowManager keymap path rejected or not found (%s)", keyMapFileEnv);
+      return;
+    }
+    const char* keyMapFile = keyMapPath.c_str();
     rapidjson::Document document;
     bool ret = RdkWindowManager::RdkWindowManagerJson::readJsonFile(keyMapFile, document);
     if (false == ret)
@@ -155,9 +163,16 @@ void mapNativeKeyCodes()
 void mapVirtualKeyCodes()
 {
   //populate from the key map file
-  const char* virtualKeyMapFile = getenv("RDK_WINDOW_MANAGER_VIRTUAL_KEYMAP_FILE");
-  if (virtualKeyMapFile)
+  const char* virtualKeyMapFileEnv = getenv("RDK_WINDOW_MANAGER_VIRTUAL_KEYMAP_FILE");
+  if (virtualKeyMapFileEnv)
   {
+    std::string virtualKeyMapPath;
+    if (!RdkWindowManager::RdkWindowManagerJson::resolveConfigPath(virtualKeyMapFileEnv, virtualKeyMapPath))
+    {
+      std::cout << "RDKWindowManager virtual keymap path rejected or not found (" << virtualKeyMapFileEnv << ")\n";
+      return;
+    }
+    const char* virtualKeyMapFile = virtualKeyMapPath.c_str();
     rapidjson::Document document;
     bool ret = RdkWindowManager::RdkWindowManagerJson::readJsonFile(virtualKeyMapFile, document);
     if (false == ret)

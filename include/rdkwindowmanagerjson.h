@@ -20,6 +20,7 @@
 #ifndef RDK_WINDOW_MANAGER_UTILS_H
 #define RDK_WINDOW_MANAGER_UTILS_H
 
+#include <string>
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 #include "rapidjson/error/en.h"
@@ -32,6 +33,9 @@ namespace RdkWindowManager
     {
       public:
         static bool readJsonFile(const char* path, rapidjson::Document& document);
+        // Validates an externally supplied (e.g. environment) config path: it must resolve to a
+        // regular file under an allowed system directory.
+        static bool resolveConfigPath(const char* path, std::string& resolvedOut);
     };
 }
 

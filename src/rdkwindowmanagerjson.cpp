@@ -23,9 +23,34 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 
 namespace RdkWindowManager
 {
+bool RdkWindowManagerJson::resolveConfigPath(const char* path, std::string& resolvedOut)
+{
+    char resolved[PATH_MAX];
+    struct stat st;
+    if (nullptr == path || nullptr == realpath(path, resolved) || 0 != stat(resolved, &st) || !S_ISREG(st.st_mode))
+    {
+        return false;
+    }
+
+    static const char* const allowedDirs[] = { "/etc/", "/opt/", "/usr/share/" };
+    for (const char* dir : allowedDirs)
+    {
+        if (0 == strncmp(resolved, dir, strlen(dir)))
+        {
+            resolvedOut = resolved;
+            return true;
+        }
+    }
+    return false;
+}
+
+
 bool RdkWindowManagerJson::readJsonFile(const char* path, rapidjson::Document& document)
 {
   if (!path || *path == 0)

@@ -18,6 +18,7 @@
  */
 
 #include <cstring>
+#include <new>
 #include <sstream>
 #include <thread>
 #include <mutex>
@@ -1260,7 +1261,7 @@ static void firebolt_wm_bind(struct wl_client *client, void *data, uint32_t vers
                     " firebolt_wm@.bind: id:%u wl_resource_create resource@%p", id, resource);
 
             /* Map of wl_resource against client Info */
-            FireboltWmClientInfo *clientInfo = new FireboltWmClientInfo;
+            FireboltWmClientInfo *clientInfo = new (std::nothrow) FireboltWmClientInfo;
             if (NULL == clientInfo)
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -1310,7 +1311,7 @@ extern "C"
     static FireboltWindowManager* fireboltWmCreateContext(void)
     {
         std::lock_guard<std::mutex> locker(FireboltWindowManager::mContextLock);
-        FireboltWindowManager *instance = new FireboltWindowManager();
+        FireboltWindowManager *instance = new (std::nothrow) FireboltWindowManager();
         if (NULL == instance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
