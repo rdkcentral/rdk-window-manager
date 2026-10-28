@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 project(window_manager)
 set(CMAKE_CXX_STANDARD 14)
 
@@ -243,12 +243,12 @@ if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     endif(RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL)
     message("Building rdkwindowmanagertest executable")
     add_executable(rdkwindowmanagertest tests/testmain.cpp)
-    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
 
     message("Building rdkwmtest executable")
     add_executable(rdkwmtest tests/testrdkwm.cpp ${RDK_WINDOW_MANAGER_LOGGER_SOURCE})
-    add_dependencies(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} 
     ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lcurl)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)

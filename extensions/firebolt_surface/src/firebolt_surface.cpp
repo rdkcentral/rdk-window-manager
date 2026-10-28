@@ -18,6 +18,7 @@
  */
 
 #include <cstring>
+#include <new>
 #include <sstream>
 #include <thread>
 #include <mutex>
@@ -794,7 +795,7 @@ static void firebolt_surface_bind(struct wl_client *client, void *data, uint32_t
                     " firebolt_surface@.bind: id:%u wl_resource_create resource@%p", id, resource);
 
             /* Map of wl_resource against client Info */
-            FireboltSurfaceClientInfo *clientInfo = new FireboltSurfaceClientInfo;
+            FireboltSurfaceClientInfo *clientInfo = new (std::nothrow) FireboltSurfaceClientInfo;
             if (NULL == clientInfo)
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -844,7 +845,7 @@ extern "C"
     static FireboltSurface* fireboltSurfaceCreateContext(void)
     {
         std::lock_guard<std::mutex> locker(FireboltSurface::mContextLock);
-        FireboltSurface *instance = new FireboltSurface();
+        FireboltSurface *instance = new (std::nothrow) FireboltSurface();
         if (NULL == instance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -1004,4 +1005,3 @@ extern "C"
         return;
     }
 }
-
