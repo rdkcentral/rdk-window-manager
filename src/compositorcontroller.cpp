@@ -2780,7 +2780,21 @@ namespace RdkWindowManager
 
                     if (!gPreviousActiveClient.empty())
                     {
+                        std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
+                        bool isSameClient = false;
+                        if (previousFocusedClient == client)
+                        {
+                            isSameClient = true;
+                        }
+                        if (gFocusedCompositor.compositor && !isSameClient)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
                         gFocusedCompositor = gPreviousFocusedCompositor;
+                        if (gFocusedCompositor.compositor && !isSameClient)
+                        {
+                            gFocusedCompositor.compositor->setFocused(true);
+                        }
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
                                     gFocusedCompositor.name.c_str());
