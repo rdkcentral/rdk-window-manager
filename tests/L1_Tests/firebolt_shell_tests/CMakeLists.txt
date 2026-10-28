@@ -37,6 +37,7 @@ file(GLOB TESTS *.cpp)
 # Define the test executable
 add_executable(${PROJECT_NAME}
     ${TESTS}
+    ../common/src/test_Firebolt_Allocation.cpp
     ../../../extensions/firebolt_shell/src/firebolt_shell.cpp
     ../../../extensions/firebolt_shell/src/firebolt_shell_protocol.c
 	../common/src/test_Firebolt_Extension.cpp
@@ -47,8 +48,11 @@ add_executable(${PROJECT_NAME}
 )
 
 # Set compiler flags if needed
+target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_FIREBOLT_SHELL)
+
 set_source_files_properties(
     ${TESTS}
+    ../common/src/test_Firebolt_Allocation.cpp
     PROPERTIES COMPILE_FLAGS "-fexceptions"
 )
 

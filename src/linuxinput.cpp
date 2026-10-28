@@ -33,16 +33,9 @@ namespace RdkWindowManager
 
     void readInputDevicesConfiguration()
     {
-        const char* inputDeviceConfigurationFileEnv = getenv("RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG");
-        if (inputDeviceConfigurationFileEnv)
+        const char* inputDeviceConfigurationFile = getenv("RDK_WINDOW_MANAGER_INPUT_DEVICES_CONFIG");
+        if (inputDeviceConfigurationFile)
         {
-            std::string inputDeviceConfigurationPath;
-            if (!RdkWindowManagerJson::resolveConfigPath(inputDeviceConfigurationFileEnv, inputDeviceConfigurationPath))
-            {
-                Logger::log(LogLevel::Information,  "readInputDevicesConfiguration: path rejected or not found: '%s'", inputDeviceConfigurationFileEnv);
-                return;
-            }
-            const char* inputDeviceConfigurationFile = inputDeviceConfigurationPath.c_str();
             Logger::log(LogLevel::Information,  "readInputDevicesConfiguration: read configuration from: '%s'", inputDeviceConfigurationFile);
 
             rapidjson::Document document;
