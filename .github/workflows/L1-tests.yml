@@ -76,6 +76,9 @@ jobs:
           lcov -c -o coverage.info \
             --ignore-errors mismatch \
             --exclude '*/tests/L1_Tests/common/src/test_Firebolt_Allocation.cpp' \
+            --exclude '*/tests/L1_Tests/firebolt_shell_tests/*' \
+            --exclude '*/tests/L1_Tests/firebolt_wm_tests/*' \
+            --exclude '*/tests/L1_Tests/firebolt_surface_tests/*' \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_wm_tests \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_shell_tests \
             -d $GITHUB_WORKSPACE/tests/L1_Tests/build/firebolt_surface_tests
