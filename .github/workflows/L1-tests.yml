@@ -31,7 +31,7 @@ jobs:
           cd googletest
           mkdir build
           cd build
-          cmake ..
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
           make
           sudo make install
           echo "GMock installed in $(pwd)"
@@ -46,9 +46,10 @@ jobs:
           mkdir -p build
           cd build
           echo "Build type: ${{ env.BUILD_TYPE }}"
-          cmake -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" -DRDK_PLATFORM=DEV_VM -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_PREFIX_PATH=/usr/local ..
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" -DRDK_PLATFORM=DEV_VM -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_PREFIX_PATH=/usr/local ..
           
           cmake -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
           -DRDK_PLATFORM=DEV_VM \
           -DCMAKE_INSTALL_PREFIX:PATH=/usr \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
