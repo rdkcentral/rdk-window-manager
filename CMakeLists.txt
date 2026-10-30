@@ -52,6 +52,7 @@ option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+option(DISABLE_VNC_FRAMEBUFFER_UNBIND "Disable RDKWindowManager VNCServer framebuffer unbind" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
 option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
 option(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS "RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS" OFF)
@@ -90,6 +91,11 @@ endif()
 if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
      message(STATUS "Enable RDKWindowManager VNCServer2 integration")
      add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
+endif()
+
+if(DISABLE_VNC_FRAMEBUFFER_UNBIND)
+     message(STATUS "disabled vnc framebuffer unbind")
+     add_definitions("-DDISABLE_VNC_FRAMEBUFFER_UNBIND")
 endif()
 
 if(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)

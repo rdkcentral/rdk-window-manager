@@ -776,7 +776,7 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
                             dstPtr[0] = srcPtr[0]; // R
                             dstPtr[1] = srcPtr[1]; // G
                             dstPtr[2] = srcPtr[2]; // B
-                            dstPtr[3] = 0;
+                            dstPtr[3] = 0xFF;     // Keep the pixel opaque to avoid black/transparent display artifacts.
                             srcPtr += 4;
                             dstPtr += 4;
                         }
@@ -794,7 +794,7 @@ void VncBridgeServer::deliverFrame(const uint8_t* rgbaData,
                             dstPtr[0] = srcPtr[2]; // B
                             dstPtr[1] = srcPtr[1]; // G
                             dstPtr[2] = srcPtr[0]; // R
-                            dstPtr[3] = 0;
+                            dstPtr[3] = 0xFF;     // Keep the pixel opaque to avoid black/transparent display artifacts.
                             srcPtr += 4;
                             dstPtr += 4;
                         }
