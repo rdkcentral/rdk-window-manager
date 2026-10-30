@@ -194,6 +194,7 @@ namespace RdkWindowManager
             bool mInputEventsEnabled;
             bool mSuspendedBeforeStart;
             bool mFocused;
+            std::recursive_mutex mFireboltSurfacesMutex;
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
             bool mRendererEnabled;
             bool mFirstFrameRendered;
