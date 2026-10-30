@@ -286,8 +286,10 @@ namespace RdkWindowManager
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
+#ifndef DISABLE_VNC_FRAMEBUFFER_UNBIND
         // Restore default framebuffer so subsequent GL operations are unaffected
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+#endif
 
         if (!sync)
         {
