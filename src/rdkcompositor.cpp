@@ -86,11 +86,26 @@ namespace RdkWindowManager
             WstCompositorSetClientStatusCallback(mWstContext, NULL, NULL);
             WstCompositorSetDispatchCallback( mWstContext, NULL, NULL);
             closeApplication();
-            for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+
+            std::vector<WstCompositor*> fireboltCompositorsToDestroy;
             {
-                WstCompositorDestroy(fireboltSurface->westerosCompositor);
-                fireboltSurface->westerosCompositor = NULL;
+                std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                {
+                    if (fireboltSurface->westerosCompositor != NULL)
+                    {
+                        fireboltCompositorsToDestroy.push_back(fireboltSurface->westerosCompositor);
+                        fireboltSurface->westerosCompositor = NULL;
+                    }
+                }
+                mFireboltSurfaces.clear();
             }
+
+            for (auto* fireboltCompositor : fireboltCompositorsToDestroy)
+            {
+                WstCompositorDestroy(fireboltCompositor);
+            }
+
             WstCompositorDestroy(mWstContext);
 
             //shutdownApplication();
@@ -442,6 +457,12 @@ namespace RdkWindowManager
 
     void RdkCompositor::drawFbo(bool &needsHolePunch, RdkWindowManagerRect& rect,  bool drawOverlays)
     {
+        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
+        {
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            fireboltSurfaces = mFireboltSurfaces;
+        }
+
         // create the FBO if it's not created yet or its size was changed
         if (!mFbo ||
             mFbo->width() != mVirtualWidth ||
@@ -483,7 +504,7 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-            if(mFireboltSurfaces.empty())
+            if(fireboltSurfaces.empty())
             {
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
@@ -498,7 +519,7 @@ namespace RdkWindowManager
             }
             else
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -568,9 +589,9 @@ namespace RdkWindowManager
         }
         else
         {
-            if(!mFireboltSurfaces.empty())
+            if(!fireboltSurfaces.empty())
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -628,6 +649,12 @@ namespace RdkWindowManager
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
+        std::vector<FireboltSurfaceInfo> fireboltSurfaces;
+        {
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            fireboltSurfaces = mFireboltSurfaces;
+        }
+
         int hints = WstHints_none;
         hints |= WstHints_applyTransform;
         if (mHolePunch)
@@ -659,14 +686,14 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-            if(mFireboltSurfaces.empty())
+            if(fireboltSurfaces.empty())
             {
                 WstCompositorComposeEmbedded( mWstContext, 0, 0, mWidth, mHeight,
                 mMatrix, mOpacity, hints, &needsHolePunch, rects );
             }
             else
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -712,9 +739,9 @@ namespace RdkWindowManager
         }
         else
         {
-            if(!mFireboltSurfaces.empty())
+            if(!fireboltSurfaces.empty())
             {
-                for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
+                for (std::vector<FireboltSurfaceInfo>::const_iterator fireboltSurface = fireboltSurfaces.begin(); fireboltSurface != fireboltSurfaces.end(); fireboltSurface++)
                 {
                     if (!fireboltSurface->visible)
                     {
@@ -773,19 +800,22 @@ namespace RdkWindowManager
         // virtual compositor so that the notification overlay receives input.
         // Otherwise fall through to the main compositor (mWstContext).
         WstCompositor *keyTarget = mWstContext;
-        if (!mFireboltSurfaces.empty())
         {
-            for (const auto &fs : mFireboltSurfaces)
+            std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
+            if (!mFireboltSurfaces.empty())
             {
-                if (fs.surfaceType == SurfaceType::Notification && fs.visible
-                    && fs.westerosCompositor != nullptr)
+                for (const auto &fs : mFireboltSurfaces)
                 {
-                    keyTarget = fs.westerosCompositor;
-                    Logger::log(LogLevel::Information,
-                        "processKeyEvent: routing key %d to Notification surface"
-                        " (surfaceId=%d) compositor display: %s",
-                        keycode, fs.surfaceId, mDisplayName.c_str());
-                    break;
+                    if (fs.surfaceType == SurfaceType::Notification && fs.visible
+                        && fs.westerosCompositor != nullptr)
+                    {
+                        keyTarget = fs.westerosCompositor;
+                        Logger::log(LogLevel::Information,
+                            "processKeyEvent: routing key %d to Notification surface"
+                            " (surfaceId=%d) compositor display: %s",
+                            keycode, fs.surfaceId, mDisplayName.c_str());
+                        break;
+                    }
                 }
             }
         }
@@ -1271,6 +1301,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::convertToFireboltSurface(int surfaceId, SurfaceType surfaceType)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         bool result = true;
         FireboltSurfaceInfo surfaceInfo;
         surfaceInfo.surfaceId = surfaceId;
@@ -1372,6 +1403,7 @@ namespace RdkWindowManager
             return true;
         }
 
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->westerosCompositor == compositor)
@@ -1384,6 +1416,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::hasOverlays()
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         if(mFireboltSurfaces.empty())
         {
             return false;
@@ -1403,6 +1436,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::setFireboltSurfaceOpacity(int surfaceId, double opacity)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
@@ -1432,6 +1466,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::setFireboltSurfaceCrop(int surfaceId, int32_t sx, int32_t sy, uint32_t swidth, uint32_t sheight)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
@@ -1448,6 +1483,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::setFireboltSurfaceVisibility(int surfaceId, bool visible)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
@@ -1461,6 +1497,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::setFireboltSurfaceZOrder(int surfaceId, int zOrder)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         FireboltSurfaceInfo tempFireboltSurface;
         bool surfaceFound = false;
         std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
@@ -1501,6 +1538,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::setFireboltSurfaceName(int surfaceId, const std::string& surfaceName)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId )
@@ -1514,6 +1552,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::fireboltSurfaceDestroy(int surfaceId)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         std::vector<FireboltSurfaceInfo>::iterator fireboltSurfaceIt;
 
         for (fireboltSurfaceIt = mFireboltSurfaces.begin(); fireboltSurfaceIt != mFireboltSurfaces.end(); ++fireboltSurfaceIt)
@@ -1529,6 +1568,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::getSurfaceInfo(int surfaceId, FireboltSurfaceInfo& surfaceInfo)
     {
+        std::lock_guard<std::recursive_mutex> locker(mFireboltSurfacesMutex);
         for (std::vector<FireboltSurfaceInfo>::iterator fireboltSurface = mFireboltSurfaces.begin(); fireboltSurface != mFireboltSurfaces.end(); fireboltSurface++)
         {
             if (fireboltSurface->surfaceId == surfaceId)
