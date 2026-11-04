@@ -169,6 +169,14 @@ namespace RdkWindowManager
     std::vector<GenerateKeyEvent> gGenerateKeyEvents;
     std::unordered_map<std::string, std::shared_ptr<FireboltExtensionEventListener>> gfbExtensionEventListenerMap;
     std::mutex gFireboltExtensionListenerMapMutex;
+    // Notification/popup tracking
+    // Client which caused a Notification surface to be created. Empty when none.
+    std::string gNotificationClient;
+    uint32_t gNotificationSurfaceId = 0;
+    // Previously focused client before notification was shown.
+    std::string gPreviousActiveClient;
+    // Previously focused CompositorInfo saved when a Notification is registered.
+    CompositorInfo gPreviousFocusedCompositor;
     const std::unordered_map<std::string, std::string> gFireboltExtensionEventMap = {
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_FOCUS },
             { RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR, RDK_WINDOW_MANAGER_FIREBOLT_EXTENTION_EVENT_ON_BLUR },
@@ -688,18 +696,38 @@ namespace RdkWindowManager
         {
             std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
             Logger::log(LogLevel::Information,  "rdkwindowmanager_focus setFocus: the focused client is now %s.  previous: %s", it->name.c_str(), previousFocusedClient.c_str());
+
+            bool isSameClient = false;
+	        if (previousFocusedClient == client)
+	        {
+                isSameClient = true;		    
+	        }
+
             if ((gFocusedCompositor.compositor) && (gFocusedCompositor.compositor->isKeyPressed()))
             {
                 gPendingKeyUpListeners.push_back(gFocusedCompositor.compositor);
             }
 
-            if (gFocusedCompositor.compositor)
+            if (gFocusedCompositor.compositor && !isSameClient)
             {
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
             gFocusedCompositor = *it;
-            gFocusedCompositor.compositor->setFocused(true);
+            if (gFocusedCompositor.compositor && !isSameClient)
+            {
+                 gFocusedCompositor.compositor->setFocused(true);
+            }
+            if (isSameClient)
+	    {
+                gPreviousActiveClient.clear();
+                gPreviousFocusedCompositor = CompositorInfo();
+	    }
+	    else
+	    {
+	        gPreviousFocusedCompositor = gFocusedCompositor;
+                gPreviousActiveClient = gFocusedCompositor.name;
+            }
 
             return true;
         }
@@ -1647,6 +1675,7 @@ namespace RdkWindowManager
             bool bNotifyFocusEvent = false;
             CompositorInfo prevFocusedCompositor = gFocusedCompositor;
 
+
             if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
             {
                 gFocusedCompositor = compositorInfo;
@@ -1721,9 +1750,6 @@ namespace RdkWindowManager
             reverseIterator->compositor->draw(needsHolePunch, rect, false);
         }
 
-        // Global hole punch: after apps but before subtitles/watermark, punch a
-        // transparent hole to expose the HW video layer beneath the composited
-        // output — mirrors the per-player hole punch in WesterosWindowManager.
         {
             std::lock_guard<std::mutex> lock(gGlobalHolePunchMutex);
             if (gGlobalHolePunchEnabled)
@@ -2103,11 +2129,32 @@ namespace RdkWindowManager
             return -1;
         }
 
-        std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
-        const int listenerTag = ++gExtensionEventListenerTag;
-        gExtensionEventListenerMap[listenerTag] = listener;
+        int listenerTag = 0;
+        {
+            std::lock_guard<std::mutex> lock(gExtensionListenerMapMutex);
+            listenerTag = ++gExtensionEventListenerTag;
+            gExtensionEventListenerMap[listenerTag] = listener;
+        }
+
         Logger::log(LogLevel::Information,
             "addExtensionEventListener: Listener registered with tag %d", listenerTag);
+
+        // Initialize the newly loaded extension with the current client state.
+        std::vector<std::string> clients;
+        getClients(clients);
+        for (const auto& client : clients)
+        {
+            ClientInfo clientInfo{};
+            if (getClientInfo(client, clientInfo))
+            {
+                sendExtensionEvent(listener,
+                                   RDK_WINDOW_MANAGER_EXTENSION_EVENT_CLIENT_CONFIG_CHANGED,
+                                   client,
+                                   clientInfo,
+                                   clientInfo.ownerId);
+            }
+        }
+
         return listenerTag;
     }
 
@@ -2578,8 +2625,7 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
-            bool result = it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
-            return result;
+            return it->compositor->convertToFireboltSurface(surfaceId, (SurfaceType) type);
         }
         return false;
     }
@@ -2644,6 +2690,92 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            // Query surface info to check type/visibility so we can apply
+            // notification/popup handling in addition to setting visibility.
+            FireboltSurfaceInfo fs;
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
+
+            // If we couldn't get info, fall back to default behavior.
+            if (!haveInfo)
+            {
+                bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
+                return result;
+            }
+
+            // If no notification client is currently tracked and this is a
+            // Notification surface being made visible, register it similarly
+            // to getFireboltSurface flow.
+            if (gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && visible)
+            {
+                // save current focused compositor state
+                gPreviousFocusedCompositor = gFocusedCompositor;
+                gPreviousActiveClient = gFocusedCompositor.name;
+
+                if (client != gFocusedCompositor.name)
+                {
+                    gNotificationClient = client;
+                    gNotificationSurfaceId = surfaceId;
+                    // Equivalent to AppManager onAppShownModalOverlay:
+                    // focus shifts to notification app.
+                    if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }					
+                    gFocusedCompositor = *it;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }
+
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
+                }
+            }
+            else if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && visible && client != gNotificationClient)
+            {
+                Logger::log(LogLevel::Warn,
+                            "setFireboltSurfaceVisibility: Notification visible for '%s' while '%s' is already registered, ignoring",
+                            client.c_str(), gNotificationClient.c_str());
+            }
+
+            // If a Notification surface for the tracked notification client
+            // is being hidden, clear the tracking and restore the previous
+            // focused compositor directly.
+            if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && !visible && client == gNotificationClient && (gNotificationSurfaceId == surfaceId))
+            {
+                gNotificationClient.clear();
+                gNotificationSurfaceId = 0;
+                Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification hidden for client '%s' - clearing notification client", client.c_str());
+
+                if (!gPreviousActiveClient.empty())
+                {
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(false);
+                    }
+                    gFocusedCompositor = gPreviousFocusedCompositor;
+					if (gFocusedCompositor.compositor)
+                    {
+                        gFocusedCompositor.compositor->setFocused(true);
+                    }					
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
+                }
+                else
+                {
+                    // AppManager parity: if there is no previous active app,
+                    // clear focus instead of leaving focus on notification app.
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
+                }
+
+                gPreviousActiveClient.clear();
+                gPreviousFocusedCompositor = CompositorInfo();
+            }
+            else if (!gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && !visible && client != gNotificationClient)
+            {
+                Logger::log(LogLevel::Warn,
+                            "setFireboltSurfaceVisibility: Notification hide from '%s' ignored, expected owner '%s'",
+                            client.c_str(), gNotificationClient.c_str());
+            }
+
             bool result = it->compositor->setFireboltSurfaceVisibility(surfaceId, visible);
             return result;
         }
@@ -2655,6 +2787,45 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
+            FireboltSurfaceInfo fs;
+            bool haveInfo = it->compositor->getSurfaceInfo(surfaceId, fs);
+
+            // If a tracked Notification surface is destroyed, treat it as
+            // HiddenModalOverlay equivalent so focus/tracking state is restored.
+            if (haveInfo && (gNotificationSurfaceId == surfaceId))
+            {
+                if (!gNotificationClient.empty() && client == gNotificationClient)
+                {
+                    gNotificationClient.clear();
+                    gNotificationSurfaceId = 0;
+                    Logger::log(LogLevel::Information,
+                                "fireboltSurfaceDestroy: Notification surface destroyed for client '%s' - clearing notification client",
+                                client.c_str());
+
+                    if (!gPreviousActiveClient.empty())
+                    {
+                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        Logger::log(LogLevel::Information,
+                                    "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
+                                    gFocusedCompositor.name.c_str());
+                    }
+                    else
+                    {
+                        Logger::log(LogLevel::Information,
+                                    "fireboltSurfaceDestroy: no previous focused client, focus cleared");
+                    }
+
+                    gPreviousActiveClient.clear();
+                    gPreviousFocusedCompositor = CompositorInfo();
+                }
+                else if (!gNotificationClient.empty() && client != gNotificationClient)
+                {
+                    Logger::log(LogLevel::Warn,
+                                "fireboltSurfaceDestroy: Notification destroy from '%s' ignored, expected owner '%s'",
+                                client.c_str(), gNotificationClient.c_str());
+                }
+            }
+
             bool result = it->compositor->fireboltSurfaceDestroy(surfaceId);
             return result;
         }

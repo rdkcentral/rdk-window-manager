@@ -19,13 +19,15 @@
 #ifndef RDK_WINDOW_MANAGER_VNCFRAMEBUFFER_H
 #define RDK_WINDOW_MANAGER_VNCFRAMEBUFFER_H
 
-#include <thread>
 #include <glib.h>
 #include <memory>
-#include <atomic>
+#include <vector>
+#include <cstdint>
 #include "framebuffer.h"
+#include "VncCaptureThread.h"
 
 namespace RdkWindowManager {
+
     class VncFrameBuffer {
 
     public:
@@ -37,31 +39,49 @@ namespace RdkWindowManager {
         void draw();
         void publish();
 
-#ifdef ENABLE_RDKWINDOWMANAGER_VNCSERVER2
-        /// Called from publish() when VncBridgeServer has a pending frame request.
-        /// Reads GPU pixels and forwards them to the bridge server.
-        void captureForBridge();
-#endif
-
     private:
+        // ---- Frame delivery (called on the VncCaptureThread) ----
         bool sendFrameBufferToVNCClient();
-        bool initVncFrameBuffer();
-        static void onVncFrameSent(gpointer userData);
-        bool readPixel();
         uint32_t readAndConvertPixelData(const size_t frameOffset);
-        void notifyPixelProcessDone();
+        static void onVncFrameSent(gpointer userData);
 
-        std::atomic<bool> mPixelsProcessingInProgress;
+        // ---- Shared-memory VNC output buffer ----
+        bool initVncFrameBuffer();
+
+        // ---- PBO lifecycle (called on the GL render thread) ----
+        bool initPBOs();
+        void destroyPBOs();
+
+        void startAsyncCapture(bool bridgeMode);
+
+        void onFrameReady(const uint8_t* pixels,
+                          uint32_t pboWidth,
+                          uint32_t pboHeight,
+                          bool bridgeMode);
+
+        // ---- Members ----
         std::shared_ptr<FrameBuffer> mFrameBuffer;
+        std::shared_ptr<FrameBuffer> mCaptureFbo;
         uint32_t    mWidth;
         uint32_t    mHeight;
         float       mMatrix[16];
         double      mOpacity;
+
         uint8_t*    mVncFrameBufferPtr;
         size_t      mVncFrameBufferSize;
+
         std::vector<uint8_t> mRGBAData;
+
+        static constexpr int kPboCount = 2;
+        GLuint   mPboIds[kPboCount];
+        int      mPboWriteIndex;
+        bool     mPboInitialized;
+
+        VncCaptureThread mCaptureThread;
     };
-}
+
+} // namespace RdkWindowManager
+
 #endif // RDK_WINDOW_MANAGER_VNCFRAMEBUFFER_H
 
 

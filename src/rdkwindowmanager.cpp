@@ -55,6 +55,12 @@ bool gLowRamMemoryNotificationSent = false;
 bool gCriticallyLowRamMemoryNotificationSent = false;
 bool gForce720 = false;
 
+#ifdef ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND
+const float gClearAlpha = 0.0f;
+#else
+const float gClearAlpha = 1.0f;
+#endif
+
 namespace RdkWindowManager
 {
 
@@ -244,7 +250,7 @@ namespace RdkWindowManager
             uint32_t height = 0;
             RdkWindowManager::EssosInstance::instance()->resolution(width, height);
             glViewport( 0, 0, width, height );
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClearColor(0.0f, 0.0f, 0.0f, gClearAlpha);
             glClear(GL_COLOR_BUFFER_BIT);
 
             const double maxSleepTime = (1000 / gCurrentFramerate) * 1000;
@@ -269,7 +275,7 @@ namespace RdkWindowManager
         uint32_t height = 0;
         RdkWindowManager::EssosInstance::instance()->resolution(width, height);
         glViewport( 0, 0, width, height );
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, gClearAlpha);
         glClear(GL_COLOR_BUFFER_BIT);
 
         RdkWindowManager::CompositorController::draw();

@@ -79,6 +79,22 @@ graph TB
 | [Testing Guide](./docs/testing.md) | Test infrastructure, test applications, and quality analysis |
 | [API Reference](./docs/api-reference.md) | Complete API documentation for all public interfaces |
 
+### Generated Subsystem Documentation
+
+These self-contained documents were generated from the C/C++ source, headers, build files, extension definitions, and tests in this repository:
+
+| Subsystem | Document |
+|-----------|----------|
+| Core window manager | [Core](./docs/core/core.md) |
+| Compositor and window control | [Compositor](./docs/compositor/compositor.md) |
+| Input, display bridge, and rendering | [Input and Rendering](./docs/input-rendering/input-rendering.md) |
+| Optional VNC server | [VNC Server](./docs/vnc-server/vnc-server.md) |
+| Firebolt Window Manager protocol | [Firebolt WM](./docs/firebolt-wm/firebolt-wm.md) |
+| Firebolt Shell protocol | [Firebolt Shell](./docs/firebolt-shell/firebolt-shell.md) |
+| Firebolt Surface protocol | [Firebolt Surface](./docs/firebolt-surface/firebolt-surface.md) |
+| Utility and cross-cutting support | [Utilities](./docs/utilities/utilities.md) |
+| Build, integration, and test surface | [Build and Testing](./docs/build-testing/build-testing.md) |
+
 ---
 
 ## Quick Start

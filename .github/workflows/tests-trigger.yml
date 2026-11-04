@@ -50,7 +50,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-L1
+          name: artifacts-L1-rdk-window-manager
           path: ./l1-coverage
 
       - name: Compare coverage to baseline
@@ -107,7 +107,7 @@ jobs:
       - name: Download L1 coverage artifacts
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-L1
+          name: artifacts-L1-rdk-window-manager
           path: ./l1-coverage
 
       - name: Extract coverage and write new baseline
