@@ -51,6 +51,180 @@
 
 namespace RdkWindowManager
 {
+    void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId);
+    std::recursive_mutex CompositorController::sPlayerMutex;
+    std::map<std::string, std::array<CompositorController::PlayerSurfaceConfig, 2>> CompositorController::sPlayerConfigs;
+    std::map<std::string, std::array<bool, 2>> CompositorController::sPlayerConfigured;
+    std::map<std::string, bool> CompositorController::sPlayerSuspended;
+    std::array<std::string, 2> CompositorController::sPlayerOwners;
+    std::array<std::string, 2> CompositorController::sPlayerReportedOwners;
+    std::array<CompositorController::PlayerSurfaceConfig, 2> CompositorController::sPlayerEffectiveConfigs;
+    std::array<RdkWindowManagerRect, 2> CompositorController::sPlayerHoles;
+    std::array<bool, 2> CompositorController::sPlayerHoleEnabled{};
+    std::string CompositorController::sDefaultPlayerOwner;
+
+    bool CompositorController::hasPlayerCapability(const std::string& client, const std::string& capability)
+    {
+        std::string capabilities;
+        if (!getCapabilities(client, capabilities)) return false;
+        std::istringstream stream(capabilities);
+        std::string token;
+        while (std::getline(stream, token, ','))
+            if (token.substr(0, token.find('=')) == capability) return true;
+        return false;
+    }
+
+    bool CompositorController::isClientSuspended(const std::string& client)
+    {
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        const auto entry = sPlayerSuspended.find(client);
+        return entry != sPlayerSuspended.end() ? entry->second : hasPlayerCapability(client, "start-suspended");
+    }
+
+    void CompositorController::setClientSuspended(const std::string& client, bool suspended)
+    {
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        sPlayerSuspended[client] = suspended;
+        const std::string appId = getAliasFromDisplayName(client);
+        if (!appId.empty() && isErmEnabled() && !setAVBlocked(appId, suspended))
+            Logger::log(LogLevel::Warn, "failed to update A/V policy for '%s' blocked=%d", appId.c_str(), suspended);
+        if (suspended) releasePlayerOwnership(client);
+    }
+
+    bool CompositorController::configurePlayerSurface(const std::string& client, uint32_t vwid, const PlayerSurfaceConfig& config)
+    {
+        ClientInfo clientInfo{};
+        if (2 <= vwid || !getClientInfo(client, clientInfo)) return false;
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        sPlayerConfigs[client][vwid] = config;
+        sPlayerConfigured[client][vwid] = true;
+        updatePlayerSurfaces();
+        return true;
+    }
+
+    bool CompositorController::getPlayerSurfaceConfig(const std::string& client, uint32_t vwid, PlayerSurfaceConfig& config)
+    {
+        ClientInfo clientInfo{};
+        if (2 <= vwid || !getClientInfo(client, clientInfo)) return false;
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        config = sPlayerConfigs[client][vwid];
+        if (!sPlayerConfigured[client][vwid] && config.width == 0 && config.height == 0)
+            getScreenResolution(config.width, config.height);
+        return true;
+    }
+
+    std::string CompositorController::getPlayerOwner(uint32_t vwid)
+    {
+        if (vwid >= 2) return {};
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        const std::string owner = sPlayerOwners[vwid].empty() ? sDefaultPlayerOwner : sPlayerOwners[vwid];
+        ClientInfo ownerInfo{};
+        return !owner.empty() && !isClientSuspended(owner) && getClientInfo(owner, ownerInfo) ? owner : std::string();
+    }
+
+    bool CompositorController::takePlayerOwnership(const std::string& client, uint32_t playerMask)
+    {
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        ClientInfo clientInfo{};
+        if (!getClientInfo(client, clientInfo) || isClientSuspended(client)) return false;
+        for (uint32_t vwid = 0; vwid < 2; ++vwid)
+        {
+            if (!(playerMask & (1u << vwid)) || sPlayerOwners[vwid] == client) continue;
+            if (!sPlayerConfigured[client][vwid])
+            {
+                PlayerSurfaceConfig inherited = sPlayerEffectiveConfigs[vwid];
+                ClientInfo previous{}, next{};
+                if (getClientInfo(getPlayerOwner(vwid), previous) && getClientInfo(client, next))
+                {
+                    const double previousX = previous.sx > 0.0 ? previous.sx : 1.0;
+                    const double previousY = previous.sy > 0.0 ? previous.sy : 1.0;
+                    const double nextX = next.sx > 0.0 ? next.sx : 1.0;
+                    const double nextY = next.sy > 0.0 ? next.sy : 1.0;
+                    inherited.x = static_cast<int32_t>((previous.x + inherited.x * previousX - next.x) / nextX);
+                    inherited.y = static_cast<int32_t>((previous.y + inherited.y * previousY - next.y) / nextY);
+                    inherited.width = static_cast<uint32_t>(inherited.width * previousX / nextX);
+                    inherited.height = static_cast<uint32_t>(inherited.height * previousY / nextY);
+                }
+                sPlayerConfigs[client][vwid] = inherited;
+            }
+            sPlayerOwners[vwid] = client;
+        }
+        updatePlayerSurfaces();
+        return true;
+    }
+
+    void CompositorController::releasePlayerOwnership(const std::string& client)
+    {
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        for (auto& owner : sPlayerOwners)
+            if (owner == client) owner.clear();
+        updatePlayerSurfaces();
+    }
+
+    void CompositorController::updatePlayerSurfaces()
+    {
+        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+        const char* displays[] = { "westeros-asplayer-0", "westeros-asplayer-1" };
+        for (uint32_t vwid = 0; vwid < 2; ++vwid)
+        {
+            const std::string owner = getPlayerOwner(vwid);
+            if (owner != sPlayerReportedOwners[vwid])
+            {
+                sPlayerReportedOwners[vwid] = owner;
+                notifyExtensionOwnerChanged(owner, vwid);
+            }
+            ClientInfo viewport{};
+            const std::string appId = getAliasFromDisplayName(owner);
+            //TODO TODO make epgui configurable via entos layer not here
+            const bool enabled = !owner.empty() && getClientInfo(owner, viewport) &&
+                (hasPlayerCapability(owner, "requiresasplayer") || appId == "com.bskyb.epgui" || appId == "com.entos.monarch_ui");
+            PlayerSurfaceConfig config;
+            if (!owner.empty())
+            {
+                config = sPlayerConfigs[owner][vwid];
+                sPlayerEffectiveConfigs[vwid] = config;
+            }
+            ClientInfo output{};
+            output.visible = enabled && config.visible;
+            output.opacity = config.opacity;
+            output.zorder = config.zorder;
+            const double scaleX = viewport.sx > 0.0 ? viewport.sx : 1.0;
+            const double scaleY = viewport.sy > 0.0 ? viewport.sy : 1.0;
+            output.x = viewport.x + static_cast<int32_t>(config.x * scaleX);
+            output.y = viewport.y + static_cast<int32_t>(config.y * scaleY);
+            output.width = static_cast<uint32_t>(config.width * scaleX);
+            output.height = static_cast<uint32_t>(config.height * scaleY);
+            ClientInfo current{};
+            if (getClientInfo(displays[vwid], current) &&
+                (current.visible != output.visible || current.opacity != output.opacity || current.zorder != output.zorder ||
+                 current.x != output.x || current.y != output.y ||
+                 (output.width > 0 && current.width != output.width) || (output.height > 0 && current.height != output.height)))
+                setClientInfo(displays[vwid], output);
+            sPlayerHoleEnabled[vwid] = output.visible && config.zorder > 0 && !config.texturedVideo && output.width > 0 && output.height > 0;
+            sPlayerHoles[vwid].x = std::max(0, output.x);
+            sPlayerHoles[vwid].y = std::max(0, output.y);
+            sPlayerHoles[vwid].width = output.width;
+            sPlayerHoles[vwid].height = output.height;
+            if (vwid == 0)
+            {
+                const char* overlays[] = { "westeros-asplayer-subtitles", "westeros-asplayer-watermark" };
+                for (uint32_t overlay = 0; overlay < 2; ++overlay)
+                {
+                    ClientInfo overlayCurrent{};
+                    if (!getClientInfo(overlays[overlay], overlayCurrent)) continue;
+                    ClientInfo overlayOutput = output;
+                    overlayOutput.zorder = overlayCurrent.zorder;
+                    overlayOutput.visible = output.visible && (overlay != 0 || !config.subtitlesMuted);
+                    if (overlayCurrent.visible != overlayOutput.visible || overlayCurrent.opacity != overlayOutput.opacity ||
+                        overlayCurrent.x != output.x || overlayCurrent.y != output.y ||
+                        (output.width > 0 && overlayCurrent.width != output.width) ||
+                        (output.height > 0 && overlayCurrent.height != output.height))
+                        setClientInfo(overlays[overlay], overlayOutput);
+                }
+            }
+        }
+    }
+
     struct KeyListenerInfo
     {
         KeyListenerInfo() : keyCode(-1), flags(0), activate(false), propagate(true) {}
@@ -741,6 +915,14 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it, &compositorInfoList))
         {
             std::string clientDisplayName = standardizeName(client);
+            {
+                std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+                if (sDefaultPlayerOwner == clientDisplayName) sDefaultPlayerOwner.clear();
+                releasePlayerOwnership(clientDisplayName);
+                sPlayerConfigs.erase(clientDisplayName);
+                sPlayerConfigured.erase(clientDisplayName);
+                sPlayerSuspended.erase(clientDisplayName);
+            }
 
             // cleanup key intercepts
             std::vector<std::map<uint32_t, std::vector<KeyInterceptInfo>>::iterator> emptyKeyCodeEntries;
@@ -1167,6 +1349,22 @@ namespace RdkWindowManager
         {
             std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
             gClientAliasMap[standardizedClientId] = alias;
+        }
+
+        const bool startSuspended = isClientSuspended(standardizedClientId);
+        if (isErmEnabled() && !setAVBlocked(alias, startSuspended))
+        {
+            if (startSuspended)
+            {
+                Logger::log(LogLevel::Error, "failed to block A/V before suspended launch for '%s'", alias.c_str());
+                return false;
+            }
+            Logger::log(LogLevel::Warn, "failed to restore A/V policy before launch for '%s'", alias.c_str());
+        }
+        if (alias == "com.bskyb.epgui" || hasPlayerCapability(standardizedClientId, "home-app"))
+        {
+            std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+            sDefaultPlayerOwner = standardizedClientId;
         }
 
         return true;
@@ -1676,16 +1874,16 @@ namespace RdkWindowManager
             CompositorInfo prevFocusedCompositor = gFocusedCompositor;
 
 
-            if ((!topmost && getNumCompositorInfo() == 0) || (topmost && focus))
+            const bool playerDisplay = displayName.find("westeros-asplayer") == 0;
+            const bool firstApp = std::none_of(gCompositorList.begin(), gCompositorList.end(),
+                [](const CompositorInfo& info) { return info.name.find("westeros-asplayer") != 0; });
+            const bool suspendedDisplay = capabilities.find("start-suspended") != std::string::npos;
+            if (suspendedDisplay) compositorInfo.compositor->setVisible(false);
+            if (!playerDisplay && !suspendedDisplay && ((!topmost && firstApp) || focus))
             {
                 gFocusedCompositor = compositorInfo;
                 bNotifyFocusEvent = true;
                 Logger::log(LogLevel::Information,  "rdkwindowmanager_focus create: setting focus of first application created %s", gFocusedCompositor.name.c_str());
-            }
-            else if (focus)
-            {
-                gFocusedCompositor = compositorInfo;
-                bNotifyFocusEvent = true;
             }
 
             /* Updating compositor list based on topmost+1 zorder */
@@ -1714,6 +1912,7 @@ namespace RdkWindowManager
 
     bool CompositorController::draw()
     {
+        updatePlayerSurfaces();
         //first render deleted compositors to ensure there is no memory leak
         //mfnote: todo - come back and revisit this approach to prevent a memory leak
 
@@ -1758,6 +1957,22 @@ namespace RdkWindowManager
                 glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                 glScissor(gGlobalHolePunchRect.x, gGlobalHolePunchRect.y,
                           gGlobalHolePunchRect.width, gGlobalHolePunchRect.height);
+                glClear(GL_COLOR_BUFFER_BIT);
+                glDisable(GL_SCISSOR_TEST);
+            }
+        }
+
+        {
+            std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
+            for (uint32_t vwid = 0; vwid < 2; ++vwid)
+            {
+                if (!sPlayerHoleEnabled[vwid]) continue;
+                uint32_t screenWidth = 0, screenHeight = 0;
+                getScreenResolution(screenWidth, screenHeight);
+                const auto& hole = sPlayerHoles[vwid];
+                glEnable(GL_SCISSOR_TEST);
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                glScissor(hole.x, static_cast<int32_t>(screenHeight) - static_cast<int32_t>(hole.y + hole.height), hole.width, hole.height);
                 glClear(GL_COLOR_BUFFER_BIT);
                 glDisable(GL_SCISSOR_TEST);
             }
@@ -1887,6 +2102,8 @@ namespace RdkWindowManager
         CompositorListIterator it;
         if (getCompositorInfo(eventCompositor, it))
         {
+            if (eventName == RDK_WINDOW_MANAGER_EVENT_APPLICATION_TERMINATED)
+                setClientSuspended(it->name, true);
             for (int i=0; i< it->eventListeners.size(); i++)
             {
                 sendApplicationEvent(it->eventListeners[i], eventName, it->name);
