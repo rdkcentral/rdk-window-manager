@@ -1604,7 +1604,10 @@ namespace RdkWindowManager
             {
                 WstCompositorResetFirstFrame(mWstContext);
                 mFirstFrameRendered = false;
+                Logger::log(LogLevel::Information, "Display render disabled");
+
             }
+            Logger::log(LogLevel::Information, "Display render state changed");
         }
         return true;
     }
