@@ -75,6 +75,8 @@ namespace RdkWindowManager
             static bool configurePlayerSurface(const std::string& client, uint32_t vwid, const PlayerSurfaceConfig& config);
             static bool getPlayerSurfaceConfig(const std::string& client, uint32_t vwid, PlayerSurfaceConfig& config);
             static bool takePlayerOwnership(const std::string& client, uint32_t playerMask = 3);
+            static bool takeAutomaticPlayerOwnership(const std::string& client);
+            static void setPlayerOwnerManagement(bool enabled);
             static void releasePlayerOwnership(const std::string& client);
             static std::string getPlayerOwner(uint32_t vwid);
             static bool isClientSuspended(const std::string& client);
@@ -188,12 +190,17 @@ namespace RdkWindowManager
             static bool hideSplashScreen();
             private:
                 static bool hasPlayerCapability(const std::string& client, const std::string& capability);
+                static bool acquirePlayerOwnership(const std::string& client, uint32_t playerMask, bool automatic);
+                static void commitPendingPlayerSurfaces();
                 static void updatePlayerSurfaces();
                 static std::recursive_mutex sPlayerMutex;
                 static std::map<std::string, std::array<PlayerSurfaceConfig, 2>> sPlayerConfigs;
+                static std::map<std::string, std::array<PlayerSurfaceConfig, 2>> sPendingPlayerConfigs;
                 static std::map<std::string, std::array<bool, 2>> sPlayerConfigured;
                 static std::map<std::string, bool> sPlayerSuspended;
                 static std::array<std::string, 2> sPlayerOwners;
+                static std::array<bool, 2> sPlayerExplicitOwners;
+                static bool sPlayerOwnerManagement;
                 static std::array<std::string, 2> sPlayerReportedOwners;
                 static std::array<PlayerSurfaceConfig, 2> sPlayerEffectiveConfigs;
                 static std::array<RdkWindowManagerRect, 2> sPlayerHoles;

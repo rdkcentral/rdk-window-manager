@@ -146,7 +146,30 @@ namespace RdkWindowManager
 
     void RdkCompositor::onInvalidate()
     {
-        //todo
+        mSurfaceCommitted.store(true);
+    }
+
+    bool RdkCompositor::consumeSurfaceCommit()
+    {
+        return mSurfaceCommitted.exchange(false);
+    }
+
+    void RdkCompositor::logPlayerComposition(bool composed, int hints, bool needsHolePunch, const std::vector<WstRect>& rects)
+    {
+        std::ostringstream state;
+        state << "mode=" << (mPlayerTexturedVideo ? "textured" : "hardware")
+            << " visible=" << mVisible << " source=" << mWidth << 'x' << mHeight
+            << " output=" << mLogicalWidth << 'x' << mLogicalHeight
+            << " matrix=" << mMatrix[0] << ',' << mMatrix[5] << ',' << mMatrix[12] << ',' << mMatrix[13]
+            << " opacity=" << mOpacity << " hints=" << hints << " composed=" << composed
+            << " needsHolePunch=" << needsHolePunch << " rects=" << rects.size();
+        for (const auto& videoRect : rects)
+            state << " [" << videoRect.x << ',' << videoRect.y << ',' << videoRect.width << ',' << videoRect.height << ']';
+        const std::string current = state.str();
+        if (current == mLastPlayerComposition) return;
+        mLastPlayerComposition = current;
+        Logger::log(composed ? LogLevel::Information : LogLevel::Warn, "asplayer-compose display=%s %s",
+            mDisplayName.c_str(), current.c_str());
     }
 
     void RdkCompositor::onClientStatus(int status, int pid, int detail)
@@ -181,6 +204,7 @@ namespace RdkWindowManager
                  break;
              case WstClient_disconnected:
                  RdkWindowManager::Logger::log(LogLevel::Information,  "client disconnected");
+                 mFirstFrameRendered = false;
                  eventName = RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED;
                  break;
              case WstClient_firstFrame:
@@ -434,8 +458,10 @@ namespace RdkWindowManager
 
     void RdkCompositor::draw(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
     {
+        if (mIsPlayerSurface && drawOverlays) return;
+        if (mIsPlayerSurface && mPlayerTexturedVideo && !mVisible) return;
         #ifndef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
-        if (!mVisible && !drawOverlays)
+        if (!mVisible && !drawOverlays && !mIsPlayerSurface)
         {
             return;
         }
@@ -445,7 +471,7 @@ namespace RdkWindowManager
             return;
         }
 
-        if (mVirtualDisplayEnabled)
+        if (mVirtualDisplayEnabled && !mIsPlayerSurface)
         {
             drawFbo(needsHolePunch, rect, drawOverlays);
         }
@@ -487,7 +513,7 @@ namespace RdkWindowManager
         glGetIntegerv(GL_VIEWPORT, viewport);
         glViewport(0, 0, mVirtualWidth, mVirtualHeight);
 
-        int hints = WstHints_none;//WstHints_fboTarget;
+        int hints = WstHints_fboTarget | WstHints_noRotation;
         #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible)
         {
@@ -506,16 +532,8 @@ namespace RdkWindowManager
         {
             if(fireboltSurfaces.empty())
             {
-                if (mCropWidth > 0 || mCropHeight > 0)
-                {
-                    WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
-                    mMatrix, mOpacity, hints, &needsHolePunch, rects);
-                }
-                else
-                {
-                    WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
-                    mMatrix, mOpacity, hints, &needsHolePunch, rects);
-                }
+                WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
+                    matrix, 1.0f, hints, &needsHolePunch, rects);
             }
             else
             {
@@ -631,6 +649,31 @@ namespace RdkWindowManager
             }
         }
 
+        if (needsHolePunch && !drawOverlays)
+        {
+            const GLboolean scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
+            GLint scissorBox[4];
+            GLfloat clearColor[4];
+            GLboolean colorMask[4];
+            glGetIntegerv(GL_SCISSOR_BOX, scissorBox);
+            glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
+            glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
+            glEnable(GL_SCISSOR_TEST);
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            for (const auto& videoRect : rects)
+            {
+                if (0 >= videoRect.width || 0 >= videoRect.height) continue;
+                glScissor(videoRect.x, static_cast<GLint>(mVirtualHeight) - videoRect.y - videoRect.height,
+                    videoRect.width, videoRect.height);
+                glClear(GL_COLOR_BUFFER_BIT);
+            }
+            glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
+            if (!scissorEnabled) glDisable(GL_SCISSOR_TEST);
+            glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+            glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+        }
+
         if (needsHolePunch)
         {
             prepareHolePunchRects(std::move(rects), rect);
@@ -675,6 +718,14 @@ namespace RdkWindowManager
             hints |= WstHints_hidden;
         }
         #endif //RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
+        if (mIsPlayerSurface)
+        {
+            hints = WstHints_applyTransform | WstHints_noRotation;
+            if (mPlayerTexturedVideo)
+                hints |= WstHints_animating;
+            else
+                hints |= mVisible ? WstHints_holePunch : WstHints_hidden;
+        }
         std::vector<WstRect> rects;
 
         unsigned int width, height;
@@ -686,10 +737,11 @@ namespace RdkWindowManager
 
         if(!drawOverlays)
         {
-            if(fireboltSurfaces.empty())
+            if(fireboltSurfaces.empty() || mIsPlayerSurface)
             {
-                WstCompositorComposeEmbedded( mWstContext, 0, 0, mWidth, mHeight,
-                mMatrix, mOpacity, hints, &needsHolePunch, rects );
+                const bool composed = WstCompositorComposeEmbedded(mWstContext, 0, 0, mWidth, mHeight,
+                    mMatrix, mIsPlayerSurface && !mPlayerTexturedVideo ? 1.0 : mOpacity, hints, &needsHolePunch, rects);
+                if (mIsPlayerSurface) logPlayerComposition(composed, hints, needsHolePunch, rects);
             }
             else
             {
@@ -982,6 +1034,12 @@ namespace RdkWindowManager
     void RdkCompositor::setHolePunch(bool holePunchEnabled)
     {
         mHolePunch = holePunchEnabled;
+    }
+
+    void RdkCompositor::setPlayerRenderMode(bool texturedVideo)
+    {
+        mIsPlayerSurface = true;
+        mPlayerTexturedVideo = texturedVideo;
     }
 
     void RdkCompositor::holePunch(bool &holePunchEnabled)
