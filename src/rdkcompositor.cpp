@@ -146,7 +146,7 @@ namespace RdkWindowManager
 
     void RdkCompositor::onInvalidate()
     {
-        //todo
+        CompositorController::onEvent(this, RDK_WINDOW_MANAGER_EVENT_INVALIDATE);
     }
 
     void RdkCompositor::onClientStatus(int status, int pid, int detail)
