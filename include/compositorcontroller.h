@@ -29,8 +29,6 @@
 #include <map>
 #include <memory>
 #include <algorithm>
-#include <array>
-#include <mutex>
 
 namespace RdkWindowManager
 {
@@ -56,29 +54,6 @@ namespace RdkWindowManager
     class CompositorController
     {
         public:
-            struct PlayerSurfaceConfig
-            {
-                bool visible = false;
-                int32_t zorder = -1;
-                double opacity = 1.0;
-                int32_t x = 0;
-                int32_t y = 0;
-                uint32_t width = 0;
-                uint32_t height = 0;
-                double cropX = 0.0;
-                double cropY = 0.0;
-                double cropWidth = 1.0;
-                double cropHeight = 1.0;
-                bool subtitlesMuted = false;
-                bool texturedVideo = false;
-            };
-            static bool configurePlayerSurface(const std::string& client, uint32_t vwid, const PlayerSurfaceConfig& config);
-            static bool getPlayerSurfaceConfig(const std::string& client, uint32_t vwid, PlayerSurfaceConfig& config);
-            static bool takePlayerOwnership(const std::string& client, uint32_t playerMask = 3);
-            static void releasePlayerOwnership(const std::string& client);
-            static std::string getPlayerOwner(uint32_t vwid);
-            static bool isClientSuspended(const std::string& client);
-            static void setClientSuspended(const std::string& client, bool suspended);
             static void initialize();
             static bool moveToFront(const std::string& client);
             static bool moveToBack(const std::string& client);
@@ -186,19 +161,6 @@ namespace RdkWindowManager
             static bool getCapabilities(const std::string& clientId, std::string& capabilities);
             static bool showSplashScreen(uint32_t displayTimeInSeconds);
             static bool hideSplashScreen();
-            private:
-                static bool hasPlayerCapability(const std::string& client, const std::string& capability);
-                static void updatePlayerSurfaces();
-                static std::recursive_mutex sPlayerMutex;
-                static std::map<std::string, std::array<PlayerSurfaceConfig, 2>> sPlayerConfigs;
-                static std::map<std::string, std::array<bool, 2>> sPlayerConfigured;
-                static std::map<std::string, bool> sPlayerSuspended;
-                static std::array<std::string, 2> sPlayerOwners;
-                static std::array<std::string, 2> sPlayerReportedOwners;
-                static std::array<PlayerSurfaceConfig, 2> sPlayerEffectiveConfigs;
-                static std::array<RdkWindowManagerRect, 2> sPlayerHoles;
-                static std::array<bool, 2> sPlayerHoleEnabled;
-                static std::string sDefaultPlayerOwner;
     };
 }
 
