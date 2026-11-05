@@ -2174,20 +2174,17 @@ namespace RdkWindowManager
             }
             if (eventName.compare(RDK_WINDOW_MANAGER_EVENT_APPLICATION_DISCONNECTED) == 0)
             {
+#ifdef RDK_WINDOW_MANAGER_DISABLE_DISPLAY_KILL_ON_DISCONNECT
+                // some apps need to connect again after disconnection, if we kill it wont work properly.
                 std::string displayName;
                 eventCompositor->displayName(displayName);
-                const std::string appId = getAliasFromDisplayName(it->name);
-                if ("com.comcast.viper_ipa" == appId)
-                {
-                    Logger::log(LogLevel::Information,
-                        "client disconnected client:%s appId:%s; retaining VIPA display for pipeline reconnect",
-                        it->name.c_str(), appId.c_str());
-                }
-                else if (0 != displayName.compare(0, 17, "westeros-asplayer-"))
-                {
-                    clientToKill = it->name;
-                    killClient = true;
-                }
+                Logger::log(LogLevel::Information,
+                    "client disconnected client:%s display:%s; retaining display for reconnect",
+                    it->name.c_str(), displayName.c_str());
+#else
+                clientToKill = it->name;
+                killClient = true;
+#endif
             }
         }
 
