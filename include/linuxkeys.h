@@ -135,18 +135,18 @@
 #define WAYLAND_KEY_LEFTMETA            125
 #define WAYLAND_KEY_RIGHTMETA           126
 #ifndef KEY_YELLOW
-#define WAYLAND_KEY_YELLOW              0x18e
+#define WAYLAND_KEY_YELLOW              0x190
 #endif
 #ifndef KEY_BLUE
-#define WAYLAND_KEY_BLUE                0x18f
+#define WAYLAND_KEY_BLUE                0x191
 #endif
 #define WAYLAND_KEY_PLAYPAUSE           164
 #define WAYLAND_KEY_REWIND              168
 #ifndef KEY_RED
-#define WAYLAND_KEY_RED                 0x190
+#define WAYLAND_KEY_RED                 0x18e
 #endif
 #ifndef KEY_GREEN
-#define WAYLAND_KEY_GREEN               0x191
+#define WAYLAND_KEY_GREEN               0x18f
 #endif
 #define WAYLAND_KEY_PLAY                207
 #define WAYLAND_KEY_FASTFORWARD         208
