@@ -54,12 +54,9 @@ namespace RdkWindowManager
     void notifyExtensionOwnerChanged(const std::string& clientName, int ownerId);
     std::recursive_mutex CompositorController::sPlayerMutex;
     std::map<std::string, std::array<CompositorController::PlayerSurfaceConfig, 2>> CompositorController::sPlayerConfigs;
-    std::map<std::string, std::array<CompositorController::PlayerSurfaceConfig, 2>> CompositorController::sPendingPlayerConfigs;
     std::map<std::string, std::array<bool, 2>> CompositorController::sPlayerConfigured;
     std::map<std::string, bool> CompositorController::sPlayerSuspended;
     std::array<std::string, 2> CompositorController::sPlayerOwners;
-    std::array<bool, 2> CompositorController::sPlayerExplicitOwners{};
-    bool CompositorController::sPlayerOwnerManagement = true;
     std::array<std::string, 2> CompositorController::sPlayerReportedOwners;
     std::array<CompositorController::PlayerSurfaceConfig, 2> CompositorController::sPlayerEffectiveConfigs;
     std::array<RdkWindowManagerRect, 2> CompositorController::sPlayerHoles;
@@ -99,12 +96,9 @@ namespace RdkWindowManager
         ClientInfo clientInfo{};
         if (2 <= vwid || !getClientInfo(client, clientInfo)) return false;
         std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
-        sPendingPlayerConfigs[client][vwid] = config;
+        sPlayerConfigs[client][vwid] = config;
         sPlayerConfigured[client][vwid] = true;
-        if (!config.texturedVideo)
-        {
-            sPlayerConfigs[client][vwid] = config;
-        }
+        updatePlayerSurfaces();
         return true;
     }
 
@@ -130,40 +124,17 @@ namespace RdkWindowManager
 
     bool CompositorController::takePlayerOwnership(const std::string& client, uint32_t playerMask)
     {
-        return acquirePlayerOwnership(client, playerMask, false);
-    }
-
-    bool CompositorController::takeAutomaticPlayerOwnership(const std::string& client)
-    {
-        return acquirePlayerOwnership(client, 3, true);
-    }
-
-    void CompositorController::setPlayerOwnerManagement(bool enabled)
-    {
-        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
-        sPlayerOwnerManagement = enabled;
-    }
-
-    bool CompositorController::acquirePlayerOwnership(const std::string& client, uint32_t playerMask, bool automatic)
-    {
         std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
         ClientInfo clientInfo{};
         if (!getClientInfo(client, clientInfo) || isClientSuspended(client)) return false;
-        const std::string appId = getAliasFromDisplayName(client);
-        if (automatic && (!sPlayerOwnerManagement ||
-            (!hasPlayerCapability(client, "requiresasplayer") && !hasPlayerCapability(client, "home-app") &&
-             "com.bskyb.epgui" != appId && "com.entos.monarch_ui" != appId))) return false;
         for (uint32_t vwid = 0; vwid < 2; ++vwid)
         {
-            if (!(playerMask & (1u << vwid)) || (automatic && sPlayerExplicitOwners[vwid])) continue;
-            sPlayerExplicitOwners[vwid] = !automatic;
-            if (sPlayerOwners[vwid] == client) continue;
+            if (!(playerMask & (1u << vwid)) || sPlayerOwners[vwid] == client) continue;
             if (!sPlayerConfigured[client][vwid])
             {
-                const std::string previousOwner = getPlayerOwner(vwid);
-                PlayerSurfaceConfig inherited = previousOwner.empty() ? sPlayerEffectiveConfigs[vwid] : sPlayerConfigs[previousOwner][vwid];
+                PlayerSurfaceConfig inherited = sPlayerEffectiveConfigs[vwid];
                 ClientInfo previous{}, next{};
-                if (getClientInfo(previousOwner, previous) && getClientInfo(client, next))
+                if (getClientInfo(getPlayerOwner(vwid), previous) && getClientInfo(client, next))
                 {
                     const double previousX = previous.sx > 0.0 ? previous.sx : 1.0;
                     const double previousY = previous.sy > 0.0 ? previous.sy : 1.0;
@@ -175,22 +146,19 @@ namespace RdkWindowManager
                     inherited.height = static_cast<uint32_t>(inherited.height * previousY / nextY);
                 }
                 sPlayerConfigs[client][vwid] = inherited;
-                sPendingPlayerConfigs[client][vwid] = inherited;
             }
             sPlayerOwners[vwid] = client;
         }
+        updatePlayerSurfaces();
         return true;
     }
 
     void CompositorController::releasePlayerOwnership(const std::string& client)
     {
         std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
-        for (uint32_t vwid = 0; vwid < 2; ++vwid)
-            if (sPlayerOwners[vwid] == client)
-            {
-                sPlayerOwners[vwid].clear();
-                sPlayerExplicitOwners[vwid] = false;
-            }
+        for (auto& owner : sPlayerOwners)
+            if (owner == client) owner.clear();
+        updatePlayerSurfaces();
     }
 
     void CompositorController::updatePlayerSurfaces()
@@ -203,8 +171,6 @@ namespace RdkWindowManager
             if (owner != sPlayerReportedOwners[vwid])
             {
                 sPlayerReportedOwners[vwid] = owner;
-                Logger::log(LogLevel::Information, "asplayer-owner vwid=%u client=%s alias=%s explicit=%d",
-                    vwid, owner.c_str(), getAliasFromDisplayName(owner).c_str(), sPlayerExplicitOwners[vwid]);
                 notifyExtensionOwnerChanged(owner, vwid);
             }
             ClientInfo viewport{};
@@ -219,9 +185,8 @@ namespace RdkWindowManager
                 sPlayerEffectiveConfigs[vwid] = config;
             }
             ClientInfo output{};
-            output.visible = enabled && viewport.visible && config.visible && config.width > 0 && config.height > 0 &&
-                viewport.sx > 0.0 && viewport.sy > 0.0;
-            output.opacity = config.opacity * viewport.opacity;
+            output.visible = enabled && config.visible;
+            output.opacity = config.opacity;
             output.zorder = config.zorder;
             const double scaleX = viewport.sx > 0.0 ? viewport.sx : 1.0;
             const double scaleY = viewport.sy > 0.0 ? viewport.sy : 1.0;
@@ -230,25 +195,16 @@ namespace RdkWindowManager
             output.width = static_cast<uint32_t>(config.width * scaleX);
             output.height = static_cast<uint32_t>(config.height * scaleY);
             ClientInfo current{};
-            const auto playerCompositor = getCompositor(displays[vwid]);
-            if (playerCompositor) playerCompositor->setPlayerRenderMode(config.texturedVideo);
             if (getClientInfo(displays[vwid], current) &&
                 (current.visible != output.visible || current.opacity != output.opacity || current.zorder != output.zorder ||
                  current.x != output.x || current.y != output.y ||
                  (output.width > 0 && current.width != output.width) || (output.height > 0 && current.height != output.height)))
                 setClientInfo(displays[vwid], output);
             sPlayerHoleEnabled[vwid] = output.visible && config.zorder > 0 && !config.texturedVideo && output.width > 0 && output.height > 0;
-            uint32_t screenWidth = 0, screenHeight = 0;
-            getScreenResolution(screenWidth, screenHeight);
-            const int64_t left = std::max<int64_t>(0, output.x);
-            const int64_t top = std::max<int64_t>(0, output.y);
-            const int64_t right = std::min<int64_t>(screenWidth, static_cast<int64_t>(output.x) + output.width);
-            const int64_t bottom = std::min<int64_t>(screenHeight, static_cast<int64_t>(output.y) + output.height);
-            sPlayerHoleEnabled[vwid] = sPlayerHoleEnabled[vwid] && right > left && bottom > top;
-            sPlayerHoles[vwid].x = static_cast<uint32_t>(left);
-            sPlayerHoles[vwid].y = static_cast<uint32_t>(top);
-            sPlayerHoles[vwid].width = static_cast<uint32_t>(std::max<int64_t>(0, right - left));
-            sPlayerHoles[vwid].height = static_cast<uint32_t>(std::max<int64_t>(0, bottom - top));
+            sPlayerHoles[vwid].x = std::max(0, output.x);
+            sPlayerHoles[vwid].y = std::max(0, output.y);
+            sPlayerHoles[vwid].width = output.width;
+            sPlayerHoles[vwid].height = output.height;
             if (vwid == 0)
             {
                 const char* overlays[] = { "westeros-asplayer-subtitles", "westeros-asplayer-watermark" };
@@ -860,9 +816,6 @@ namespace RdkWindowManager
         if (sCompositorInitialized)
             return;
 
-        const char* playerOwnerManagement = getenv("RDK_WINDOW_MANAGER_PLAYER_OWNER_MANAGEMENT");
-        setPlayerOwnerManagement(nullptr == playerOwnerManagement || 0 != strcmp(playerOwnerManagement, "0"));
-
         char const *rdkwindowmanagerKeyIgnore = getenv("RDK_WINDOW_MANAGER_ENABLE_KEY_IGNORE");
         Logger::log(LogLevel::Information,  "key ignore feature enabled status [%d]", (NULL==rdkwindowmanagerKeyIgnore));
         if (NULL != rdkwindowmanagerKeyIgnore)
@@ -967,7 +920,6 @@ namespace RdkWindowManager
                 if (sDefaultPlayerOwner == clientDisplayName) sDefaultPlayerOwner.clear();
                 releasePlayerOwnership(clientDisplayName);
                 sPlayerConfigs.erase(clientDisplayName);
-                sPendingPlayerConfigs.erase(clientDisplayName);
                 sPlayerConfigured.erase(clientDisplayName);
                 sPlayerSuspended.erase(clientDisplayName);
             }
@@ -1960,7 +1912,6 @@ namespace RdkWindowManager
 
     bool CompositorController::draw()
     {
-        commitPendingPlayerSurfaces();
         updatePlayerSurfaces();
         //first render deleted compositors to ensure there is no memory leak
         //mfnote: todo - come back and revisit this approach to prevent a memory leak
@@ -2141,21 +2092,6 @@ namespace RdkWindowManager
             }
         }
         return true;
-    }
-
-    void CompositorController::commitPendingPlayerSurfaces()
-    {
-        std::lock_guard<std::recursive_mutex> lock(sPlayerMutex);
-        for (const auto* compositors : { &gCompositorList, &gTopmostCompositorList })
-        {
-            for (const auto& entry : *compositors)
-            {
-                if (!entry.compositor->consumeSurfaceCommit()) continue;
-                const auto pending = sPendingPlayerConfigs.find(entry.name);
-                if (sPendingPlayerConfigs.end() != pending)
-                    sPlayerConfigs[entry.name] = pending->second;
-            }
-        }
     }
 
     bool CompositorController::onEvent(RdkCompositor* eventCompositor, const std::string& eventName)

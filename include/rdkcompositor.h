@@ -93,8 +93,6 @@ namespace RdkWindowManager
             void setAnimating(bool animating);
             void setHolePunch(bool holePunchEnabled);
             void holePunch(bool &holePunchEnabled);
-            void setPlayerRenderMode(bool texturedVideo);
-            bool consumeSurfaceCommit();
             void setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight);
             void crop(int32_t &cropX, int32_t &cropY, int32_t &cropWidth, int32_t &cropHeight);
             void ownerId(int32_t& ownerId);
@@ -135,8 +133,6 @@ namespace RdkWindowManager
 
         private:
             void prepareHolePunchRects(std::vector<WstRect> wstrects, RdkWindowManagerRect& rect);
-            void logPlayerComposition(bool composed, int hints, bool needsHolePunch, const std::vector<WstRect>& rects);
-            std::string mLastPlayerComposition;
         protected:
             static void invalidate(WstCompositor *context, void *userData);
             static void clientStatus(WstCompositor *context, int status, int pid, int detail, void *userData);
@@ -169,9 +165,6 @@ namespace RdkWindowManager
             bool mVisible;
             bool mAnimating;
             bool mHolePunch;
-            bool mIsPlayerSurface = false;
-            bool mPlayerTexturedVideo = false;
-            std::atomic<bool> mSurfaceCommitted{false};
             double mScaleX;
             double mScaleY;
             int32_t mCropX;
