@@ -2176,7 +2176,14 @@ namespace RdkWindowManager
             {
                 std::string displayName;
                 eventCompositor->displayName(displayName);
-                if (0 != displayName.compare(0, 17, "westeros-asplayer-"))
+                const std::string appId = getAliasFromDisplayName(it->name);
+                if ("com.comcast.viper_ipa" == appId)
+                {
+                    Logger::log(LogLevel::Information,
+                        "client disconnected client:%s appId:%s; retaining VIPA display for pipeline reconnect",
+                        it->name.c_str(), appId.c_str());
+                }
+                else if (0 != displayName.compare(0, 17, "westeros-asplayer-"))
                 {
                     clientToKill = it->name;
                     killClient = true;
