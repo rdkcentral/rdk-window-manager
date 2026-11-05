@@ -1,139 +1,243 @@
 # RDK Window Manager
 
-The window manager is responsible for creating Wayland displays,
-application composition, managing windows, and input / focus handling.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![RDK](https://img.shields.io/badge/RDK-Component-orange.svg)](https://rdkcentral.com/)
 
 ## Overview
 
-- **The RDKWindowManager component has dependencies on Westeros, Essos, and OpenGL ES 2.0.  RDKWindowManager uses Westeros to create a Wayland surface or display for applications to connect itself to. RDKWindowManager provides a set of APIs for the system or applications to control the display and the positioning of the application windows on screen. ​**
-- **Separates window manager from application infrastructure on RDK platforms​**
-- **It  is going to be an open-source component and would be available for the RDK ​**
-- **The window manager runs inside a new Thunder plugin​**
+The **RDK Window Manager** is a critical component in the RDK (Reference Design Kit) infrastructure responsible for managing Wayland displays, application window composition, and input/focus handling for embedded Linux devices such as set-top boxes and smart TVs.
 
-## Thunder Interfaces
-### APIs supported
-- CreateDisplay — Creates display with given parameters.
+Built on top of **Westeros** (Wayland compositor) and **Essos** (EGL/OpenGL ES abstraction), it provides a robust window management system with custom Firebolt Wayland protocol extensions for enhanced application control.
 
-- GetApps — Get the list of active clients.
+---
 
-- AddKeyIntercept — Register a key intercept for a specific key code and client.
+## Key Features
 
-- AddKeyIntercepts — Register multiple key intercepts in one call.
+| Feature | Description |
+|---------|-------------|
+| **Multi-Application Composition** | Manages multiple application windows with z-ordering, visibility, and opacity control |
+| **Wayland Protocol Support** | Full Wayland display server with custom Firebolt extensions |
+| **Input Management** | Key intercepts, listeners, focus management, and input event routing |
+| **Graphics Rendering** | OpenGL ES 2.0-based rendering with FBO support for virtual displays |
+| **Inactivity Detection** | User inactivity monitoring and reporting |
+| **VNC Server** | Optional remote display capability |
+| **Memory Monitoring** | RAM usage monitoring with configurable thresholds |
 
-- RemoveKeyIntercept — Remove a key intercept.
+---
 
-- AddKeyListener — Register listeners for specific keys.
+## Architecture
 
-- RemoveKeyListener — Remove listeners for specific keys.
+```mermaid
+graph TB
+    subgraph "RDK Window Manager"
+        Main[main.cpp] --> RWM[RdkWindowManager]
+        RWM --> CC[CompositorController]
+        RWM --> EI[EssosInstance]
+        CC --> RC[RdkCompositor]
+        RC --> RCN[RdkCompositorNested]
+        CC --> FB[FrameBuffer]
+        CC --> Cursor[Cursor]
+    end
+    
+    subgraph "Wayland Extensions"
+        RC --> FBS[Firebolt Shell]
+        RC --> FBSF[Firebolt Surface]
+        RC --> FBWM[Firebolt WM]
+    end
+    
+    subgraph "External Dependencies"
+        EI --> Essos[Essos Library]
+        RC --> Westeros[Westeros Compositor]
+        FB --> OpenGL[OpenGL ES 2.0]
+    end
+    
+    subgraph "Applications"
+        App1[Native App] --> Westeros
+        App2[Lightning App] --> Westeros
+        App3[HTML App] --> Westeros
+    end
+```
 
-- InjectKey — Simulate a key press event with optional modifiers.
+---
 
-- GenerateKey — Generate a key event for specified keys and client.
+## Documentation
 
-- EnableInactivityReporting — Enable or disable inactivity reporting.
+### Core Documentation
 
-- SetInactivityInterval — Set the inactivity interval.
+| Document | Description |
+|----------|-------------|
+| [Architecture Overview](./docs/architecture.md) | High-level system architecture, component interactions, and design patterns |
+| [Core Components](./docs/RDK_WindowManager.md) | Detailed documentation of core classes: RdkCompositor, CompositorController, EssosInstance |
+| [Wayland Extensions](./docs/extensions.md) | Firebolt Shell, Surface, and Window Manager Wayland protocol extensions |
+| [Configuration & Build](./docs/configuration-build.md) | Build system, CMake options, environment variables, and deployment |
 
-- ResetInactivityTime — Reset the inactivity timer.
+### Additional Documentation
 
-- EnableKeyRepeats — Enable or disable key repeats.
+| Document | Description |
+|----------|-------------|
+| [Input & Events](./docs/input-events.md) | Input device handling, key interception, event propagation |
+| [Testing Guide](./docs/testing.md) | Test infrastructure, test applications, and quality analysis |
+| [API Reference](./docs/api-reference.md) | Complete API documentation for all public interfaces |
 
-- GetKeyRepeatsEnabled — Get the key repeats enabled status.
+### Generated Subsystem Documentation
 
-- IgnoreKeyInputs — Ignore key inputs.
+These self-contained documents were generated from the C/C++ source, headers, build files, extension definitions, and tests in this repository:
 
-- EnableInputEvents — Enable key input events for specified clients.
+| Subsystem | Document |
+|-----------|----------|
+| Core window manager | [Core](./docs/core/core.md) |
+| Compositor and window control | [Compositor](./docs/compositor/compositor.md) |
+| Input, display bridge, and rendering | [Input and Rendering](./docs/input-rendering/input-rendering.md) |
+| Optional VNC server | [VNC Server](./docs/vnc-server/vnc-server.md) |
+| Firebolt Window Manager protocol | [Firebolt WM](./docs/firebolt-wm/firebolt-wm.md) |
+| Firebolt Shell protocol | [Firebolt Shell](./docs/firebolt-shell/firebolt-shell.md) |
+| Firebolt Surface protocol | [Firebolt Surface](./docs/firebolt-surface/firebolt-surface.md) |
+| Utility and cross-cutting support | [Utilities](./docs/utilities/utilities.md) |
+| Build, integration, and test surface | [Build and Testing](./docs/build-testing/build-testing.md) |
 
-- KeyRepeatConfig — Configure key repeat parameters.
+---
 
-- SetFocus — Set focus to an app by ID.
+## Quick Start
 
-- SetVisible — Set visibility of a client or app instance.
+### Prerequisites
 
-- RenderReady — Get the first-frame rendered status of an app.
+| Dependency | Description |
+|------------|-------------|
+| **CMake** | Version 2.8 or higher |
+| **C++14 Compiler** | GCC or Clang with C++14 support |
+| **Westeros** | Wayland compositor library |
+| **Essos** | EGL/OpenGL ES abstraction |
+| **OpenGL ES 2.0** | Graphics rendering |
+| **Wayland** | Display server protocol libraries |
+| **libpng/libjpeg** | Image loading |
 
-- EnableDisplayRender — Enable or disable Wayland display rendering.
+### Building
 
-### Events supported
-- OnUserInactivity — Notifies how long the user has been inactive (in minutes).
+```bash
+# Clone the repository
+git clone <repository-url>
+cd rdk-window-manager
 
-- OnDisconnected — Notifies when an application is disconnected.
+# Create build directory
+mkdir build && cd build
 
-- OnReady — Notifies when the first frame event is received for a client or app instance.
+# Configure with CMake
+cmake .. \
+    -DRDK_WINDOW_MANAGER_BUILD_APP=ON \
+    -DRDK_WINDOW_MANAGER_BUILD_EXTENSIONS=ON \
+    -DRDK_WINDOW_MANAGER_BUILD_TEST_APP=ON
 
-- OnConnected — Notifies when an application is connected.
+# Build
+make -j$(nproc)
+```
 
-- OnVisible — Notifies when an application becomes visible.
+### Running
 
-- OnHidden — Notifies when an application is hidden.
+```bash
+# Set environment variables (optional)
+export RDK_WINDOW_MANAGER_LOG_LEVEL=Debug
+export RDK_WINDOW_MANAGER_FRAMERATE=60
 
-- OnFocus — Notifies when an application comes into focus.
+# Run the window manager
+./rdkwindowmanager
+```
 
-- OnBlur — Notifies when an application loses focus (blurred).
+---
 
-## Wayland interfaces
-Below are the Firebolt shell, surface, and wm APIs available using Wayland & Westeros Extensions.
+## Project Structure
 
-## Interface: firebolt_shell
-### Requests supported
-- get_firebolt_surface - create a firebolt shell surface from a surface
+```
+rdk-window-manager/
+├── CMakeLists.txt              # Main CMake configuration
+├── include/                    # Public headers
+│   ├── rdkwindowmanager.h      # Main namespace API
+│   ├── compositorcontroller.h  # Compositor management
+│   ├── rdkcompositor.h         # Base compositor class
+│   ├── rdkcompositornested.h   # Nested compositor implementation
+│   ├── essosinstance.h         # Essos singleton
+│   ├── application.h           # Application types and states
+│   ├── inputevent.h            # Input event structures
+│   ├── logger.h                # Logging utilities
+│   └── ...
+├── src/                        # Implementation files
+│   ├── main.cpp                # Entry point
+│   ├── rdkwindowmanager.cpp    # Main loop and initialization
+│   ├── compositorcontroller.cpp# Compositor management
+│   ├── rdkcompositor.cpp       # Base compositor
+│   └── ...
+├── extensions/                 # Wayland protocol extensions
+│   ├── firebolt_shell/         # Focus/blur events
+│   ├── firebolt_surface/       # Surface properties
+│   └── firebolt_wm/            # Window manager control
+├── tests/                      # Test applications
+├── docs/                       # Documentation
+└── CMake/                      # CMake modules
+```
 
-### Events supported
-- firebolt_video_surface_id - sent in reply to a get_firebolt_surface request for video surfaces
+---
 
-## Interface: firebolt_surface
-### Requests supported
-- destroy - destroy the firebolt_surface
-- set_name - set the name of the firebolt_surface
-- set_visible - set the visibility of the surface
-- set_bounds - set the surface bounds
-- set_crop - set the cropping of the surface within the surface
-- set_zorder - set the relative z-order of the surface
-- set_opacity - set surface opacity
+## Configuration
 
-### Events supported
-- None
+### Environment Variables
 
-## Interface: firebolt_wm
-### Requests supported
-- set_properties — Updates various surface properties such as position, size, render size, opacity, z-order, visibility, and cropping for an app or group.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RDK_WINDOW_MANAGER_LOG_LEVEL` | Information | Log level (Debug, Information, Warn, Error, Fatal) |
+| `RDK_WINDOW_MANAGER_FRAMERATE` | 40 | Target frame rate (FPS) |
+| `RDK_WINDOW_MANAGER_LOW_MEMORY_THRESHOLD` | 200 | Low RAM threshold (MB) |
+| `RDK_WINDOW_MANAGER_KEY_INITIAL_DELAY` | 500 | Key repeat initial delay (ms) |
+| `RDK_WINDOW_MANAGER_KEY_REPEAT_INTERVAL` | 100 | Key repeat interval (ms) |
 
-- create — Creates a new surface with default position, size, opacity, and visibility.
+### CMake Options
 
-- create_with_bounds — Creates a new surface with specified position and size in pixel screen coordinates.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `RDK_WINDOW_MANAGER_BUILD_APP` | ON | Build main executable |
+| `RDK_WINDOW_MANAGER_BUILD_EXTENSIONS` | ON | Build Wayland extensions |
+| `RDK_WINDOW_MANAGER_BUILD_TEST_APP` | ON | Build test application |
+| `RDK_WINDOW_MANAGER_VNC_SERVER` | OFF | Enable VNC server |
 
-- create_with_properties — Creates a new surface with detailed properties: position, size, display size, opacity, z-order, visibility, cropping, and focus state.
+See [Configuration & Build](./docs/configuration-build.md) for complete configuration reference.
 
-- destroy — Destroys the specified display surface.
+---
 
-- set_client_bounds — Sets the client window bounds for rendering, without changing the Wayland display size.
+## Wayland Extensions
 
-- set_client_display_bounds — Sets and changes the size of a client’s Wayland display.
+The RDK Window Manager provides three custom Wayland protocol extensions:
 
-- set_client_focus — Sets the specified client to be the focused app.
+### Firebolt Shell
+- Focus/blur event notifications
+- Surface type creation (Standard, Video, Popup, Notification)
 
-- get_properties — Retrieves the current surface properties for the specified client or group.
+### Firebolt Surface  
+- Fine-grained surface property control
+- Bounds, opacity, z-order, visibility, cropping
 
-- get_focused_client — Returns the ID of the currently focused client.
+### Firebolt WM
+- Window manager-level control
+- Client creation, destruction, property management
+- Client connection/disconnection events
 
-- get_clients — Returns a list of all active client IDs.
+See [Wayland Extensions](./docs/extensions.md) for detailed documentation.
 
-- set_owner — Assigns an owner ID to the specified app, typically to manage grouping or lifecycle control.
+---
 
-- get_owner — Retrieves the owner ID for the specified app.
+## Contributing
 
-### Events supported
-- client_properties — Provides updated properties for a client, including position, size, opacity, z-order, visibility, cropping, and texture usage.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
-- focused_client — Sent in reply to a get_focused_client request. Returns the focused client ID. An empty string means no client is focused.
+---
 
-- clients — Sent in reply to a get_clients request. Returns a comma-separated list of client IDs.
+## License
 
-- client_connected — Sent when an app is connected to a Wayland display.
+Copyright 2024 RDK Management
 
-- client_disconnected — Sent when an app is disconnected from a Wayland display.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
-- client_owner — Sent in response to a get_owner request. Returns the owner ID for a given app or client.
-=======
-# rdk-window-manager
-Window Manager for RDK video and entertainment devices
+---
+
+## Related Projects
+
+- [Westeros](https://github.com/rdkcentral/westeros) - Wayland compositor library
+- [Essos](https://github.com/pxscene/pxCore) - EGL/OpenGL ES abstraction
+- [Thunder/WPEFramework](https://github.com/WebPlatformForEmbedded/Thunder) - Plugin framework

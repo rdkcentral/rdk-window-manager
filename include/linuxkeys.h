@@ -127,6 +127,7 @@
 #define WAYLAND_KEY_MUTE                113
 #define WAYLAND_KEY_VOLUME_DOWN         114
 #define WAYLAND_KEY_VOLUME_UP           115
+#define WAYLAND_KEY_POWER               116
 #define WAYLAND_KEY_KPEQUAL             117
 #define WAYLAND_KEY_KPPLUSMINUS         118
 #define WAYLAND_KEY_PAUSE               119
@@ -153,6 +154,11 @@
 #define WAYLAND_KEY_BACK                158
 #define WAYLAND_KEY_MENU                139
 #define WAYLAND_KEY_HOMEPAGE            172
+#define WAYLAND_KEY_PROGRAM             362
+#define WAYLAND_KEY_CONTEXT_MENU        438
+#define WAYLAND_KEY_TV                  377
+#define WAYLAND_KEY_RECORD              167
+#define WAYLAND_KEY_SEARCH              217
 #define WAYLAND_KEY_F13                 183
 #define WAYLAND_KEY_F14                 184
 #define WAYLAND_KEY_F15                 185
@@ -315,6 +321,17 @@
 #define RDK_WINDOW_MANAGER_KEY_F23 	135
 #define RDK_WINDOW_MANAGER_KEY_F24 	136
 
+/* Additional Wayland keycodes used by BLE RemoteUnit outbound mapping */
+#define WAYLAND_KEY_PROFILE                     429
+
+/* BLE RemoteUnit: keyCodeToWayland() case labels (values match Linux evdev keycodes from keymap JSON loaded via RDK_WINDOW_MANAGER_KEYMAP_FILE) */
+#define RDK_WINDOW_MANAGER_KEY_DEV_POWER        240
+#define RDK_WINDOW_MANAGER_KEY_SEARCH           217
+#define RDK_WINDOW_MANAGER_KEY_PROGRAM          362
+#define RDK_WINDOW_MANAGER_KEY_CONTEXT_MENU     438
+#define RDK_WINDOW_MANAGER_KEY_TV               377
+#define RDK_WINDOW_MANAGER_KEY_RECORD           167
+#define RDK_WINDOW_MANAGER_KEY_PROFILE          429
 
 bool keyCodeFromWayland(uint32_t waylandKeyCode, uint32_t waylandFlags, uint32_t &mappedKeyCode, uint32_t &mappedFlags);
 uint32_t keyCodeToWayland(uint32_t keyCode);
