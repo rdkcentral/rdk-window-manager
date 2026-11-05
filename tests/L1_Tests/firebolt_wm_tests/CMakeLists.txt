@@ -35,6 +35,7 @@ file(GLOB TESTS *.cpp)
 
 add_executable(${PROJECT_NAME}
     ${TESTS}
+    ../common/src/test_Firebolt_Allocation.cpp
     ../../../extensions/firebolt_wm/src/firebolt_wm.cpp
     ../../../extensions/firebolt_wm/src/firebolt_wm_protocol.c
 	../common/src/test_Firebolt_Extension.cpp
@@ -44,8 +45,11 @@ add_executable(${PROJECT_NAME}
     ../mocks/westeros-compositor.cpp
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_FIREBOLT_WM)
+
 set_source_files_properties(
     ${TESTS}
+    ../common/src/test_Firebolt_Allocation.cpp
     PROPERTIES COMPILE_FLAGS "-fexceptions"
 )
 
