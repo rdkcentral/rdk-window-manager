@@ -54,7 +54,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
+        mVirtualDisplayEnabled(true), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -631,11 +631,6 @@ namespace RdkWindowManager
             }
         }
 
-        if (needsHolePunch)
-        {
-            prepareHolePunchRects(std::move(rects), rect);
-        }
-
         glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
         mFbo->unbind();
 
@@ -645,6 +640,11 @@ namespace RdkWindowManager
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
                                               mPositionX, mPositionY, mWidth, mHeight,
                                               mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
+        if (needsHolePunch)
+        {
+            prepareHolePunchRects(std::move(rects), rect);
+        }
+
     }
 
     void RdkCompositor::drawDirect(bool &needsHolePunch, RdkWindowManagerRect& rect, bool drawOverlays)
@@ -1232,7 +1232,7 @@ namespace RdkWindowManager
 
     void RdkCompositor::enableVirtualDisplay(bool enable)
     {
-        mVirtualDisplayEnabled = enable;   
+        mVirtualDisplayEnabled = true;
     }
 
     bool RdkCompositor::getVirtualDisplayEnabled()
