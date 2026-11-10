@@ -320,10 +320,6 @@ namespace RdkWindowManager
          {
                  listener->onApplicationBlur(client);
          }
-         else if(eventName.compare(RDK_WINDOW_MANAGER_EVENT_INVALIDATE) == 0)
-         {
-                 listener->onInvalidate(client);
-         }
     }
 
     bool interceptKey(uint32_t keycode, uint32_t flags, uint64_t metadata, bool isPressed)
