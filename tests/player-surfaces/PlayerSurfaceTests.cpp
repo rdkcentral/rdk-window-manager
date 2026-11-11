@@ -33,6 +33,13 @@ namespace RdkWindowManager
     void RdkCompositor::displayName(std::string& name) const { name = mDisplayName; }
     void RdkCompositor::setVisible(bool visible) { mVisible = visible; }
     void RdkCompositor::setFocused(bool focused) { mFocused = focused; }
+    bool RdkCompositor::getSurfaceInfo(int, FireboltSurfaceInfo& info)
+    {
+        info.surfaceType = SurfaceType::Notification;
+        return true;
+    }
+    bool RdkCompositor::setFireboltSurfaceVisibility(int, bool) { return true; }
+    bool RdkCompositor::fireboltSurfaceDestroy(int) { return true; }
     bool RdkCompositor::isKeyPressed() { return false; }
     void RdkCompositor::visible(bool& visible) { visible = mVisible; }
     void RdkCompositor::setPosition(int32_t x, int32_t y) { mPositionX = x; mPositionY = y; }
@@ -60,6 +67,7 @@ namespace RdkWindowManager
         public:
             explicit Compositor(const std::string& name) { mDisplayName = name; }
             void setNaturalSize(uint32_t width, uint32_t height) { mWidth = width; mHeight = height; }
+            bool focused() const { return mFocused; }
         private:
             bool createDisplay(const std::string&, const std::string&, uint32_t, uint32_t,
                 bool, uint32_t, uint32_t, int32_t, int32_t, const std::string&) override { return true; }
@@ -83,6 +91,12 @@ namespace RdkWindowManager
             addDisplay("westeros-asplayer-1");
             auto subtitles = addDisplay("westeros-asplayer-subtitles");
             assert(CompositorController::setFocus("home"));
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 6, true));
+            assert(!std::static_pointer_cast<Compositor>(home)->focused());
+            assert(std::static_pointer_cast<Compositor>(app)->focused());
+            assert(CompositorController::fireboltSurfaceDestroy("app", 6));
+            assert(std::static_pointer_cast<Compositor>(home)->focused());
+            assert(!std::static_pointer_cast<Compositor>(app)->focused());
             assert("home" == CompositorController::getPlayerOwner(0));
             assert(!CompositorController::takeAutomaticPlayerOwnership("app"));
             CompositorController::PlayerSurfaceConfig config;

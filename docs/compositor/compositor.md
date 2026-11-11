@@ -73,6 +73,21 @@ The default Westeros plugin directory is `/usr/lib/plugins/westeros/`, unless `R
 
 The code tracks natural render size separately from logical reported size. The semantic contract for display bounds versus render bounds is not fully documented outside comments in `rdkcompositor.h`.
 
+### Notification Focus Restoration
+
+Showing an EPG notification temporarily blurs the focused application and
+focuses the notification compositor. Hiding or destroying that notification
+must blur the notification compositor and focus the saved application again,
+not just restore `gFocusedCompositor`. `fireboltSurfaceDestroy` now restores
+both compositor focus flags, allowing the existing focus listeners to deliver
+SkyShell Active to the application without a Home-button retry.
+
+The boot failure capture shows monarch becoming Active at 14:56:32.75, then
+Inactive when EPG notification surface 6 opens. At 14:56:43.495 that surface is
+destroyed, but the old pointer-only restoration leaves monarch inactive. The
+native player-surface regression reproduces this show/destroy sequence and
+checks both applications' focused flags before continuing the caption tests.
+
 ### AS Player and Subtitle Ownership
 
 `configurePlayerSurface` validates and caches each GUI client's main/secondary
@@ -104,6 +119,27 @@ remains authoritative even if a renderer ignores those protocol hints.
 
 This flow controls presentation, not playback lifetime: headless Rialto daemon
 apps keep running and do not need a GUI display or synthetic focus changes.
+
+### Playback Initialization Boundary
+
+The 2026-11-11 playback failure capture has a separate launch prerequisite
+failure: VIPA requests the `rialto` capability, but its generated container has
+an empty `mRialtoSocketPath` and skips the Rialto socket bind mount. The captured
+runtime creates a Rialto connector and reports the default Rialto override,
+but never logs daemon session setup. Later, VIPA reports
+`opencdm_create_system() FAILED` and cannot create the Rialto video, audio or
+subtitle sinks. Caption mute hints cannot repair those initialization failures.
+
+Deploy RuntimeManager's existing headless-daemon Rialto setup as well as the
+window-manager changes, with `RIALTO_SUPPORT=ON`. The current `Run` path allows
+`isDaemonApp` to create a session without an app-owned display, targets
+`/tmp/westeros-asplayer-0`, waits for ACTIVE, and passes a nonempty
+`mRialtoSocketPath` to container generation. Verify those setup logs and the
+mounted socket in a newly launched VIPA container. Inside that container's
+actual runtime/library environment, check `gst-inspect-1.0 rialtomsevideosink`,
+`rialtomseaudiosink` and `rialtotexttracksink`, and verify DRM system creation.
+Missing sink factories or DRM access need media-runtime/image investigation;
+the archives do not establish that correcting the socket alone fixes them.
 
 ## 7. Diagrams & Visual Aids
 

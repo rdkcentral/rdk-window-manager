@@ -2993,7 +2993,15 @@ namespace RdkWindowManager
 
                     if (!gPreviousActiveClient.empty())
                     {
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
                         gFocusedCompositor = gPreviousFocusedCompositor;
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(true);
+                        }
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
                                     gFocusedCompositor.name.c_str());
