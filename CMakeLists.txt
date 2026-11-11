@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 project(window_manager)
 set(CMAKE_CXX_STANDARD 14)
 
@@ -56,7 +56,6 @@ endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
 option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
-option(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS "RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS" OFF)
 option(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND "Enable transparent background clear alpha for RDKWindowManager" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
@@ -189,10 +188,6 @@ if (RDK_WINDOW_MANAGER_LOGGER)
   set(RDK_WINDOW_MANAGER_LOGGER_SOURCE tests/testlogmonitor.cpp)
 endif (RDK_WINDOW_MANAGER_LOGGER)
 
-if(RDKWINDOWMANAGER_FORWARD_MAPPED_KEYS)
-     message(STATUS "Enable keys mapped forwarding")
-     add_definitions("-DRDKWINDOWMANAGER_FORWARD_MAPPED_KEYS")
-endif()
 
 # Wayland Extensions files and extension server portion binded with RDK window manager.
 # Extension protocol interface as shared library to be linked with respective application
@@ -253,12 +248,12 @@ if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     endif(RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL)
     message("Building rdkwindowmanagertest executable")
     add_executable(rdkwindowmanagertest tests/testmain.cpp)
-    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
 
     message("Building rdkwmtest executable")
     add_executable(rdkwmtest tests/testrdkwm.cpp ${RDK_WINDOW_MANAGER_LOGGER_SOURCE})
-    add_dependencies(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} 
     ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lcurl)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)

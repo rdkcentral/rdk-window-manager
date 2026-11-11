@@ -1,3 +1,29 @@
+## Firebolt L1 allocation-failure tests
+
+The three existing L1 executables also compile
+`L1_Tests/common/src/test_Firebolt_Allocation.cpp`. Each runs two
+`FireboltAllocationTest` cases:
+
+- Context allocation failure: preserves the existing `moduleInit()` return value
+  of true, creates no Wayland global, and can be retried successfully. Reporting
+  success on this failure remains a known limitation outside the CodeQL-only fix.
+- Client-info allocation failure: the bind callback posts one Wayland no-memory
+  error, installs no resource implementation, and leaves the client map empty.
+
+The tests replace only scalar `operator new(size_t, const std::nothrow_t&)` in
+the test executables. A scoped, thread-local failure targets the next allocation
+of the selected context or client-info size; throwing allocations are unaffected.
+Each test checks that the targeted allocation actually failed.
+
+After building the L1 executables using the existing L1 CI setup (host C++
+compiler, CMake, GTest and GMock), run from the L1 build directory:
+
+```sh
+./firebolt_shell_tests/FireboltShellL1Test --gtest_filter='FireboltAllocationTest.*'
+./firebolt_wm_tests/FireboltWML1Test --gtest_filter='FireboltAllocationTest.*'
+./firebolt_surface_tests/FireboltSurfaceL1Test --gtest_filter='FireboltAllocationTest.*'
+```
+
 Basic Usage(wherein rdkwmtest is the executable file to be run)
 ----------------------------------------------------------------
 ./rdkwmtest [options] [arguments]
