@@ -1606,9 +1606,8 @@ namespace RdkWindowManager
                 WstCompositorResetFirstFrame(mWstContext);
                 mFirstFrameRendered = false;
                 Logger::log(LogLevel::Information, "Display render disabled");
-
+                Logger::log(LogLevel::Information,"enableDisplayRender display:%s first-frame tracking reset",mDisplayName.c_str());
             }
-            Logger::log(LogLevel::Information,"enableDisplayRender display:%s first-frame tracking reset",mDisplayName.c_str());        
         }
         return true;
     }
