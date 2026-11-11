@@ -72,6 +72,35 @@ graph TB
 
 ## 4. Test Categories
 
+### Native Player/Subtitle Regression Checks
+
+From the repository root, with a C++14 compiler and native Wayland development
+headers installed:
+
+```bash
+g++ -std=c++14 -ffunction-sections -fdata-sections \
+    -Iinclude -Itests/player-surfaces -idirafter tests/L1_Tests/mocks \
+    tests/player-surfaces/PlayerSurfaceTests.cpp \
+    -Wl,--gc-sections -pthread -o /tmp/player-surface-tests
+/tmp/player-surface-tests
+```
+
+The harness compiles the actual controller implementation with minimal Essos
+and compositor doubles; no device Essos/Westeros SDK or GPU is required. Native
+Wayland headers must precede the older L1 mocks. Checks cover explicit and
+automatic ownership, background requests, main/secondary isolation, hide/mute
+and restore, output rectangles, PiP transforms, different owner resolutions,
+transparent owners, invalid requests and cleanup. Add
+`-fsanitize=address,undefined -fno-sanitize=vptr -fno-omit-frame-pointer` for
+sanitizer execution with these platform doubles.
+
+On a device, play daemon-backed VIPA content with captions enabled, press Home,
+resize the video to a tile, return to fullscreen and switch to an unrelated
+fullscreen app. Captions must follow the video rectangle, disappear when muted
+or hidden, and restore on return. Repeat with the secondary player active and
+with the main owner terminated. Verify the daemon/Rialto playback session is
+not suspended solely to hide its caption overlay.
+
 ### 4.1 Unit Tests
 
 Testing individual components in isolation:

@@ -54,6 +54,31 @@ namespace RdkWindowManager
     class CompositorController
     {
         public:
+            struct PlayerSurfaceConfig
+            {
+                bool visible = false;
+                int32_t zorder = 0;
+                double opacity = 1.0;
+                int32_t x = 0;
+                int32_t y = 0;
+                uint32_t width = 1920;
+                uint32_t height = 1080;
+                double cropX = 0.0;
+                double cropY = 0.0;
+                double cropWidth = 1.0;
+                double cropHeight = 1.0;
+                bool subtitlesMuted = false;
+                bool texturedVideo = false;
+            };
+
+            static bool configurePlayerSurface(const std::string& client, unsigned vwid, const PlayerSurfaceConfig& config);
+            static bool getPlayerSurfaceConfig(const std::string& client, unsigned vwid, PlayerSurfaceConfig& config);
+            static bool takePlayerOwnership(const std::string& client, unsigned playerIds);
+            static bool takeAutomaticPlayerOwnership(const std::string& client);
+            static void releasePlayerOwnership(const std::string& client);
+            static std::string getPlayerOwner(unsigned vwid);
+            static bool getSubtitlesMuted();
+            static void updatePlayerSurfaces();
             static void initialize();
             static bool moveToFront(const std::string& client);
             static bool moveToBack(const std::string& client);

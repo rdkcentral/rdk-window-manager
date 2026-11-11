@@ -73,6 +73,38 @@ The default Westeros plugin directory is `/usr/lib/plugins/westeros/`, unless `R
 
 The code tracks natural render size separately from logical reported size. The semantic contract for display bounds versus render bounds is not fully documented outside comments in `rdkcompositor.h`.
 
+### AS Player and Subtitle Ownership
+
+`configurePlayerSurface` validates and caches each GUI client's main/secondary
+player configuration, including `subtitlesMuted`. Configuration requests from a
+background client do not directly mutate the active player's compositor.
+`getPlayerSurfaceConfig` returns that client's cached request, not another
+owner's effective geometry.
+
+`setFocus` selects an automatic player owner. `takeAutomaticPlayerOwnership`
+ignores background clients and preserves explicit EPG ownership established by
+`takePlayerOwnership`. `releasePlayerOwnership` removes the client's cached
+configuration and falls back to the automatic owner when available; `kill`
+performs the same cleanup. The main and secondary owners are independent.
+
+Before each `draw`, `updatePlayerSurfaces` snapshots the ownership/configuration
+state and applies it to the predefined `westeros-asplayer-0` and
+`westeros-asplayer-1` displays. The main player's output rectangle is transformed
+from its owner's natural coordinate space into that owner's current logical
+viewport. The `westeros-asplayer-subtitles` compositor receives the same output
+position, scale and opacity without resizing the subtitle renderer's output.
+
+Captions are hidden if the owner/configuration is absent, the owner or video is
+hidden or transparent, the output geometry is empty, or `subtitlesMuted` is set.
+Secondary-player mute state does not affect the main subtitle compositor.
+`getSubtitlesMuted` exposes the effective state under the player-state mutex.
+The SkySubtitles extension reads it on its own Wayland event loop and emits an
+initial mute/unmute event followed only by state transitions. Compositor hiding
+remains authoritative even if a renderer ignores those protocol hints.
+
+This flow controls presentation, not playback lifetime: headless Rialto daemon
+apps keep running and do not need a GUI display or synthetic focus changes.
+
 ## 7. Diagrams & Visual Aids
 
 ```mermaid

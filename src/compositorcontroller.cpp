@@ -35,6 +35,8 @@
 #include <map>
 #include <ctime>
 #include <mutex>
+#include <array>
+#include <cmath>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -125,6 +127,12 @@ namespace RdkWindowManager
     CompositorList gCompositorList;
     CompositorList gTopmostCompositorList;
     CompositorInfo gFocusedCompositor;
+    static std::mutex gPlayerSurfaceMutex;
+    static std::map<std::string, std::array<CompositorController::PlayerSurfaceConfig, 2>> gPlayerSurfaceConfigs;
+    static std::array<std::string, 2> gPlayerOwners;
+    static std::array<bool, 2> gExplicitPlayerOwners{};
+    static std::string gAutomaticPlayerOwner;
+    static bool gSubtitlesMuted = true;
     std::vector<std::shared_ptr<RdkCompositor>> gPendingKeyUpListeners;
     CompositorList gDeletedCompositors;
     std::map<std::string, std::string> gClientAliasMap;
@@ -729,6 +737,7 @@ namespace RdkWindowManager
                 gPreviousActiveClient = gFocusedCompositor.name;
             }
 
+            takeAutomaticPlayerOwnership(it->name);
             return true;
         }
         return false;
@@ -741,6 +750,7 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it, &compositorInfoList))
         {
             std::string clientDisplayName = standardizeName(client);
+            releasePlayerOwnership(clientDisplayName);
 
             // cleanup key intercepts
             std::vector<std::map<uint32_t, std::vector<KeyInterceptInfo>>::iterator> emptyKeyCodeEntries;
@@ -1714,6 +1724,7 @@ namespace RdkWindowManager
 
     bool CompositorController::draw()
     {
+        updatePlayerSurfaces();
         //first render deleted compositors to ensure there is no memory leak
         //mfnote: todo - come back and revisit this approach to prevent a memory leak
 
@@ -2477,6 +2488,199 @@ namespace RdkWindowManager
     bool CompositorController::isErmEnabled()
     {
         return RdkWindowManager::EssosInstance::instance()->isErmEnabled();
+    }
+
+    bool CompositorController::configurePlayerSurface(const std::string& client, unsigned vwid, const PlayerSurfaceConfig& config)
+    {
+        if (2u <= vwid || !std::isfinite(config.opacity) ||
+            !std::isfinite(config.cropX) || !std::isfinite(config.cropY) ||
+            !std::isfinite(config.cropWidth) || !std::isfinite(config.cropHeight) ||
+            0.0 > config.opacity || 1.0 < config.opacity ||
+            0.0 > config.cropX || 0.0 > config.cropY ||
+            0.0 > config.cropWidth || 0.0 > config.cropHeight ||
+            1.0 < config.cropX + config.cropWidth || 1.0 < config.cropY + config.cropHeight)
+        {
+            Logger::log(LogLevel::Warn, "invalid player surface config client:%s vwid:%u", client.c_str(), vwid);
+            return false;
+        }
+        const auto clientName = standardizeName(client);
+        CompositorListIterator clientIt;
+        if (clientName.empty() || !getCompositorInfo(clientName, clientIt))
+            return false;
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        gPlayerSurfaceConfigs[clientName][vwid] = config;
+        return true;
+    }
+
+    bool CompositorController::getPlayerSurfaceConfig(const std::string& client, unsigned vwid, PlayerSurfaceConfig& config)
+    {
+        CompositorListIterator clientIt;
+        if (2u <= vwid || !getCompositorInfo(client, clientIt))
+            return false;
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        const auto found = gPlayerSurfaceConfigs.find(standardizeName(client));
+        config = gPlayerSurfaceConfigs.end() == found ? PlayerSurfaceConfig{} : found->second[vwid];
+        return true;
+    }
+
+    bool CompositorController::takePlayerOwnership(const std::string& client, unsigned playerIds)
+    {
+        const auto clientName = standardizeName(client);
+        CompositorListIterator clientIt;
+        if (clientName.empty() || 0u == playerIds || 0u != (playerIds & ~3u) || !getCompositorInfo(clientName, clientIt))
+            return false;
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        for (unsigned vwid = 0; vwid < gPlayerOwners.size(); ++vwid)
+        {
+            if (0u != (playerIds & (1u << vwid)))
+            {
+                gPlayerOwners[vwid] = clientName;
+                gExplicitPlayerOwners[vwid] = true;
+            }
+        }
+        return true;
+    }
+
+    bool CompositorController::takeAutomaticPlayerOwnership(const std::string& client)
+    {
+        const auto clientName = standardizeName(client);
+        std::string focusedClient;
+        if (clientName.empty() || !getFocused(focusedClient) || clientName != focusedClient)
+            return false;
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        gAutomaticPlayerOwner = clientName;
+        for (unsigned vwid = 0; vwid < gPlayerOwners.size(); ++vwid)
+        {
+            if (!gExplicitPlayerOwners[vwid])
+                gPlayerOwners[vwid] = clientName;
+        }
+        return true;
+    }
+
+    void CompositorController::releasePlayerOwnership(const std::string& client)
+    {
+        const auto clientName = standardizeName(client);
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        if (gAutomaticPlayerOwner == clientName)
+            gAutomaticPlayerOwner.clear();
+        for (unsigned vwid = 0; vwid < gPlayerOwners.size(); ++vwid)
+        {
+            if (gPlayerOwners[vwid] == clientName)
+            {
+                gPlayerOwners[vwid] = gAutomaticPlayerOwner;
+                gExplicitPlayerOwners[vwid] = false;
+            }
+        }
+        gPlayerSurfaceConfigs.erase(clientName);
+    }
+
+    std::string CompositorController::getPlayerOwner(unsigned vwid)
+    {
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        return vwid < gPlayerOwners.size() ? gPlayerOwners[vwid] : std::string();
+    }
+
+    bool CompositorController::getSubtitlesMuted()
+    {
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        return gSubtitlesMuted;
+    }
+
+    void CompositorController::updatePlayerSurfaces()
+    {
+        std::array<std::string, 2> owners;
+        std::array<PlayerSurfaceConfig, 2> configs;
+        {
+            std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+            owners = gPlayerOwners;
+            for (unsigned vwid = 0; vwid < owners.size(); ++vwid)
+            {
+                const auto found = gPlayerSurfaceConfigs.find(owners[vwid]);
+                if (gPlayerSurfaceConfigs.end() != found)
+                    configs[vwid] = found->second[vwid];
+            }
+        }
+
+        bool subtitlesMuted = true;
+        for (unsigned vwid = 0; vwid < owners.size(); ++vwid)
+        {
+            const auto& config = configs[vwid];
+            ClientInfo ownerInfo{};
+            const bool ownerExists = !owners[vwid].empty() && getClientInfo(owners[vwid], ownerInfo);
+            const bool visible = ownerExists && ownerInfo.visible && config.visible &&
+                0u < config.width && 0u < config.height && 0.0 < config.opacity &&
+                0.0 < ownerInfo.opacity &&
+                0u < ownerInfo.width && 0u < ownerInfo.height;
+            auto player = getCompositor("westeros-asplayer-" + std::to_string(vwid));
+            if (nullptr != player)
+            {
+                player->setVisible(visible);
+            }
+            if (0u == vwid)
+                subtitlesMuted = !visible || config.subtitlesMuted;
+            if (!ownerExists)
+                continue;
+
+            CompositorListIterator ownerIt;
+            if (!getCompositorInfo(owners[vwid], ownerIt))
+                continue;
+            uint32_t ownerWidth = 0, ownerHeight = 0;
+            ownerIt->compositor->size(ownerWidth, ownerHeight);
+            if (0u == ownerWidth || 0u == ownerHeight)
+            {
+                if (0u == vwid)
+                    subtitlesMuted = true;
+                continue;
+            }
+            const double scaleX = static_cast<double>(ownerInfo.width) / ownerWidth;
+            const double scaleY = static_cast<double>(ownerInfo.height) / ownerHeight;
+            const int32_t outputX = ownerInfo.x + std::lround(config.x * scaleX);
+            const int32_t outputY = ownerInfo.y + std::lround(config.y * scaleY);
+            const double outputWidth = config.width * scaleX;
+            const double outputHeight = config.height * scaleY;
+
+            if (nullptr != player)
+            {
+                uint32_t naturalWidth = 0, naturalHeight = 0;
+                player->size(naturalWidth, naturalHeight);
+                if (0u < naturalWidth && 0u < naturalHeight)
+                {
+                    const int32_t cropX = std::lround(config.cropX * naturalWidth);
+                    const int32_t cropY = std::lround(config.cropY * naturalHeight);
+                    const int32_t cropWidth = std::lround(config.cropWidth * naturalWidth);
+                    const int32_t cropHeight = std::lround(config.cropHeight * naturalHeight);
+                    int32_t currentX = 0, currentY = 0, currentWidth = 0, currentHeight = 0;
+                    player->crop(currentX, currentY, currentWidth, currentHeight);
+                    if (currentX != cropX || currentY != cropY || currentWidth != cropWidth || currentHeight != cropHeight)
+                        player->setCrop(cropX, cropY, cropWidth, cropHeight);
+                    player->setPosition(outputX, outputY);
+                    player->setScale(outputWidth / naturalWidth, outputHeight / naturalHeight);
+                    player->setOpacity(config.opacity * ownerInfo.opacity);
+                }
+            }
+            if (0u == vwid)
+            {
+                auto subtitles = getCompositor("westeros-asplayer-subtitles");
+                if (nullptr != subtitles)
+                {
+                    uint32_t naturalWidth = 0, naturalHeight = 0;
+                    subtitles->size(naturalWidth, naturalHeight);
+                    if (0u < naturalWidth && 0u < naturalHeight)
+                    {
+                        subtitles->setPosition(outputX, outputY);
+                        subtitles->setScale(outputWidth / naturalWidth, outputHeight / naturalHeight);
+                        subtitles->setOpacity(config.opacity * ownerInfo.opacity);
+                    }
+                }
+            }
+        }
+        auto subtitles = getCompositor("westeros-asplayer-subtitles");
+        if (nullptr != subtitles)
+            subtitles->setVisible(!subtitlesMuted);
+        std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
+        if (gSubtitlesMuted != subtitlesMuted)
+            Logger::log(LogLevel::Information, "player subtitles %s owner:%s", subtitlesMuted ? "muted" : "unmuted", owners[0].c_str());
+        gSubtitlesMuted = subtitlesMuted;
     }
 
     bool CompositorController::getClientInfo(const std::string& client, ClientInfo& ci)
