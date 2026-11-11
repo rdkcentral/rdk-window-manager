@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 project(window_manager)
 set(CMAKE_CXX_STANDARD 14)
 
@@ -36,9 +36,11 @@ option(RDK_WINDOW_MANAGER_BUILD_KEY_METADATA "RDK_WINDOW_MANAGER_BUILD_KEY_METAD
 option(RDK_WINDOW_MANAGER_BUILD_HIDDEN_SUPPORT "RDK_WINDOW_MANAGER_BUILD_HIDDEN_SUPPORT" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_FORCE_1080 "RDK_WINDOW_MANAGER_BUILD_FORCE_1080" ON)
 option(RDK_WINDOW_MANAGER_BUILD_FORCE_ANIMATE "RDK_WINDOW_MANAGER_BUILD_FORCE_ANIMATE" OFF)
+option(RDK_WINDOW_MANAGER_DISABLE_CROP_MATRIX_TRANSFORM "Disable crop matrix transform" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION "RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION" ON)
 option(RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE "RDK_WINDOW_MANAGER_BUILD_KEYBUBBING_TOP_MODE" ON)
 option(RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS "RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS" OFF)
+option(RDK_WINDOW_MANAGER_DISABLE_DISPLAY_KILL_ON_DISCONNECT "Keep displays alive when clients disconnect" OFF)
 option(RDK_WINDOW_MANAGER_BUILD_EXTENSIONS "RDK_WINDOW_MANAGER_BUILD_EXTENSIONS" ON)
 if (RDK_WINDOW_MANAGER_BUILD_EXTENSIONS)
 option(RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION "RDK_WINDOW_MANAGER_BUILD_FIREBOLT_SURFACE_EXTENSION" ON)
@@ -50,6 +52,11 @@ if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
 option(RDK_WINDOW_MANAGER_LOGGER "RDK_WINDOW_MANAGER_LOGGER" ON)
 option (RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL "RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL" ON)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
+
+option(ENABLE_RDKWINDOWMANAGER_VNCSERVER2 "Enable RDKWindowManager VNCServer2 integration for RFB frame passing and key routing" OFF)
+option(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN "Enable splash screen support (image path and duration via env variables)" OFF)
+option(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE "Enable resize of window to 1x1 and maximize inside enableDisplayRender" ON)
+option(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND "Enable transparent background clear alpha for RDKWindowManager" ON)
 
 set(RDK_WINDOW_MANAGER_SOURCES
   src/rdkwindowmanager.cpp
@@ -81,11 +88,34 @@ if(RDK_WINDOW_MANAGER_VNC_SERVER)
      add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER")
 endif()
 
+if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
+     message(STATUS "Enable RDKWindowManager VNCServer2 integration")
+     add_definitions("-DENABLE_RDKWINDOWMANAGER_VNCSERVER2")
+endif()
+
+if(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)
+    message(STATUS "Enable splash screen support")
+    add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_SPLASH_SCREEN")
+endif(RDK_WINDOW_MANAGER_BUILD_SPLASH_SCREEN)
+if(ENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE)
+     message(STATUS "Enable render minimize: resize window to 1x1 and maximize inside enableDisplayRender")
+     add_definitions("-DENABLE_RDKWINDOWMANAGER_RENDER_MINIMIZE")
+endif()
+
+if(ENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND)
+  message(STATUS "Enable transparent background clear alpha")
+  add_definitions("-DENABLE_RDKWINDOWMANAGER_TRANSPARENT_BACKGROUND")
+endif()
+
 if (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="${RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER}")
 else()
     add_definitions(-DRDK_WINDOW_MANAGER_WESTEROS_PLUGIN_DIRECTORY="/usr/lib/plugins/westeros/")
 endif (RDK_WINDOW_MANAGER_WESTEROS_PLUGIN_FOLDER)
+
+if (RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG)
+    add_definitions(-DRDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG="${RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG}")
+endif (RDK_WINDOW_MANAGER_ADDITIONAL_EXTENSIONS_CONFIG)
 
 if (RDK_WINDOW_MANAGER_BUILD_KEY_METADATA)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_KEY_METADATA")
@@ -103,6 +133,10 @@ if (RDK_WINDOW_MANAGER_BUILD_FORCE_ANIMATE)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_FORCE_ANIMATE")
 endif (RDK_WINDOW_MANAGER_BUILD_FORCE_ANIMATE)
 
+if (RDK_WINDOW_MANAGER_DISABLE_CROP_MATRIX_TRANSFORM)
+  add_definitions("-DRDK_WINDOW_MANAGER_DISABLE_CROP_MATRIX_TRANSFORM")
+endif (RDK_WINDOW_MANAGER_DISABLE_CROP_MATRIX_TRANSFORM)
+
 if (RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_EXTERNAL_APPLICATION_SURFACE_COMPOSITION")
 endif (RDK_WINDOW_MANAGER_BUILD_EXTERNAL_APPLICATION_SURFACE_COMPOSITION)
@@ -115,6 +149,10 @@ if (RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS)
   add_definitions("-DRDK_WINDOW_MANAGER_ENABLE_KEYREPEATS")
 endif (RDK_WINDOW_MANAGER_BUILD_ENABLE_KEYREPEATS)
 
+if (RDK_WINDOW_MANAGER_DISABLE_DISPLAY_KILL_ON_DISCONNECT)
+  add_definitions("-DRDK_WINDOW_MANAGER_DISABLE_DISPLAY_KILL_ON_DISCONNECT")
+endif (RDK_WINDOW_MANAGER_DISABLE_DISPLAY_KILL_ON_DISCONNECT)
+
 if(BUILD_ENABLE_ERM)
     add_definitions("-DENABLE_ERM")
     set(RDK_WINDOW_MANAGER_LINK_LIBRARIES ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lessosrmgr)
@@ -125,12 +163,19 @@ add_definitions("-DRDK_WINDOW_MANAGER_VNC_SERVER_PORT=5900")
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/VncServer)
 list( APPEND RDK_WINDOW_MANAGER_SOURCES
   src/VncServer/VncServer.cpp
+  src/VncServer/VncServerFactory.cpp
   src/VncServer/VncFrameBuffer.cpp
+  src/VncServer/VncCaptureThread.cpp
   src/VncServer/VncClient.cpp
   src/VncServer/VncBuffer.cpp
   src/VncServer/VncSoupTcpServer.cpp
   src/VncServer/VncSoupTcpSocket.cpp
 )
+if(ENABLE_RDKWINDOWMANAGER_VNCSERVER2)
+  list( APPEND RDK_WINDOW_MANAGER_SOURCES
+    src/VncServer/VncBridgeServer.cpp
+  )
+endif()
 include_directories(${GLIB_INCLUDE_DIRS})
 include_directories(${GIO_INCLUDE_DIRS})
 include_directories(${GIO_UNIX_INCLUDE_DIRS})
@@ -142,6 +187,7 @@ if (RDK_WINDOW_MANAGER_LOGGER)
   add_definitions(-DRDK_WINDOW_MANAGER_LOGFILE=\"/opt/logs/rdkwindowmanager.log\")
   set(RDK_WINDOW_MANAGER_LOGGER_SOURCE tests/testlogmonitor.cpp)
 endif (RDK_WINDOW_MANAGER_LOGGER)
+
 
 # Wayland Extensions files and extension server portion binded with RDK window manager.
 # Extension protocol interface as shared library to be linked with respective application
@@ -202,12 +248,12 @@ if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     endif(RDK_WINDOW_MANAGER_BUILD_TEST_APP_WITH_OPENGL)
     message("Building rdkwindowmanagertest executable")
     add_executable(rdkwindowmanagertest tests/testmain.cpp)
-    add_dependencies(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwindowmanagertest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} -lpthread)
 
     message("Building rdkwmtest executable")
     add_executable(rdkwmtest tests/testrdkwm.cpp ${RDK_WINDOW_MANAGER_LOGGER_SOURCE})
-    add_dependencies(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES})
+    
     target_link_libraries(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} 
     ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lcurl)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)

@@ -18,6 +18,7 @@
  */
 
 #include <cstring>
+#include <new>
 #include <sstream>
 #include <thread>
 #include <mutex>
@@ -358,7 +359,7 @@ static void firebolt_shell_bind(struct wl_client *client, void *data, uint32_t v
                     " firebolt_shell@.bind: id:%u wl_resource_create resource:%p", id, resource);
 
             /* Map of wl_resource against client Info */
-            FireboltShellClientInfo *clientInfo = new FireboltShellClientInfo;
+            FireboltShellClientInfo *clientInfo = new (std::nothrow) FireboltShellClientInfo;
             if (NULL == clientInfo)
             {
                 RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -408,7 +409,7 @@ extern "C"
     static FireboltShell* fireboltShellCreateContext(void)
     {
         std::lock_guard<std::mutex> locker(FireboltShell::mContextLock);
-        FireboltShell *instance = new FireboltShell();
+        FireboltShell *instance = new (std::nothrow) FireboltShell();
         if (NULL == instance)
         {
             RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Error,
@@ -606,4 +607,3 @@ extern "C"
         return;
     }
 }
-
