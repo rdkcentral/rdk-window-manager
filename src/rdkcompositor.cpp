@@ -1601,6 +1601,7 @@ namespace RdkWindowManager
 
     bool RdkCompositor::enableDisplayRender(bool enable)
     {
+        Logger::log(LogLevel::Information,"enableDisplayRender display:%s current:%d requested:%d firstFrameRendered:%d",mDisplayName.c_str(),static_cast<int>(mRendererEnabled),static_cast<int>(enable),static_cast<int>(mFirstFrameRendered));
         if (mRendererEnabled != enable)
         {
             mRendererEnabled = enable;
@@ -1609,6 +1610,8 @@ namespace RdkWindowManager
             {
                 WstCompositorResetFirstFrame(mWstContext);
                 mFirstFrameRendered = false;
+                Logger::log(LogLevel::Information, "Display render disabled");
+                Logger::log(LogLevel::Information,"enableDisplayRender display:%s first-frame tracking reset",mDisplayName.c_str());
             }
         }
         return true;
