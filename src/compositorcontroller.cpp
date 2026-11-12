@@ -1288,7 +1288,8 @@ namespace RdkWindowManager
         }
         else
         {
-            Logger::log(LogLevel::Information,  "%s on the same compositor stack zorder:%d", client.c_str(), zorder);
+            // log flooding for subtitle drawing so disabled
+           // Logger::log(LogLevel::Information,  "%s on the same compositor stack zorder:%d", client.c_str(), zorder);
         }
         return true;
     }

@@ -8,8 +8,15 @@
 
 namespace RdkWindowManager
 {
+    class LogCapture
+    {
+    public:
+        static unsigned count;
+    };
+    unsigned LogCapture::count = 0;
+
     double seconds() { return 0.0; }
-    void Logger::log(LogLevel, const char*, ...) {}
+    void Logger::log(LogLevel, const char*, ...) { ++LogCapture::count; }
 
     EssosInstance* EssosInstance::instance()
     {
@@ -116,6 +123,13 @@ namespace RdkWindowManager
             assert(playerInfo.zorder < ownerInfo.zorder);
             assert(subtitleInfo.zorder > playerInfo.zorder);
             assert(subtitleInfo.zorder < ownerInfo.zorder);
+            const auto logsBeforeNoOp = LogCapture::count;
+            for (unsigned repeat = 0; repeat < 60; ++repeat)
+            {
+                assert(CompositorController::setZorder("westeros-asplayer-0", playerInfo.zorder));
+                assert(CompositorController::setZorder("westeros-asplayer-subtitles", subtitleInfo.zorder));
+            }
+            assert(logsBeforeNoOp == LogCapture::count);
             config.zorder = 1;
             assert(CompositorController::configurePlayerSurface("home", 0, config));
             CompositorController::updatePlayerSurfaces();

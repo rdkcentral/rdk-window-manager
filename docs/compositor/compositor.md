@@ -73,6 +73,10 @@ The default Westeros plugin directory is `/usr/lib/plugins/westeros/`, unless `R
 
 The code tracks natural render size separately from logical reported size. The semantic contract for display bounds versus render bounds is not fully documented outside comments in `rdkcompositor.h`.
 
+Repeated `setZorder` requests for the current layer are silent no-ops. Only actual
+layer changes produce z-order transition diagnostics, including when player and
+subtitle layering is refreshed every frame.
+
 ### Notification Focus Restoration
 
 Showing an EPG notification temporarily blurs the focused application and
