@@ -1285,9 +1285,14 @@ namespace RdkWindowManager
 
     void RdkCompositor::setFocused(bool focused)
     {
+        setFocused(focused, true);
+    }
+
+    void RdkCompositor::setFocused(bool focused, bool notifyApplication)
+    {
         /* Send onFocus event if new is true and old was false,
             send onBlur event if new is false and old was true */
-        if (focused != mFocused)
+        if (notifyApplication && focused != mFocused)
         {
             if (focused)
             {

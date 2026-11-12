@@ -115,6 +115,7 @@ namespace RdkWindowManager
             void enableInputEvents(bool enable);
             bool getInputEventsEnabled() const;
             void setFocused(bool focused);
+            void setFocused(bool focused, bool notifyApplication);
             bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
             bool setFireboltSurfaceZOrder(int surfaceId, int zOrder);
             bool setFireboltSurfaceOpacity(int surfaceId, double opacity);

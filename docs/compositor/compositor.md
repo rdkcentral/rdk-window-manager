@@ -73,6 +73,82 @@ The default Westeros plugin directory is `/usr/lib/plugins/westeros/`, unless `R
 
 The code tracks natural render size separately from logical reported size. The semantic contract for display bounds versus render bounds is not fully documented outside comments in `rdkcompositor.h`.
 
+Repeated `setZorder` requests for the current layer are silent no-ops. Only actual
+layer changes produce z-order transition diagnostics, including when player and
+subtitle layering is refreshed every frame.
+
+### Notification Focus Restoration
+
+Showing a notification temporarily blurs the focused application and
+focuses the notification compositor. Hiding or destroying that notification
+must blur the notification compositor and focus the saved application again,
+not just restore `gFocusedCompositor`. `fireboltSurfaceDestroy` now restores
+both compositor focus flags, allowing the existing focus listeners to deliver
+SkyShell Active to the application without a Home-button retry.
+
+An explicit `setFocus` cancels the saved notification restore, including a
+request for the already-focused app. Hiding or destroying the old notification
+then preserves current focus without an artificial blur/active pair. A pending
+restore is applied only while its notification still owns focus and its saved
+target remains in the live compositor list. This prevents voice-button release
+from replaying stale app focus after EPG has selected another app.
+
+Notification input-focus changes use the non-application-notifying compositor
+focus setter. SkyShell state and keyboard routing still follow the overlay,
+but modal show/restore does not emit ordinary app focus/blur notifications to
+ASAppManager. The foreground status and launch history therefore keep the
+underlying app rather than briefly marking EPG VISIBLE on a voice-button press.
+An explicit focus request for the overlay owner commits a real app-focus event.
+
+The boot failure capture shows monarch becoming Active at 14:56:32.75, then
+Inactive when EPG notification surface 6 opens. At 14:56:43.495 that surface is
+destroyed, but the old pointer-only restoration leaves monarch inactive. The
+native player-surface regression reproduces this show/destroy sequence and
+checks both applications' focused flags before continuing the caption tests.
+
+### Player and Subtitle Ownership
+
+`configurePlayerSurface` validates and caches each GUI client's main/secondary
+player configuration, including `subtitlesMuted`. Configuration requests from a
+background client do not directly mutate the active player's compositor.
+`getPlayerSurfaceConfig` returns that client's cached request, not another
+owner's effective geometry.
+
+`setFocus` selects an automatic player owner. `takeAutomaticPlayerOwnership`
+ignores background clients and preserves explicit EPG ownership established by
+`takePlayerOwnership`. `releasePlayerOwnership` removes the client's cached
+configuration and falls back to the automatic owner when available; `kill`
+performs the same cleanup. The main and secondary owners are independent.
+
+Before each `draw`, `updatePlayerSurfaces` snapshots the ownership/configuration
+state and applies it to the predefined `westeros-asplayer-0` and
+`westeros-asplayer-1` displays. The main player's output rectangle is transformed
+from its owner's natural coordinate space into that owner's current logical
+viewport. The `westeros-asplayer-subtitles` compositor receives the same output
+position, scale and opacity without resizing the subtitle renderer's output.
+
+Player configuration also controls caption layering. When `zorder <= 0`,
+video and captions sit just below the owner's GUI, with captions immediately
+above video. Opaque GUI content therefore covers captions instead of letting
+the fixed z=1000 subtitle display leak through Home. When `zorder > 0`, video
+sits at the top of the app pass and captions enter the overlay pass, after
+the hardware-video hole punch. Watermark and notification overlays remain
+above them. Native regression checks cover both layer modes as well as resize.
+Configuration logs report visibility, requested z-order, mute and textured-video
+flags only when those fields change, allowing device captures to distinguish
+explicit mute requests from captions covered by GUI content.
+
+Captions are hidden if the owner/configuration is absent, the owner or video is
+hidden or transparent, the output geometry is empty, or `subtitlesMuted` is set.
+Secondary-player mute state does not affect the main subtitle compositor.
+`getSubtitlesMuted` exposes the effective state under the player-state mutex.
+The SkySubtitles extension reads it on its own Wayland event loop and emits an
+initial mute/unmute event followed only by state transitions. Compositor hiding
+remains authoritative even if a renderer ignores those protocol hints.
+
+This flow controls presentation, not playback lifetime: headless Rialto daemon
+apps keep running and do not need a GUI display or synthetic focus changes.
+
 ## 7. Diagrams & Visual Aids
 
 ```mermaid
