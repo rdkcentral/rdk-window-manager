@@ -12,6 +12,14 @@ This subsystem turns public window-management operations into per-display compos
 - Emit lifecycle, focus, visibility, and extension events.
 - Manage crop, scale, opacity, hole-punch, virtual display, and screenshot operations.
 
+### App Alias Reassignment
+`CompositorController::setAlias` transfers an app alias to the newly registered
+display under the alias-map lock. An old display may still exist during restart
+cleanup, but it no longer resolves through that app ID. This keeps SkyApps
+geometry and SkyShell lookup aligned with the current instance rather than
+whichever old instance sorts first in the map. Cleanup of the old display does
+not remove the new display's alias.
+
 ### Interacting subsystems and what it does not do
 `CompositorController` delegates display mechanics to `RdkCompositor` and input acquisition to `EssosInstance`. Direct Westeros calls belong in `src/rdkcompositor*.cpp`; the controller does not own the wire protocol implementation.
 

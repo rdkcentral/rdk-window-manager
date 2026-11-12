@@ -1177,6 +1177,19 @@ namespace RdkWindowManager
         const std::string standardizedClientId = standardizeName(clientId);
         {
             std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+            // A restarted app can leave its old display alive briefly. App-ID
+            // requests must resolve to the new instance, not map iteration order.
+            for (auto aliasEntry = gClientAliasMap.begin(); aliasEntry != gClientAliasMap.end();)
+            {
+                if (aliasEntry->second == alias && aliasEntry->first != standardizedClientId)
+                {
+                    aliasEntry = gClientAliasMap.erase(aliasEntry);
+                }
+                else
+                {
+                    ++aliasEntry;
+                }
+            }
             gClientAliasMap[standardizedClientId] = alias;
         }
 
