@@ -2508,7 +2508,15 @@ namespace RdkWindowManager
         if (clientName.empty() || !getCompositorInfo(clientName, clientIt))
             return false;
         std::lock_guard<std::mutex> lock(gPlayerSurfaceMutex);
-        gPlayerSurfaceConfigs[clientName][vwid] = config;
+        auto& currentConfig = gPlayerSurfaceConfigs[clientName][vwid];
+        if (currentConfig.visible != config.visible || currentConfig.zorder != config.zorder ||
+            currentConfig.subtitlesMuted != config.subtitlesMuted || currentConfig.texturedVideo != config.texturedVideo)
+        {
+            Logger::log(LogLevel::Information,
+                "player config client:%s vwid:%u visible:%d zorder:%d subtitlesMuted:%d texturedVideo:%d",
+                clientName.c_str(), vwid, config.visible, config.zorder, config.subtitlesMuted, config.texturedVideo);
+        }
+        currentConfig = config;
         return true;
     }
 
@@ -2638,9 +2646,14 @@ namespace RdkWindowManager
             const int32_t outputY = ownerInfo.y + std::lround(config.y * scaleY);
             const double outputWidth = config.width * scaleX;
             const double outputHeight = config.height * scaleY;
+            const int64_t requestedLayer = 0 < config.zorder ? kOverlayZOrderThreshold - 1 :
+                static_cast<int64_t>(ownerInfo.zorder) - 2;
+            const int32_t playerLayer = static_cast<int32_t>(std::max<int64_t>(INT32_MIN,
+                std::min<int64_t>(INT32_MAX - 1, requestedLayer)));
 
             if (nullptr != player)
             {
+                setZorder("westeros-asplayer-" + std::to_string(vwid), playerLayer);
                 uint32_t naturalWidth = 0, naturalHeight = 0;
                 player->size(naturalWidth, naturalHeight);
                 if (0u < naturalWidth && 0u < naturalHeight)
@@ -2663,6 +2676,7 @@ namespace RdkWindowManager
                 auto subtitles = getCompositor("westeros-asplayer-subtitles");
                 if (nullptr != subtitles)
                 {
+                    setZorder("westeros-asplayer-subtitles", playerLayer + 1);
                     uint32_t naturalWidth = 0, naturalHeight = 0;
                     subtitles->size(naturalWidth, naturalHeight);
                     if (0u < naturalWidth && 0u < naturalHeight)

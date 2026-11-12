@@ -109,6 +109,17 @@ from its owner's natural coordinate space into that owner's current logical
 viewport. The `westeros-asplayer-subtitles` compositor receives the same output
 position, scale and opacity without resizing the subtitle renderer's output.
 
+Player configuration also controls caption layering. When `zorder <= 0`,
+video and captions sit just below the owner's GUI, with captions immediately
+above video. Opaque GUI content therefore covers captions instead of letting
+the fixed z=1000 subtitle display leak through Home. When `zorder > 0`, video
+sits at the top of the app pass and captions enter the overlay pass, after
+the hardware-video hole punch. Watermark and notification overlays remain
+above them. Native regression checks cover both layer modes as well as resize.
+Configuration logs report visibility, requested z-order, mute and textured-video
+flags only when those fields change, allowing device captures to distinguish
+explicit mute requests from captions covered by GUI content.
+
 Captions are hidden if the owner/configuration is absent, the owner or video is
 hidden or transparent, the output geometry is empty, or `subtitlesMuted` is set.
 Secondary-player mute state does not affect the main subtitle compositor.

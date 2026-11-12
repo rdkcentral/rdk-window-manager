@@ -73,10 +73,11 @@ namespace RdkWindowManager
                 bool, uint32_t, uint32_t, int32_t, int32_t, const std::string&) override { return true; }
         };
 
-        static std::shared_ptr<RdkCompositor> addDisplay(const std::string& name)
+        static std::shared_ptr<RdkCompositor> addDisplay(const std::string& name, int32_t zorder = 0)
         {
             CompositorInfo info;
             info.name = name;
+            info.zorder = zorder;
             info.compositor = std::make_shared<Compositor>(name);
             gCompositorList.push_back(info);
             return info.compositor;
@@ -85,11 +86,11 @@ namespace RdkWindowManager
     public:
         static int run()
         {
-            auto home = addDisplay("home");
+            auto home = addDisplay("home", 120);
             auto app = addDisplay("app");
             auto player = addDisplay("westeros-asplayer-0");
             addDisplay("westeros-asplayer-1");
-            auto subtitles = addDisplay("westeros-asplayer-subtitles");
+            auto subtitles = addDisplay("westeros-asplayer-subtitles", 1000);
             assert(CompositorController::setFocus("home"));
             assert(CompositorController::setFireboltSurfaceVisibility("app", 6, true));
             assert(!std::static_pointer_cast<Compositor>(home)->focused());
@@ -107,6 +108,24 @@ namespace RdkWindowManager
             assert("home" == CompositorController::getPlayerOwner(0));
             CompositorController::updatePlayerSurfaces();
             assert(!CompositorController::getSubtitlesMuted());
+
+            ClientInfo playerInfo{}, subtitleInfo{}, ownerInfo{};
+            assert(CompositorController::getClientInfo("home", ownerInfo));
+            assert(CompositorController::getClientInfo("westeros-asplayer-0", playerInfo));
+            assert(CompositorController::getClientInfo("westeros-asplayer-subtitles", subtitleInfo));
+            assert(playerInfo.zorder < ownerInfo.zorder);
+            assert(subtitleInfo.zorder > playerInfo.zorder);
+            assert(subtitleInfo.zorder < ownerInfo.zorder);
+            config.zorder = 1;
+            assert(CompositorController::configurePlayerSurface("home", 0, config));
+            CompositorController::updatePlayerSurfaces();
+            assert(CompositorController::getClientInfo("westeros-asplayer-0", playerInfo));
+            assert(CompositorController::getClientInfo("westeros-asplayer-subtitles", subtitleInfo));
+            assert(playerInfo.zorder > ownerInfo.zorder);
+            assert(subtitleInfo.zorder > playerInfo.zorder);
+            assert(playerInfo.zorder < kOverlayZOrderThreshold);
+            assert(subtitleInfo.zorder >= kOverlayZOrderThreshold);
+            config.zorder = 0;
 
             config.subtitlesMuted = true;
             assert(CompositorController::configurePlayerSurface("home", 0, config));
