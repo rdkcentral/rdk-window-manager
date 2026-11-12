@@ -721,21 +721,22 @@ namespace RdkWindowManager
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
+            // Committing focus to the overlay's app is still a real app switch,
+            // even though that compositor already holds temporary input focus.
+            if (isSameClient && !gPreviousActiveClient.empty() && gPreviousActiveClient != it->name)
+            {
+                onEvent(it->compositor.get(), RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS);
+            }
+
             gFocusedCompositor = *it;
             if (gFocusedCompositor.compositor && !isSameClient)
             {
                  gFocusedCompositor.compositor->setFocused(true);
             }
-            if (isSameClient)
-	    {
-                gPreviousActiveClient.clear();
-                gPreviousFocusedCompositor = CompositorInfo();
-	    }
-	    else
-	    {
-	        gPreviousFocusedCompositor = gFocusedCompositor;
-                gPreviousActiveClient = gFocusedCompositor.name;
-            }
+            // An explicit app-focus request supersedes a temporary notification grab.
+            // Do not blur/refocus that app again when the old voice surface is destroyed.
+            gPreviousActiveClient.clear();
+            gPreviousFocusedCompositor = CompositorInfo();
 
             takeAutomaticPlayerOwnership(it->name);
             return true;
@@ -2923,12 +2924,12 @@ namespace RdkWindowManager
                     // focus shifts to notification app.
                     if (gFocusedCompositor.compositor)
                     {
-                        gFocusedCompositor.compositor->setFocused(false);
+                        gFocusedCompositor.compositor->setFocused(false, false);
                     }					
                     gFocusedCompositor = *it;
 					if (gFocusedCompositor.compositor)
                     {
-                        gFocusedCompositor.compositor->setFocused(true);
+                        gFocusedCompositor.compositor->setFocused(true, false);
                     }
 
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification registered for client '%s' (previous focused='%s')", client.c_str(), gPreviousActiveClient.c_str());
@@ -2950,24 +2951,24 @@ namespace RdkWindowManager
                 gNotificationSurfaceId = 0;
                 Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification hidden for client '%s' - clearing notification client", client.c_str());
 
-                if (!gPreviousActiveClient.empty())
+                CompositorListIterator previous;
+                if (!gPreviousActiveClient.empty() && gFocusedCompositor.name == client &&
+                    getCompositorInfo(gPreviousActiveClient, previous))
                 {
 					if (gFocusedCompositor.compositor)
                     {
-                        gFocusedCompositor.compositor->setFocused(false);
+                        gFocusedCompositor.compositor->setFocused(false, false);
                     }
-                    gFocusedCompositor = gPreviousFocusedCompositor;
+                    gFocusedCompositor = *previous;
 					if (gFocusedCompositor.compositor)
                     {
-                        gFocusedCompositor.compositor->setFocused(true);
+                        gFocusedCompositor.compositor->setFocused(true, false);
                     }					
                     Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
                 }
                 else
                 {
-                    // AppManager parity: if there is no previous active app,
-                    // clear focus instead of leaving focus on notification app.
-                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no pending notification focus restore, keeping current focus");
                 }
 
                 gPreviousActiveClient.clear();
@@ -3006,16 +3007,18 @@ namespace RdkWindowManager
                                 "fireboltSurfaceDestroy: Notification surface destroyed for client '%s' - clearing notification client",
                                 client.c_str());
 
-                    if (!gPreviousActiveClient.empty())
+                    CompositorListIterator previous;
+                    if (!gPreviousActiveClient.empty() && gFocusedCompositor.name == client &&
+                        getCompositorInfo(gPreviousActiveClient, previous))
                     {
                         if (gFocusedCompositor.compositor)
                         {
-                            gFocusedCompositor.compositor->setFocused(false);
+                            gFocusedCompositor.compositor->setFocused(false, false);
                         }
-                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        gFocusedCompositor = *previous;
                         if (gFocusedCompositor.compositor)
                         {
-                            gFocusedCompositor.compositor->setFocused(true);
+                            gFocusedCompositor.compositor->setFocused(true, false);
                         }
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
@@ -3024,7 +3027,7 @@ namespace RdkWindowManager
                     else
                     {
                         Logger::log(LogLevel::Information,
-                                    "fireboltSurfaceDestroy: no previous focused client, focus cleared");
+                                    "fireboltSurfaceDestroy: no pending notification focus restore, keeping current focus");
                     }
 
                     gPreviousActiveClient.clear();

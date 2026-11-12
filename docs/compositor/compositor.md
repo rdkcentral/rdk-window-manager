@@ -86,6 +86,20 @@ not just restore `gFocusedCompositor`. `fireboltSurfaceDestroy` now restores
 both compositor focus flags, allowing the existing focus listeners to deliver
 SkyShell Active to the application without a Home-button retry.
 
+An explicit `setFocus` cancels the saved notification restore, including a
+request for the already-focused app. Hiding or destroying the old notification
+then preserves current focus without an artificial blur/active pair. A pending
+restore is applied only while its notification still owns focus and its saved
+target remains in the live compositor list. This prevents voice-button release
+from replaying stale app focus after EPG has selected another app.
+
+Notification input-focus changes use the non-application-notifying compositor
+focus setter. SkyShell state and keyboard routing still follow the overlay,
+but modal show/restore does not emit ordinary app focus/blur notifications to
+ASAppManager. The foreground status and launch history therefore keep the
+underlying app rather than briefly marking EPG VISIBLE on a voice-button press.
+An explicit focus request for the overlay owner commits a real app-focus event.
+
 The boot failure capture shows monarch becoming Active at 14:56:32.75, then
 Inactive when EPG notification surface 6 opens. At 14:56:43.495 that surface is
 destroyed, but the old pointer-only restoration leaves monarch inactive. The

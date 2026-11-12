@@ -12,8 +12,12 @@ namespace RdkWindowManager
     {
     public:
         static unsigned count;
+        static unsigned focusChanges;
+        static unsigned applicationFocusChanges;
     };
     unsigned LogCapture::count = 0;
+    unsigned LogCapture::focusChanges = 0;
+    unsigned LogCapture::applicationFocusChanges = 0;
 
     double seconds() { return 0.0; }
     void Logger::log(LogLevel, const char*, ...) { ++LogCapture::count; }
@@ -33,13 +37,24 @@ namespace RdkWindowManager
 
     RdkCompositor::RdkCompositor()
         : mWidth(1920), mHeight(1080), mLogicalWidth(1920), mLogicalHeight(1080),
-          mPositionX(0), mPositionY(0), mOpacity(1.0), mVisible(true),
+          mPositionX(0), mPositionY(0), mOpacity(1.0), mVisible(true), mFocused(false),
           mScaleX(1.0), mScaleY(1.0), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0)
     {}
     RdkCompositor::~RdkCompositor() {}
     void RdkCompositor::displayName(std::string& name) const { name = mDisplayName; }
     void RdkCompositor::setVisible(bool visible) { mVisible = visible; }
-    void RdkCompositor::setFocused(bool focused) { mFocused = focused; }
+    void RdkCompositor::setFirstFrameRendered(bool) {}
+    void RdkCompositor::setFocused(bool focused) { setFocused(focused, true); }
+    void RdkCompositor::setFocused(bool focused, bool notifyApplication)
+    {
+        if (notifyApplication && focused != mFocused)
+        {
+            ++LogCapture::applicationFocusChanges;
+            CompositorController::onEvent(this, focused ? RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS : RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR);
+        }
+        mFocused = focused;
+        ++LogCapture::focusChanges;
+    }
     bool RdkCompositor::getSurfaceInfo(int, FireboltSurfaceInfo& info)
     {
         info.surfaceType = SurfaceType::Notification;
@@ -69,6 +84,13 @@ namespace RdkWindowManager
 
     class PlayerSurfaceTests
     {
+        class FocusEvents : public RdkWindowManagerEventListener
+        {
+        public:
+            unsigned count = 0;
+            void onApplicationFocus(const std::string&) override { ++count; }
+        };
+
         class Compositor : public RdkCompositor
         {
         public:
@@ -99,13 +121,46 @@ namespace RdkWindowManager
             addDisplay("westeros-asplayer-1");
             auto subtitles = addDisplay("westeros-asplayer-subtitles", 1000);
             assert(CompositorController::setFocus("home"));
+            const auto beforeNotification = LogCapture::applicationFocusChanges;
             assert(CompositorController::setFireboltSurfaceVisibility("app", 6, true));
             assert(!std::static_pointer_cast<Compositor>(home)->focused());
             assert(std::static_pointer_cast<Compositor>(app)->focused());
             assert(CompositorController::fireboltSurfaceDestroy("app", 6));
             assert(std::static_pointer_cast<Compositor>(home)->focused());
             assert(!std::static_pointer_cast<Compositor>(app)->focused());
+            assert(beforeNotification == LogCapture::applicationFocusChanges);
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 7, true));
+            assert(CompositorController::setFocus("home"));
+            const auto beforeDestroy = LogCapture::focusChanges;
+            assert(CompositorController::fireboltSurfaceDestroy("app", 7));
+            assert(beforeDestroy == LogCapture::focusChanges);
+            assert(std::static_pointer_cast<Compositor>(home)->focused());
+            assert(!std::static_pointer_cast<Compositor>(app)->focused());
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 8, true));
+            assert(CompositorController::setFocus("home"));
+            const auto beforeHide = LogCapture::focusChanges;
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 8, false));
+            assert(beforeHide == LogCapture::focusChanges);
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 9, true));
+            const auto beforeRestore = LogCapture::focusChanges;
+            const auto beforeApplicationRestore = LogCapture::applicationFocusChanges;
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 9, false));
+            assert(beforeRestore + 2 == LogCapture::focusChanges);
+            assert(beforeApplicationRestore == LogCapture::applicationFocusChanges);
+            assert(std::static_pointer_cast<Compositor>(home)->focused());
+            assert(!std::static_pointer_cast<Compositor>(app)->focused());
             assert("home" == CompositorController::getPlayerOwner(0));
+            auto focusEvents = std::make_shared<FocusEvents>();
+            assert(CompositorController::addListener("app", focusEvents));
+            assert(CompositorController::setFireboltSurfaceVisibility("app", 10, true));
+            assert(0 == focusEvents->count);
+            assert(CompositorController::setFocus("app"));
+            assert(1 == focusEvents->count);
+            const auto beforeOwnerDestroy = LogCapture::focusChanges;
+            assert(CompositorController::fireboltSurfaceDestroy("app", 10));
+            assert(beforeOwnerDestroy == LogCapture::focusChanges && 1 == focusEvents->count);
+            assert(CompositorController::setFocus("home"));
+            assert(CompositorController::removeListener("app", focusEvents));
             assert(!CompositorController::takeAutomaticPlayerOwnership("app"));
             CompositorController::PlayerSurfaceConfig config;
             config.visible = true;
