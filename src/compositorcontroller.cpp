@@ -120,6 +120,26 @@ namespace RdkWindowManager
     typedef std::vector<CompositorInfo> CompositorList;
     typedef CompositorList::iterator CompositorListIterator;
 
+    static thread_local bool gSuppressApplicationFocusEvents = false;
+
+    class ApplicationFocusEventSuppression
+    {
+    public:
+        ApplicationFocusEventSuppression()
+            : mPrevious(gSuppressApplicationFocusEvents)
+        {
+            gSuppressApplicationFocusEvents = true;
+        }
+        ~ApplicationFocusEventSuppression()
+        {
+            gSuppressApplicationFocusEvents = mPrevious;
+        }
+        ApplicationFocusEventSuppression(const ApplicationFocusEventSuppression&) = delete;
+        ApplicationFocusEventSuppression& operator=(const ApplicationFocusEventSuppression&) = delete;
+    private:
+        bool mPrevious;
+    };
+
     static bool addCompositor(CompositorList* compositorList, CompositorInfo compositorInfo);
 
     CompositorList gCompositorList;
@@ -713,21 +733,22 @@ namespace RdkWindowManager
                 gFocusedCompositor.compositor->setFocused(false);
             }
 
+            // Committing focus to the overlay's app is still a real app switch,
+            // even though that compositor already holds temporary input focus.
+            if (isSameClient && !gPreviousActiveClient.empty() && gPreviousActiveClient != it->name)
+            {
+                onEvent(it->compositor.get(), RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS);
+            }
+
             gFocusedCompositor = *it;
             if (gFocusedCompositor.compositor && !isSameClient)
             {
                  gFocusedCompositor.compositor->setFocused(true);
             }
-            if (isSameClient)
-	    {
-                gPreviousActiveClient.clear();
-                gPreviousFocusedCompositor = CompositorInfo();
-	    }
-	    else
-	    {
-	        gPreviousFocusedCompositor = gFocusedCompositor;
-                gPreviousActiveClient = gFocusedCompositor.name;
-            }
+            // An explicit app-focus request supersedes a temporary notification grab.
+            // Do not blur/refocus that app again when the old voice surface is destroyed.
+            gPreviousActiveClient.clear();
+            gPreviousFocusedCompositor = CompositorInfo();
 
             return true;
         }
@@ -1166,6 +1187,19 @@ namespace RdkWindowManager
         const std::string standardizedClientId = standardizeName(clientId);
         {
             std::lock_guard<std::mutex> lock(gClientAliasMapMutex);
+            // A restarted app can leave its old display alive briefly. App-ID
+            // requests must resolve to the new instance, not map iteration order.
+            for (auto aliasEntry = gClientAliasMap.begin(); aliasEntry != gClientAliasMap.end();)
+            {
+                if (aliasEntry->second == alias && aliasEntry->first != standardizedClientId)
+                {
+                    aliasEntry = gClientAliasMap.erase(aliasEntry);
+                }
+                else
+                {
+                    ++aliasEntry;
+                }
+            }
             gClientAliasMap[standardizedClientId] = alias;
         }
 
@@ -1278,6 +1312,7 @@ namespace RdkWindowManager
         }
         else
         {
+            // possible log flooding for subtitle drawing
             Logger::log(LogLevel::Information,  "%s on the same compositor stack zorder:%d", client.c_str(), zorder);
         }
         return true;
@@ -1881,6 +1916,13 @@ namespace RdkWindowManager
 
     bool CompositorController::onEvent(RdkCompositor* eventCompositor, const std::string& eventName)
     {
+        // Temporary notification input focus must not be advertised as an app switch.
+        if (gSuppressApplicationFocusEvents &&
+            (RDK_WINDOW_MANAGER_EVENT_APPLICATION_FOCUS == eventName ||
+             RDK_WINDOW_MANAGER_EVENT_APPLICATION_BLUR == eventName))
+        {
+            return true;
+        }
         bool killClient = false;
         std::string clientToKill("");
 
@@ -2698,6 +2740,7 @@ namespace RdkWindowManager
 
                 if (client != gFocusedCompositor.name)
                 {
+                    ApplicationFocusEventSuppression suppressFocusEvents;
                     gNotificationClient = client;
                     gNotificationSurfaceId = surfaceId;
                     // Equivalent to AppManager onAppShownModalOverlay:
@@ -2731,13 +2774,16 @@ namespace RdkWindowManager
                 gNotificationSurfaceId = 0;
                 Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: Notification hidden for client '%s' - clearing notification client", client.c_str());
 
-                if (!gPreviousActiveClient.empty())
+                CompositorListIterator previous;
+                if (!gPreviousActiveClient.empty() && gFocusedCompositor.name == client &&
+                    getCompositorInfo(gPreviousActiveClient, previous))
                 {
+                    ApplicationFocusEventSuppression suppressFocusEvents;
 					if (gFocusedCompositor.compositor)
                     {
                         gFocusedCompositor.compositor->setFocused(false);
                     }
-                    gFocusedCompositor = gPreviousFocusedCompositor;
+                    gFocusedCompositor = *previous;
 					if (gFocusedCompositor.compositor)
                     {
                         gFocusedCompositor.compositor->setFocused(true);
@@ -2746,9 +2792,7 @@ namespace RdkWindowManager
                 }
                 else
                 {
-                    // AppManager parity: if there is no previous active app,
-                    // clear focus instead of leaving focus on notification app.
-                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no previous focused client, focus cleared");
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: no pending notification focus restore, keeping current focus");
                 }
 
                 gPreviousActiveClient.clear();
@@ -2787,9 +2831,20 @@ namespace RdkWindowManager
                                 "fireboltSurfaceDestroy: Notification surface destroyed for client '%s' - clearing notification client",
                                 client.c_str());
 
-                    if (!gPreviousActiveClient.empty())
+                    CompositorListIterator previous;
+                    if (!gPreviousActiveClient.empty() && gFocusedCompositor.name == client &&
+                        getCompositorInfo(gPreviousActiveClient, previous))
                     {
-                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        ApplicationFocusEventSuppression suppressFocusEvents;
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
+                        gFocusedCompositor = *previous;
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(true);
+                        }
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
                                     gFocusedCompositor.name.c_str());
@@ -2797,7 +2852,7 @@ namespace RdkWindowManager
                     else
                     {
                         Logger::log(LogLevel::Information,
-                                    "fireboltSurfaceDestroy: no previous focused client, focus cleared");
+                                    "fireboltSurfaceDestroy: no pending notification focus restore, keeping current focus");
                     }
 
                     gPreviousActiveClient.clear();

@@ -12,6 +12,14 @@ This subsystem turns public window-management operations into per-display compos
 - Emit lifecycle, focus, visibility, and extension events.
 - Manage crop, scale, opacity, hole-punch, virtual display, and screenshot operations.
 
+### App Alias Reassignment
+`CompositorController::setAlias` transfers an app alias to the newly registered
+display under the alias-map lock. An old display may still exist during restart
+cleanup, but it no longer resolves through that app ID. This keeps SkyApps
+geometry and SkyShell lookup aligned with the current instance rather than
+whichever old instance sorts first in the map. Cleanup of the old display does
+not remove the new display's alias.
+
 ### Interacting subsystems and what it does not do
 `CompositorController` delegates display mechanics to `RdkCompositor` and input acquisition to `EssosInstance`. Direct Westeros calls belong in `src/rdkcompositor*.cpp`; the controller does not own the wire protocol implementation.
 
@@ -72,6 +80,34 @@ The default Westeros plugin directory is `/usr/lib/plugins/westeros/`, unless `R
 6. Shutdown closes applications and destroys compositor handles.
 
 The code tracks natural render size separately from logical reported size. The semantic contract for display bounds versus render bounds is not fully documented outside comments in `rdkcompositor.h`.
+
+Repeated `setZorder` requests for the current layer are silent no-ops. Only actual
+layer changes produce z-order transition diagnostics.
+
+### Notification Focus Restoration
+
+Showing a notification temporarily blurs the focused application and
+focuses the notification compositor. Hiding or destroying that notification
+must blur the notification compositor and focus the saved application again,
+not just restore `gFocusedCompositor`. `fireboltSurfaceDestroy` now restores
+both compositor focus flags, allowing the existing focus listeners to deliver
+SkyShell Active to the application without a Home-button retry.
+
+An explicit `setFocus` cancels the saved notification restore, including a
+request for the already-focused app. Hiding or destroying the old notification
+then preserves current focus without an artificial blur/active pair. A pending
+restore is applied only while its notification still owns focus and its saved
+target remains in the live compositor list. This prevents voice-button release
+from replaying stale app focus after EPG has selected another app.
+
+Notification input-focus changes use the original `setFocused(bool)` within a
+private controller-local `ApplicationFocusEventSuppression` scope. Its
+thread-local flag makes `onEvent` suppress only application focus/blur dispatch,
+including Firebolt focus/blur events, during that synchronous transfer. Nested
+scopes restore the previous flag; unrelated threads and other events are
+unaffected. No compositor API or exported state is added.
+An explicit focus request for the overlay owner commits a real app-focus event.
+
 
 ## 7. Diagrams & Visual Aids
 
