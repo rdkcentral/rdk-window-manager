@@ -64,6 +64,8 @@ Source: [extensions/firebolt_surface/src/firebolt_surface.cpp](../../extensions/
 4. The compositor updates `FireboltSurfaceInfo` and the next draw observes the change.
 5. `get_properties` reads the current state; `destroy` removes it.
 
+Notification visibility changes hand focus off only when the notification resolves to a different compositor instance; different client identifiers for the same compositor do not generate an app focus transition.
+
 The code distinguishes bounds, crop, natural render size, and logical display size. The product-level meaning of every coordinate space is not fully specified in the protocol documentation discovered here.
 
 ## 7. Diagrams & Visual Aids

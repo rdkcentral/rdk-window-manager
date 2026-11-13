@@ -2692,12 +2692,11 @@ namespace RdkWindowManager
             // to getFireboltSurface flow.
             if (gNotificationClient.empty() && fs.surfaceType == SurfaceType::Notification && visible)
             {
-                // save current focused compositor state
-                gPreviousFocusedCompositor = gFocusedCompositor;
-                gPreviousActiveClient = gFocusedCompositor.name;
-
-                if (client != gFocusedCompositor.name)
+                // Different client names can resolve to the same compositor; avoid a self blur/focus pair.
+                if (it->compositor != gFocusedCompositor.compositor)
                 {
+                    gPreviousFocusedCompositor = gFocusedCompositor;
+                    gPreviousActiveClient = gFocusedCompositor.name;
                     gNotificationClient = client;
                     gNotificationSurfaceId = surfaceId;
                     // Equivalent to AppManager onAppShownModalOverlay:
@@ -2733,16 +2732,24 @@ namespace RdkWindowManager
 
                 if (!gPreviousActiveClient.empty())
                 {
-					if (gFocusedCompositor.compositor)
+                    // Focus may already have returned to the saved compositor while the notification was visible.
+                    if (gFocusedCompositor.compositor != gPreviousFocusedCompositor.compositor)
                     {
-                        gFocusedCompositor.compositor->setFocused(false);
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
+                        gFocusedCompositor = gPreviousFocusedCompositor;
+                        if (gFocusedCompositor.compositor)
+                        {
+                            gFocusedCompositor.compositor->setFocused(true);
+                        }
                     }
-                    gFocusedCompositor = gPreviousFocusedCompositor;
-					if (gFocusedCompositor.compositor)
+                    else
                     {
-                        gFocusedCompositor.compositor->setFocused(true);
-                    }					
-                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s' via direct gFocusedCompositor assignment", gFocusedCompositor.name.c_str());
+                        gFocusedCompositor = gPreviousFocusedCompositor;
+                    }
+                    Logger::log(LogLevel::Information, "setFireboltSurfaceVisibility: restored previous focused client '%s'", gFocusedCompositor.name.c_str());
                 }
                 else
                 {
