@@ -100,13 +100,14 @@ restore is applied only while its notification still owns focus and its saved
 target remains in the live compositor list. This prevents voice-button release
 from replaying stale app focus after EPG has selected another app.
 
-Notification input-focus changes use the original `setFocused(bool)` within a
-private controller-local `ApplicationFocusEventSuppression` scope. Its
-thread-local flag makes `onEvent` suppress only application focus/blur dispatch,
-including Firebolt focus/blur events, during that synchronous transfer. Nested
-scopes restore the previous flag; unrelated threads and other events are
-unaffected. No compositor API or exported state is added.
-An explicit focus request for the overlay owner commits a real app-focus event.
+Notification input-focus changes call `setFocused(focused, false)`. The setter
+always updates input focus and Wayland state, but emits application and Firebolt
+focus/blur events only when `notifyApplication` is true (the default). Each
+compositor tracks application focus separately from temporary input focus, so
+an explicit focus request for the overlay owner emits one real app-focus event
+without an artificial Wayland inactive/active pair. Repeated committed focus
+requests remain silent. The controller has no suppression scope or promotion
+callback; unrelated compositors and other events remain unaffected.
 
 
 ## 7. Diagrams & Visual Aids

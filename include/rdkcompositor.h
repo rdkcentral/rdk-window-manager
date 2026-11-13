@@ -114,7 +114,7 @@ namespace RdkWindowManager
             bool getVirtualDisplayEnabled();
             void enableInputEvents(bool enable);
             bool getInputEventsEnabled() const;
-            void setFocused(bool focused);
+            void setFocused(bool focused, bool notifyApplication = true);
             bool convertToFireboltSurface(int surfaceId, SurfaceType surfaceType);
             bool setFireboltSurfaceZOrder(int surfaceId, int zOrder);
             bool setFireboltSurfaceOpacity(int surfaceId, double opacity);
@@ -194,6 +194,7 @@ namespace RdkWindowManager
             bool mInputEventsEnabled;
             bool mSuspendedBeforeStart;
             bool mFocused;
+            bool mApplicationFocused;
             std::recursive_mutex mFireboltSurfacesMutex;
             std::vector<FireboltSurfaceInfo> mFireboltSurfaces;
             bool mRendererEnabled;

@@ -55,7 +55,7 @@ namespace RdkWindowManager
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
         mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
-        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
+        mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mApplicationFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
         if (gForce720)
@@ -1283,12 +1283,11 @@ namespace RdkWindowManager
         }
     }
 
-    void RdkCompositor::setFocused(bool focused)
+    void RdkCompositor::setFocused(bool focused, bool notifyApplication)
     {
-        /* Send onFocus event if new is true and old was false,
-            send onBlur event if new is false and old was true */
-        if (focused != mFocused)
+        if (notifyApplication && focused != mApplicationFocused)
         {
+            mApplicationFocused = focused;
             if (focused)
             {
                 Logger::log(LogLevel::Information, "sending onFocus event");
