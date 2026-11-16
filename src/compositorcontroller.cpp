@@ -2836,6 +2836,8 @@ namespace RdkWindowManager
         if (getCompositorInfo(client, it))
         {
             bool result =it->compositor->enableDisplayRender(enable);
+            Logger::log(LogLevel::Information, "Display render %s for client %s",
+                enable ? "enabled" : "disabled", client.c_str());
             if (enable && it->isSuspended) //resuming from suspended
             {
                 //resetting Display size to original
