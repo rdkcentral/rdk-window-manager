@@ -991,6 +991,7 @@ namespace RdkWindowManager
 
     void RdkCompositor::setCrop(int32_t cropX, int32_t cropY, int32_t cropWidth, int32_t cropHeight)
     {
+        // Keep the display transform owned by setScale() and setPosition().
         mCropX = cropX;
         mCropY = cropY;
         mCropWidth = cropWidth;
@@ -999,6 +1000,7 @@ namespace RdkWindowManager
         if (cropWidth > 0 || cropHeight > 0)
         {
             Logger::log(LogLevel::Information,  "setCrop cropX:%d cropY:%d cropWidth:%d cropHeight:%d", cropX, cropY, cropWidth, cropHeight);
+#ifndef RDK_WINDOW_MANAGER_DISABLE_CROP_MATRIX_TRANSFORM
 	    // Scale: map [0, mWidth] vertex space to [0, cropWidth] screen pixels
 	    mMatrix[0] = (mWidth > 0) ? ((float)cropWidth / (float)mWidth) : 1.f;
             mMatrix[5] = (mHeight > 0) ? ((float)cropHeight / (float)mHeight) : 1.f;
@@ -1006,6 +1008,9 @@ namespace RdkWindowManager
 	    mMatrix[12] = (float)mPositionX + (float)cropX;
             mMatrix[13] = (float)mPositionY + (float)cropY;
             Logger::log(LogLevel::Information,  "setCrop matrix scale:(%f,%f) translate:(%f,%f)", mMatrix[0], mMatrix[5], mMatrix[12], mMatrix[13]);
+#else
+            Logger::log(LogLevel::Information, "setCrop matrix transform disabled");
+#endif
 
         }
         else
