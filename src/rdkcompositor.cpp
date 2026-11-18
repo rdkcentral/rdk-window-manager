@@ -20,7 +20,6 @@
 #include "rdkcompositor.h"
 #include "compositorcontroller.h"
 #include "rdkwindowmanagerjson.h"
-
 #include <iostream>
 #include <sstream>
 #include <string.h>
@@ -483,11 +482,14 @@ namespace RdkWindowManager
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+
         GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
         glViewport(0, 0, mVirtualWidth, mVirtualHeight);
 
-        int hints = WstHints_none;//WstHints_fboTarget;
+        int hints = WstHints_noRotation;
         #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible)
         {
@@ -506,6 +508,7 @@ namespace RdkWindowManager
         {
             if(fireboltSurfaces.empty())
             {
+/*
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
                     WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
@@ -513,9 +516,10 @@ namespace RdkWindowManager
                 }
                 else
                 {
+*/
                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
                     mMatrix, mOpacity, hints, &needsHolePunch, rects);
-                }
+//                }
             }
             else
             {
@@ -561,7 +565,7 @@ namespace RdkWindowManager
                             }
                             else
                             {
-                                if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                              /*  if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                                 {
                                     float lMatrix[16];
 
@@ -577,10 +581,11 @@ namespace RdkWindowManager
                                     lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                                 }
                                 else
-                                {
+                                { 
+					*/
                                     WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                    matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                                }
+                                    mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                               // }
                             }
                         }
                     }
@@ -605,6 +610,7 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
+				/*
                             if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                             {
                                 float lMatrix[16];
@@ -621,10 +627,10 @@ namespace RdkWindowManager
                                 lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
-                            {
+                            { */
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                            }
+                                mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                           // }
                         }
                     }
                 }
@@ -642,6 +648,28 @@ namespace RdkWindowManager
         uint32_t screenWidth, screenHeight;
         CompositorController::getScreenResolution(screenWidth, screenHeight);
 
+if (needsHolePunch)
+{
+    glEnable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	
+    int scissorY = 1080 - (rect.y + rect.height);
+    glScissor(rect.x, scissorY,
+              rect.width, rect.height);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+}
+/*
+else if (mDisplayName.find("asplayer") != -1)
+{
+    glEnable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glScissor(mPositionX, mPositionY, mLogicalWidth, mLogicalHeight);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+}
+*/
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
                                               mPositionX, mPositionY, mWidth, mHeight,
                                               mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
