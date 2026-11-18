@@ -749,7 +749,6 @@ namespace RdkWindowManager
 
     bool CompositorController::kill(const std::string& client)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         CompositorListIterator it;
         CompositorList* compositorInfoList;
         if (getCompositorInfo(client, it, &compositorInfoList))
@@ -853,7 +852,6 @@ namespace RdkWindowManager
 
     bool CompositorController::removeKeyIntercept(const std::string& client, const uint32_t& keyCode, const uint32_t& flags)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         if (keyCode == RDK_WINDOW_MANAGER_WILDCARD_KEY_CODE)
         {
             std::string clientDisplayName = standardizeName(client);
@@ -1006,7 +1004,6 @@ namespace RdkWindowManager
 
     bool CompositorController::removeKeyListener(const std::string& client, const uint32_t& keyCode, const uint32_t& flags)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         Logger::log(LogLevel::Information,  "key listener removed client: %s RDKWindowManager keyCode %d flags %d", client.c_str(), keyCode, flags);
 
         CompositorListIterator it;
@@ -1511,7 +1508,6 @@ namespace RdkWindowManager
 
     void CompositorController::onKeyPress(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         //Logger::log(LogLevel::Information,  "key press code " << keycode << " flags " << flags << std::endl;
         double currentTime = RdkWindowManager::seconds();
         if ((true == physicalKeyPress) && (0.0 == gLastKeyPressStartTime))
@@ -1547,7 +1543,6 @@ namespace RdkWindowManager
 
     void CompositorController::onKeyRelease(uint32_t keycode, uint32_t flags, uint64_t metadata, bool physicalKeyPress)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         //Logger::log(LogLevel::Information,  "key release code " << keycode << " flags " << flags << std::endl;
 
         if (true == physicalKeyPress)
@@ -1586,7 +1581,6 @@ namespace RdkWindowManager
 
     void CompositorController::onPointerMotion(uint32_t x, uint32_t y)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Debug, "%s, x: %d, y: %d", __func__, x, y);
 
         if (gCursor)
@@ -1602,7 +1596,6 @@ namespace RdkWindowManager
 
     void CompositorController::onPointerButtonPress(uint32_t keyCode, uint32_t x, uint32_t y)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "%s, keycode: %d, x: %d, y: %d", __func__, keyCode, x, y);
 
         if (gCursor)
@@ -1618,7 +1611,6 @@ namespace RdkWindowManager
 
     void CompositorController::onPointerButtonRelease(uint32_t keyCode, uint32_t x, uint32_t y)
     {
-        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         RdkWindowManager::Logger::log(RdkWindowManager::LogLevel::Information, "%s, keycode: %d, x: %d, y: %d", __func__, keyCode, x, y);
 
         if (gCursor)
@@ -1693,7 +1685,6 @@ namespace RdkWindowManager
 
         if (ret)
         {
-            std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
             bool bNotifyFocusEvent = false;
             CompositorInfo prevFocusedCompositor = gFocusedCompositor;
 
