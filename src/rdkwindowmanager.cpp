@@ -277,7 +277,10 @@ namespace RdkWindowManager
         glViewport( 0, 0, width, height );
         glClearColor(0.0f, 0.0f, 0.0f, gClearAlpha);
         glClear(GL_COLOR_BUFFER_BIT);
-
+        const bool blendEnabled = (glIsEnabled(GL_BLEND) == GL_TRUE);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        if (!blendEnabled)
+            glEnable(GL_BLEND);
         RdkWindowManager::CompositorController::draw();
     }
 
