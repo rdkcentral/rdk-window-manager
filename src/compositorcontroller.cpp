@@ -2804,12 +2804,7 @@ namespace RdkWindowManager
 
                     if (!gPreviousActiveClient.empty())
                     {
-                        std::string previousFocusedClient = !gFocusedCompositor.name.empty() ? gFocusedCompositor.name:"none";
-                        bool isSameClient = false;
-                        if (previousFocusedClient == client)
-                        {
-                            isSameClient = true;
-                        }
+                        const bool isSameClient = (gFocusedCompositor.compositor == gPreviousFocusedCompositor.compositor);
                         if (gFocusedCompositor.compositor && !isSameClient)
                         {
                             gFocusedCompositor.compositor->setFocused(false);
