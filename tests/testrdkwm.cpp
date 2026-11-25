@@ -60,6 +60,8 @@
 #undef Bool
 #endif /* RAPIDJSON_WRITER_H_ && Bool */
 
+#include "compositorcontroller.h"
+
 #define handle_error(msg)                       do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 #define RDKWM_TESTAPP_NAME                      "rdkwmtestapp"
@@ -145,6 +147,7 @@ static bool rdkWmGetProperties(RdkWmTestAppCtx *ctx, RdkWmTestMessage *msg, RdkW
 #endif /* RDK_WINDOW_MANAGER_BUILD_EXTENSIONS */
 
 RdkWmTestReturnStatus testWmThunderPluginGetApps(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
+RdkWmTestReturnStatus testWmAliasReassignment(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase);
 
 static RdkWmTestcase gRdkWmTests[] = {
 #ifdef RDK_WINDOW_MANAGER_BUILD_EXTENSIONS
@@ -348,6 +351,11 @@ static RdkWmTestcase gRdkWmTests[] = {
              "Test Thunder Plugin getApps - gets the list of Apps and checks the expected clients match",
              testWmThunderPluginGetApps,
              {.inputParamType =RDKWM_TEST_INPUT_PARAM_TYPE_NOT_NEEDED}
+           },
+           { "testWmAliasReassignment",
+             "Test alias reassignment between retained displays and removal of the old display",
+             testWmAliasReassignment,
+             {.inputParamType = RDKWM_TEST_INPUT_PARAM_TYPE_NOT_NEEDED}
            },
            {
              "", "", (RdkWmTestcaseFunc)NULL
@@ -3627,6 +3635,84 @@ RdkWmTestReturnStatus testWmThunderPluginGetApps(RdkWmTestAppCtx *ctx,RdkWmTestc
 
 test_fail:
     return ret;
+}
+
+RdkWmTestReturnStatus testWmAliasReassignment(RdkWmTestAppCtx *ctx, RdkWmTestcase *testCase)
+{
+    using RdkWindowManager::CompositorController;
+    if (ctx == nullptr || testCase == nullptr)
+    {
+        RDKWM_TEST_ERROR(("Invalid context for alias reassignment test"));
+        return RDKWM_TEST_RESULT_FAIL;
+    }
+
+    ctx->logMessage[0] = '\0';
+    const std::string prefix = "rdkwm-alias-" + std::to_string(getpid());
+    // The old display must sort first to expose the previous map lookup behavior.
+    const std::string oldDisplay = prefix + "-a";
+    const std::string newDisplay = prefix + "-b";
+    const std::string alias = prefix + "-app";
+    bool oldCreated = false;
+    bool newCreated = false;
+    bool passed = false;
+    const auto check = [ctx](bool condition, const char* message)
+    {
+        if (!condition)
+        {
+            RDKWM_TEST_ERROR(("Alias reassignment: %s", message));
+            snprintf(ctx->logMessage, RDKWM_TEST_LOG_MESSAGE_MAXSIZE,
+                     "Alias reassignment: %s", message);
+        }
+        return condition;
+    };
+
+    do
+    {
+        oldCreated = CompositorController::createDisplay(oldDisplay, oldDisplay, 1280, 720,
+            false, 0, 0, false, false, getuid(), getgid());
+        if (!check(oldCreated, "could not create old display"))
+            break;
+        newCreated = CompositorController::createDisplay(newDisplay, newDisplay, 1280, 720,
+            false, 0, 0, false, false, getuid(), getgid());
+        if (!check(newCreated, "could not create new display"))
+            break;
+        if (!check(CompositorController::setAlias(oldDisplay, alias), "initial assignment failed") ||
+            !check(CompositorController::getDisplayNameFromAlias(alias) == oldDisplay,
+                   "initial alias does not resolve to old display") ||
+            !check(CompositorController::setAlias(newDisplay, alias), "reassignment failed") ||
+            !check(CompositorController::getDisplayNameFromAlias(alias) == newDisplay,
+                   "alias does not resolve to new display") ||
+            !check(CompositorController::getAliasFromDisplayName(oldDisplay).empty(),
+                   "old display still owns alias") ||
+            !check(CompositorController::getAliasFromDisplayName(newDisplay) == alias,
+                   "new display does not own alias"))
+            break;
+
+        if (!check(!CompositorController::setAlias(prefix + "-missing", alias),
+                   "assignment to missing display succeeded") ||
+            !check(CompositorController::getDisplayNameFromAlias(alias) == newDisplay,
+                   "rejected assignment changed alias ownership"))
+            break;
+
+        if (!check(CompositorController::kill(oldDisplay), "could not remove old display"))
+            break;
+        oldCreated = false;
+        passed = check(CompositorController::getDisplayNameFromAlias(alias) == newDisplay,
+                       "removing old display removed new mapping") &&
+                 check(CompositorController::getAliasFromDisplayName(newDisplay) == alias,
+                       "removing old display cleared new display alias");
+    } while (false);
+
+    if (oldCreated && !check(CompositorController::kill(oldDisplay), "old display cleanup failed"))
+        passed = false;
+    if (newCreated)
+    {
+        if (!check(CompositorController::kill(newDisplay), "new display cleanup failed") ||
+            !check(CompositorController::getDisplayNameFromAlias(alias).empty(),
+                   "alias remained after removing its owner"))
+            passed = false;
+    }
+    return passed ? RDKWM_TEST_RESULT_PASS : RDKWM_TEST_RESULT_FAIL;
 }
 
 static bool rdkWmTestReport(RdkWmTestAppCtx *ctx, RdkWmTestReportFileType fileType)
