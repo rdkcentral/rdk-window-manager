@@ -24,6 +24,24 @@ compiler, CMake, GTest and GMock), run from the L1 build directory:
 ./firebolt_surface_tests/FireboltSurfaceL1Test --gtest_filter='FireboltAllocationTest.*'
 ```
 
+## Alias reassignment regression
+
+On an RDK target with the normal `rdkwmtest` runtime prerequisites, run:
+
+```sh
+./rdkwmtest --test testWmAliasReassignment
+```
+
+This case uses the real linked window-manager controller, not the L1 controller
+mock or Thunder RPC. It creates two process-specific embedded displays and keeps
+both alive while reassigning one alias. It checks lookup selects the new display,
+the old display loses its alias, a nonexistent display cannot steal the alias,
+and removing the old display preserves the new mapping. Removing the final owner
+must clear the mapping. The old display sorts first, so the lookup assertion fails
+without the relaunch fix. Both displays are removed on success or assertion failure.
+No client disconnect is needed, so the test does not depend on the
+display-kill-on-disconnect build option.
+
 Basic Usage(wherein rdkwmtest is the executable file to be run)
 ----------------------------------------------------------------
 ./rdkwmtest [options] [arguments]
