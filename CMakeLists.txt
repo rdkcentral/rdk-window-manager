@@ -254,6 +254,6 @@ if (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
     message("Building rdkwmtest executable")
     add_executable(rdkwmtest tests/testrdkwm.cpp ${RDK_WINDOW_MANAGER_LOGGER_SOURCE})
     
-    target_link_libraries(rdkwmtest ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES} 
+    target_link_libraries(rdkwmtest rdkwindowmanager_shared ${RDK_WINDOW_MANAGER_TESTAPP_LINK_LIBRARIES}
     ${RDK_WINDOW_MANAGER_LINK_LIBRARIES} -lcurl)
 endif (RDK_WINDOW_MANAGER_BUILD_TEST_APP)
