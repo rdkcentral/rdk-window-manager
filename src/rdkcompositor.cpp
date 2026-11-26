@@ -53,7 +53,7 @@ namespace RdkWindowManager
         mStateChangeListenerTags(RDK_WINDOW_MANAGER_INITIAL_STATE_CHANGE_LISTENER_TAG), mStateChangeLock(), mStateChangeListeners(),
         mApplicationName(), mApplicationThread(), mApplicationState(RdkWindowManager::ApplicationState::Unknown),
         mApplicationPid(-1), mApplicationThreadStarted(false), mApplicationClosedByCompositor(false), mApplicationMutex(), mReceivedKeyPress(false),
-        mVirtualDisplayEnabled(false), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
+        mVirtualDisplayEnabled(true), mVirtualWidth(1920), mVirtualHeight(1080), mSizeChangeRequestPresent(false),
         mInputEventsEnabled(true), mSuspendedBeforeStart(false), mFocused(false), mFireboltSurfaces(), mCropX(0), mCropY(0), mCropWidth(0), mCropHeight(0), mOwnerId(-1),
         mRendererEnabled(true), mFirstFrameRendered(false), mApplicationConnectionCount(0)
     {
@@ -490,6 +490,7 @@ namespace RdkWindowManager
         glViewport(0, 0, mVirtualWidth, mVirtualHeight);
 
         int hints = WstHints_noRotation;
+//        hints |= WstHints_applyTransform;
         #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible)
         {
@@ -508,7 +509,6 @@ namespace RdkWindowManager
         {
             if(fireboltSurfaces.empty())
             {
-/*
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
                     WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
@@ -516,10 +516,9 @@ namespace RdkWindowManager
                 }
                 else
                 {
-*/
                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
                     mMatrix, mOpacity, hints, &needsHolePunch, rects);
-//                }
+                }
             }
             else
             {
@@ -565,13 +564,12 @@ namespace RdkWindowManager
                             }
                             else
                             {
-                              /*  if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                                if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                                 {
                                     float lMatrix[16];
 
                                     memcpy(lMatrix, matrix, sizeof(matrix));
 
-                                    /* copy of default matrix*/
                                     lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                     lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                     lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
@@ -582,10 +580,9 @@ namespace RdkWindowManager
                                 }
                                 else
                                 { 
-					*/
                                     WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                     mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                               // }
+                                }
                             }
                         }
                     }
@@ -610,14 +607,12 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-				/*
                             if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                             {
                                 float lMatrix[16];
 
                                 memcpy(lMatrix, matrix, sizeof(matrix));
 
-                                /* copy of default matrix*/
                                 lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                 lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                 lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
@@ -627,10 +622,10 @@ namespace RdkWindowManager
                                 lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
-                            { */
+                            { 
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
                                 mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                           // }
+                            }
                         }
                     }
                 }
@@ -945,6 +940,8 @@ else if (mDisplayName.find("asplayer") != -1)
         }
         mWidth = width;
         mHeight = height;
+        mVirtualWidth = width;
+	mVirtualHeight = height;
     }
 
     void RdkCompositor::size(uint32_t &width, uint32_t &height)
@@ -1265,7 +1262,7 @@ else if (mDisplayName.find("asplayer") != -1)
 
     void RdkCompositor::enableVirtualDisplay(bool enable)
     {
-        mVirtualDisplayEnabled = enable;   
+        mVirtualDisplayEnabled = true; 
     }
 
     bool RdkCompositor::getVirtualDisplayEnabled()

@@ -78,10 +78,9 @@ namespace RdkWindowManager
             {0.f, 0.f},
             {1.f, 0.f}
         };
-/*
+
         if ((0 < cropWidth) || (0 < cropHeight))
         {
-            /* Convert crop coordinates to UV [0,1] range relative to bounds size */
             float scaleX = CONVERT_GL_FLOAT_SCALE(boundsWidth, cropX, 0.f);
             float scaleY = CONVERT_GL_FLOAT_SCALE(boundsHeight, cropY, 0.f);
             float scaleWidth = CONVERT_GL_FLOAT_SCALE(boundsWidth, (cropX + cropWidth), 1.f);
@@ -96,7 +95,7 @@ namespace RdkWindowManager
             uvCoordinates[3][0]= scaleWidth;
             uvCoordinates[3][1]= scaleheight;
         }
-*/
+
         glVertexAttribPointer(mPositionLocation, 2, GL_FLOAT, GL_FALSE, 0, vertices);
         glVertexAttribPointer(mUvLocation, 2, GL_FLOAT, GL_FALSE, 0, uvCoordinates);
         glEnableVertexAttribArray(mPositionLocation);
