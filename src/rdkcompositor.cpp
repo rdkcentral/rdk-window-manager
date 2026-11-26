@@ -580,7 +580,7 @@ namespace RdkWindowManager
                                 else
                                 {
                                     WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
-                                    mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                    matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                                 }
                             }
                         }
@@ -623,7 +623,7 @@ namespace RdkWindowManager
                             else
                             {
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
-                                mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
+                                matrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                         }
                     }
