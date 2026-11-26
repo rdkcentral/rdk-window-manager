@@ -650,7 +650,7 @@ namespace RdkWindowManager
             glEnable(GL_SCISSOR_TEST);
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         	
-            int scissorY = 1080 - (rect.y + rect.height);
+            int scissorY = static_cast<int>(screenHeight) - static_cast<int>(rect.y) - static_cast<int>(rect.height);
             glScissor(rect.x, scissorY,
                       rect.width, rect.height);
         
