@@ -20,6 +20,7 @@
 #include "rdkcompositor.h"
 #include "compositorcontroller.h"
 #include "rdkwindowmanagerjson.h"
+
 #include <iostream>
 #include <sstream>
 #include <string.h>
@@ -569,6 +570,7 @@ namespace RdkWindowManager
 
                                     memcpy(lMatrix, matrix, sizeof(matrix));
 
+                                    /* copy of default matrix*/
                                     lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                     lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                     lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
@@ -612,6 +614,7 @@ namespace RdkWindowManager
 
                                 memcpy(lMatrix, matrix, sizeof(matrix));
 
+                                /* copy of default matrix*/
                                 lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                 lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                 lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);

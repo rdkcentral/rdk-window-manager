@@ -81,6 +81,7 @@ namespace RdkWindowManager
 
         if ((0 < cropWidth) || (0 < cropHeight))
         {
+            /* Convert crop coordinates to UV [0,1] range relative to bounds size */
             float scaleX = CONVERT_GL_FLOAT_SCALE(boundsWidth, cropX, 0.f);
             float scaleY = CONVERT_GL_FLOAT_SCALE(boundsHeight, cropY, 0.f);
             float scaleWidth = CONVERT_GL_FLOAT_SCALE(boundsWidth, (cropX + cropWidth), 1.f);
