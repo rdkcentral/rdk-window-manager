@@ -508,7 +508,6 @@ namespace RdkWindowManager
         {
             if(fireboltSurfaces.empty())
             {
-/*
                 if (mCropWidth > 0 || mCropHeight > 0)
                 {
                     WstCompositorComposeEmbedded(mWstContext, mCropX, mCropY, mCropWidth, mCropHeight,
@@ -516,10 +515,9 @@ namespace RdkWindowManager
                 }
                 else
                 {
-*/
                     WstCompositorComposeEmbedded(mWstContext, 0, 0, mVirtualWidth, mVirtualHeight,
                     mMatrix, mOpacity, hints, &needsHolePunch, rects);
-//                }
+                }
             }
             else
             {
@@ -565,13 +563,12 @@ namespace RdkWindowManager
                             }
                             else
                             {
-                              /*  if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
+                                if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                                 {
                                     float lMatrix[16];
 
                                     memcpy(lMatrix, matrix, sizeof(matrix));
 
-                                    /* copy of default matrix*/
                                     lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                     lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                     lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
@@ -581,11 +578,10 @@ namespace RdkWindowManager
                                     lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                                 }
                                 else
-                                { 
-					*/
+                                {
                                     WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, fireboltSurface->x, fireboltSurface->y, fireboltSurface->width, fireboltSurface->height,
                                     mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                               // }
+                                }
                             }
                         }
                     }
@@ -610,14 +606,12 @@ namespace RdkWindowManager
                     {
                         if(fireboltSurface->westerosCompositor != NULL)
                         {
-				/*
                             if (fireboltSurface->swidth > 0 || fireboltSurface->sheight > 0)
                             {
                                 float lMatrix[16];
 
                                 memcpy(lMatrix, matrix, sizeof(matrix));
 
-                                /* copy of default matrix*/
                                 lMatrix[0] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->width, fireboltSurface->swidth, 1.f);
                                 lMatrix[5] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->height, fireboltSurface->sheight, 1.f);
                                 lMatrix[12] = CONVERT_GL_FLOAT_SCALE(fireboltSurface->x, fireboltSurface->sx, 0.f);
@@ -627,10 +621,10 @@ namespace RdkWindowManager
                                 lMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
                             }
                             else
-                            { */
+                            {
                                 WstCompositorComposeEmbedded(fireboltSurface->westerosCompositor, 0, 0, fireboltSurface->width, fireboltSurface->height,
                                 mMatrix, fireboltSurface->opacity, ((fireboltSurface->opacity != 1.f) ? (hints|WstHints_applyTransform) : hints), &needsHolePunch, rects);
-                           // }
+                            }
                         }
                     }
                 }
@@ -648,28 +642,19 @@ namespace RdkWindowManager
         uint32_t screenWidth, screenHeight;
         CompositorController::getScreenResolution(screenWidth, screenHeight);
 
-if (needsHolePunch)
-{
-    glEnable(GL_SCISSOR_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	
-    int scissorY = 1080 - (rect.y + rect.height);
-    glScissor(rect.x, scissorY,
-              rect.width, rect.height);
+        if (needsHolePunch)
+        {
+            glEnable(GL_SCISSOR_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        	
+            int scissorY = 1080 - (rect.y + rect.height);
+            glScissor(rect.x, scissorY,
+                      rect.width, rect.height);
+        
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_SCISSOR_TEST);
+        }
 
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-}
-/*
-else if (mDisplayName.find("asplayer") != -1)
-{
-    glEnable(GL_SCISSOR_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glScissor(mPositionX, mPositionY, mLogicalWidth, mLogicalHeight);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-}
-*/
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
                                               mPositionX, mPositionY, mWidth, mHeight,
                                               mCropX, mCropY, mCropWidth, mCropHeight, mOpacity);
@@ -945,6 +930,8 @@ else if (mDisplayName.find("asplayer") != -1)
         }
         mWidth = width;
         mHeight = height;
+        mVirtualWidth = width;
+        mVirtualHeight = height;
     }
 
     void RdkCompositor::size(uint32_t &width, uint32_t &height)
@@ -1265,7 +1252,7 @@ else if (mDisplayName.find("asplayer") != -1)
 
     void RdkCompositor::enableVirtualDisplay(bool enable)
     {
-        mVirtualDisplayEnabled = enable;   
+        mVirtualDisplayEnabled = enable;
     }
 
     bool RdkCompositor::getVirtualDisplayEnabled()
