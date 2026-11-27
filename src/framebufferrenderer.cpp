@@ -50,7 +50,11 @@ namespace RdkWindowManager
         //     fbo, screenWidth, screenHeight, boundsX, boundsY, boundsWidth, boundsHeight, fbo->width(), fbo->height());
 
         glUseProgram(mShaderProgram);
-        glEnable(GL_BLEND); //Enable Alpha Blending
+        const bool blendEnabled = (glIsEnabled(GL_BLEND) == GL_TRUE);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        if (!blendEnabled)
+            glEnable(GL_BLEND);
+
         glUniform1f(mAlphaLocation, alpha); // Set the alpha value
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo->texture());
@@ -101,6 +105,10 @@ namespace RdkWindowManager
         glDisableVertexAttribArray(mPositionLocation);
         glDisableVertexAttribArray(mUvLocation);
         glUseProgram(0);
+        if (!blendEnabled)
+        {
+            glDisable(GL_BLEND);
+        }
     }
 
     void FrameBufferRenderer::createShaderProgram()

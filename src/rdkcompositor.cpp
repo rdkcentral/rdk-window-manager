@@ -483,11 +483,14 @@ namespace RdkWindowManager
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+
         GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
         glViewport(0, 0, mVirtualWidth, mVirtualHeight);
 
-        int hints = WstHints_none;//WstHints_fboTarget;
+        int hints = WstHints_noRotation;
         #ifdef RDK_WINDOW_MANAGER_ENABLE_HIDDEN_SUPPORT
         if (!mVisible)
         {
@@ -641,6 +644,19 @@ namespace RdkWindowManager
 
         uint32_t screenWidth, screenHeight;
         CompositorController::getScreenResolution(screenWidth, screenHeight);
+
+        if (needsHolePunch)
+        {
+            glEnable(GL_SCISSOR_TEST);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        	
+            int scissorY = static_cast<int>(screenHeight) - static_cast<int>(rect.y) - static_cast<int>(rect.height);
+            glScissor(rect.x, scissorY,
+                      rect.width, rect.height);
+        
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_SCISSOR_TEST);
+        }
 
         FrameBufferRenderer::instance()->draw(mFbo, screenWidth, screenHeight, mMatrix,
                                               mPositionX, mPositionY, mWidth, mHeight,
@@ -917,6 +933,8 @@ namespace RdkWindowManager
         }
         mWidth = width;
         mHeight = height;
+        mVirtualWidth = width;
+        mVirtualHeight = height;
     }
 
     void RdkCompositor::size(uint32_t &width, uint32_t &height)
@@ -1237,7 +1255,7 @@ namespace RdkWindowManager
 
     void RdkCompositor::enableVirtualDisplay(bool enable)
     {
-        mVirtualDisplayEnabled = enable;   
+        mVirtualDisplayEnabled = enable;
     }
 
     bool RdkCompositor::getVirtualDisplayEnabled()
