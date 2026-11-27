@@ -130,6 +130,17 @@ namespace RdkWindowManager
     std::map<std::string, std::string> gClientAliasMap;
     std::mutex gClientAliasMapMutex;
 
+    // Guards shared focus/notification tracking state (gFocusedCompositor,
+    // gPendingKeyUpListeners, gNotificationClient, gNotificationSurfaceId,
+    // gPreviousActiveClient, gPreviousFocusedCompositor) accessed from
+    // setFocus, setFireboltSurfaceVisibility, fireboltSurfaceDestroy, kill,
+    // createDisplay, getFocused, the key/pointer event handlers, and the
+    // key-intercept/listener removal paths, which can be invoked concurrently
+    // from different client threads. Recursive so that internal helpers
+    // (e.g. bubbleKey/interceptKey called from onKeyPress/onKeyRelease) can
+    // safely be locked directly without worrying about re-entrancy.
+    std::recursive_mutex gFireboltSurfaceMutex;
+
     static std::map<uint32_t, std::vector<KeyInterceptInfo>> gKeyInterceptInfoMap;
     std::map<std::string, bool> gKeyInterceptedMap;
 
@@ -681,6 +692,7 @@ namespace RdkWindowManager
 
     bool CompositorController::getFocused(std::string& client)
     {
+        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         client = "";
         if (gFocusedCompositor.compositor)
         {
@@ -691,6 +703,7 @@ namespace RdkWindowManager
 
     bool CompositorController::setFocus(const std::string& client)
     {
+        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
@@ -2672,6 +2685,7 @@ namespace RdkWindowManager
 
     bool CompositorController::setFireboltSurfaceVisibility(const std::string& client, int surfaceId, bool visible)
     {
+        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
@@ -2769,6 +2783,7 @@ namespace RdkWindowManager
 
     bool CompositorController::fireboltSurfaceDestroy(const std::string& client, int surfaceId)
     {
+        std::lock_guard<std::recursive_mutex> lock(gFireboltSurfaceMutex);
         CompositorListIterator it;
         if (getCompositorInfo(client, it))
         {
@@ -2789,7 +2804,16 @@ namespace RdkWindowManager
 
                     if (!gPreviousActiveClient.empty())
                     {
+                        const bool isSameClient = (gFocusedCompositor.compositor == gPreviousFocusedCompositor.compositor);
+                        if (gFocusedCompositor.compositor && !isSameClient)
+                        {
+                            gFocusedCompositor.compositor->setFocused(false);
+                        }
                         gFocusedCompositor = gPreviousFocusedCompositor;
+                        if (gFocusedCompositor.compositor && !isSameClient)
+                        {
+                            gFocusedCompositor.compositor->setFocused(true);
+                        }
                         Logger::log(LogLevel::Information,
                                     "fireboltSurfaceDestroy: restored previous focused client '%s' via direct gFocusedCompositor assignment",
                                     gFocusedCompositor.name.c_str());
